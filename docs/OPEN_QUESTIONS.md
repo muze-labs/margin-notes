@@ -55,3 +55,11 @@ These questions should be answered through small experiments or working slices, 
 - Which component boundary is most useful to modify: editor, renderer, target resolver, storage policy, or publication action?
 - How can a broken overlay be disabled before it prevents the recovery UI from loading?
 - How should remote mods declare compatibility with component versions?
+
+
+## Demand-driven SimplySolid workflow
+
+- Which first Solid-backed slice will produce enough evidence to choose between direct jsfs-solid use and a SimplySolid workspace?
+- Which designed workspace capability turns out to be unnecessary for the margin-notes application?
+- What is the smallest real-server setup that can validate resource provenance, save routing, and partial failure without becoming project infrastructure of its own?
+- How should exact `solid-tools` commits or local package versions be recorded before public releases exist?

@@ -11,8 +11,26 @@ The project should grow through complete vertical slices. Each milestone must le
 - [x] Draft product design and architecture
 - [x] Draft linked-data model
 - [x] Add AI-assisted workflow rules
+- [x] Add demand-driven SimplySolid workflow and stopping rules
+- [x] Add design-pressure, proposal, and feature-state records
+- [x] Define the first active implementation slice
 - [ ] Select licence
 - [ ] Confirm package name and repository location
+
+
+## Gate for every milestone
+
+Before starting a milestone, break it into one small active slice in `CURRENT_SLICE.md`. Complete and validate that slice before replacing it with the next one.
+
+A milestone mentioning SimplySolid describes expected application pressure, not pre-approved library scope. For every shared-library change:
+
+1. observe the pressure in the active slice;
+2. record it in `DESIGN_PRESSURES.md`;
+3. decide the owning layer;
+4. write a proposal with explicit non-goals;
+5. implement contract tests in the owning library;
+6. validate the result in this application;
+7. update `SIMPLYSOLID_FEATURES.md`.
 
 ## Milestone 1 — Local note from end to end
 
@@ -133,4 +151,5 @@ The application is ready to drive the book when it has:
 - permissions and failure states;
 - an unrelated integration example;
 - at least one interoperable second consumer or fixture;
-- a complete record of significant design changes.
+- a complete record of significant design changes;
+- evidence linking every implemented SimplySolid capability to an application pressure and validation path.

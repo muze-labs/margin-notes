@@ -76,7 +76,7 @@ Expected role:
 - save results per resource;
 - optional notifications without automatic merge.
 
-This application is expected to be a major integration test for the workspace design.
+This application is expected to be a major integration test for the workspace design. These are design expectations, not an implementation queue. A capability moves into implementation only after an active slice records a concrete pressure and proposal. Track progress in `SIMPLYSOLID_FEATURES.md`.
 
 ## Assert
 

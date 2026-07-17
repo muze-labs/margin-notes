@@ -4,7 +4,7 @@ The application is the source of truth for the future book's practical claims.
 
 ## During implementation
 
-For every significant discovery, add a short entry to `BOOK_NOTES.md` containing:
+For every significant discovery, add a short entry to `BOOK_NOTES.md`. When it also pressures a stack boundary, first give it an ID in `DESIGN_PRESSURES.md`. Record:
 
 - milestone and date;
 - problem encountered;
@@ -59,3 +59,8 @@ A code example intended for the book should:
 ## Avoiding retrospective neatness
 
 The book may simplify a detour, but it should not erase the reason a boundary exists. Keep enough of the failed approach to show why the final design was earned.
+
+
+## SimplySolid evidence
+
+For every SimplySolid capability that appears in the book, preserve the chain from application need to validated behaviour. The book may simplify APIs, but it should not present a merely designed or unit-tested capability as established practice.

@@ -2,6 +2,19 @@
 
 The reference application must prove architectural claims, not only UI behaviour.
 
+
+## Evidence levels for shared-library capabilities
+
+A SimplySolid change needs three different kinds of evidence where applicable:
+
+1. **Library contract test** — proves the package behaviour independently.
+2. **Application integration test** — proves the margin-notes slice actually needs and uses it.
+3. **Real-server scenario** — proves HTTP, serialization, persistence, permissions, or concurrency semantics that mocks cannot establish.
+
+Passing the first level makes a capability **Implemented**. Passing an end-to-end application path makes it **Validated**. A real-server scenario is required before validation when the claim depends on server behaviour.
+
+Tests should be written narrowly enough that a smaller API can pass. Do not encode speculative future flexibility in test fixtures.
+
 ## Unit tests
 
 - selector creation and resolution;

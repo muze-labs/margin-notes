@@ -32,6 +32,8 @@ The first implementation milestone is deliberately local: identify a page fragme
 8. Treat errors, permissions, partial data, and network failure as ordinary states.
 9. Clearly distinguish Solid standards, established conventions, Muze conventions, and experiments.
 10. Record unexpected design discoveries while they are still fresh.
+11. Treat the application as evidence for SimplySolid, not as a reason to implement its roadmap in advance.
+12. Distinguish designed, required, implemented, and application-validated capabilities.
 
 ## Repository map
 
@@ -40,6 +42,12 @@ The first implementation milestone is deliberately local: identify a page fragme
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — proposed system boundaries
 - [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — initial linked-data model
 - [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) — vertical milestones
+- [`docs/CURRENT_SLICE.md`](docs/CURRENT_SLICE.md) — the one active end-to-end slice
+- [`docs/DEMAND_DRIVEN_SIMPLYSOLID.md`](docs/DEMAND_DRIVEN_SIMPLYSOLID.md) — how application needs may change SimplySolid
+- [`docs/DESIGN_PRESSURES.md`](docs/DESIGN_PRESSURES.md) — observed pressure on application and library boundaries
+- [`docs/SIMPLYSOLID_FEATURES.md`](docs/SIMPLYSOLID_FEATURES.md) — designed, required, implemented, and validated states
+- [`docs/proposals/`](docs/proposals/) — evidence-based shared-library proposals
+- [`docs/WORKING_WITH_SOLID_TOOLS.md`](docs/WORKING_WITH_SOLID_TOOLS.md) — cross-repository workflow
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — accepted and proposed design decisions
 - [`docs/OPEN_QUESTIONS.md`](docs/OPEN_QUESTIONS.md) — unresolved questions worth testing
 - [`docs/STACK_ASSUMPTIONS.md`](docs/STACK_ASSUMPTIONS.md) — expected roles of Muze libraries
@@ -50,7 +58,7 @@ The first implementation milestone is deliberately local: identify a page fragme
 
 ## Immediate next step
 
-Implement milestone 1 from the implementation plan without Solid integration. The result should be a small end-to-end slice, not a collection of unfinished infrastructure packages.
+Implement the slice in [`docs/CURRENT_SLICE.md`](docs/CURRENT_SLICE.md) without Solid integration. The result should be a small end-to-end path, not a collection of unfinished infrastructure packages. Do not implement SimplySolid until an active slice produces evidence for a missing capability.
 
 ## Licence
 

@@ -28,6 +28,10 @@ Statuses:
 | D015 | Proposed | Use a source-aware SimplySolid workspace as the central Solid data boundary. | It matches the need to combine multiple resources while preserving provenance and save targets. |
 | D016 | Deferred | Define launcher, intent, and common-bus conventions. | These should be driven by a working interoperability need, not added to complete a conceptual stack. |
 | D017 | Deferred | Choose a public software licence. | The project owner should make this explicit before outside reuse or contributions. |
+| D018 | Accepted | Use the margin-notes application as a demand-driven test of SimplySolid. | Shared-library work should follow concrete application pressure rather than the SimplySolid design roadmap. |
+| D019 | Accepted | Track SimplySolid capabilities as designed, required, implemented, or validated. | A design idea, tested library API, and successful application path are different kinds of evidence. |
+| D020 | Accepted | Require a design-pressure entry and small proposal before adding a shared-library capability. | The record prevents AI-assisted work from turning speculative gaps into broad abstractions. |
+| D021 | Accepted | Keep SimplySolid implementation in `solid-tools`, with separate library and application commits. | The reference application must validate the package boundary rather than hide framework code locally. |
 
 ## Decision template
 

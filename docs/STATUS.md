@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Milestone 0: repository and design.
+Milestone 0 is complete enough to begin implementation. The active work item is slice M1.1 in `CURRENT_SLICE.md`.
 
 ## Completed
 
@@ -13,11 +13,15 @@ Milestone 0: repository and design.
 - vertical implementation plan;
 - decision and open-question logs;
 - AI-assisted workflow guidance;
+- demand-driven SimplySolid workflow and stopping rules;
+- design-pressure and shared-library proposal records;
+- SimplySolid feature-state matrix;
+- one explicit active implementation slice;
 - privacy and test requirements.
 
 ## Next implementation target
 
-A browser-only end-to-end note:
+Slice M1.1: a browser-only end-to-end note:
 
 1. mount component;
 2. identify a paragraph;
@@ -36,3 +40,8 @@ A browser-only end-to-end note:
 - Cobalt body representation;
 - host integration API;
 - test runner and browser tooling.
+
+
+## SimplySolid status
+
+No SimplySolid capability is required by implemented application code yet. Features listed in `SIMPLYSOLID_FEATURES.md` remain **Designed** until an active slice produces evidence for them.
