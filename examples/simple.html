@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Margin Notes - Simple Example</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 20px;
+    }
+    
+    .content {
+      line-height: 1.6;
+    }
+    
+    p {
+      margin: 1.5em 0;
+    }
+    
+    p[data-anchor] {
+      background: #f5f5f5;
+      padding: 0.5em;
+      border-left: 3px solid #ddd;
+    }
+    
+    .margin-notes-list {
+      background: #fafafa;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 20px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .margin-notes-anchor {
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .margin-notes-anchor:last-child {
+      border-bottom: none;
+    }
+    
+    .margin-notes-anchor h3 {
+      margin: 0 0 10px 0;
+      font-size: 0.9em;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .margin-notes-empty {
+      color: #999;
+      font-style: italic;
+      margin: 10px 0;
+    }
+    
+    .margin-notes-item {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 3px;
+      padding: 10px;
+      margin-bottom: 10px;
+      list-style: none;
+    }
+    
+    .margin-notes-item p {
+      margin: 0 0 5px 0;
+      font-size: 0.95em;
+    }
+    
+    .margin-notes-item small {
+      display: block;
+      color: #999;
+      font-size: 0.85em;
+      margin-bottom: 8px;
+    }
+    
+    .margin-notes-item button {
+      padding: 4px 8px;
+      font-size: 0.85em;
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    
+    .margin-notes-item button:hover {
+      background: #e0e0e0;
+    }
+    
+    .margin-notes-anchor button {
+      display: block;
+      width: 100%;
+      padding: 8px;
+      margin-top: 10px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    
+    .margin-notes-anchor button:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <main class="content">
+    <h1 id="h-example-margin-notes-example">Margin Notes Example</h1>
+    <p id="p-example-this-is-a-simple-example" data-note-target>This is a simple example of the margin-notes component. Try adding notes to the marked paragraphs.</p>
+    
+    <p id="p-example-dependencies-are-not-a-problem" data-note-target>
+      <strong>Paragraph 1:</strong> Dependencies are not a problem in themselves. They become a problem when they are invisible, when they are not managed, and when you cannot see or control what depends on what.
+    </p>
+    
+    <p id="p-example-a-well-designed-system" data-note-target>
+      <strong>Paragraph 2:</strong> A well-designed system makes its boundaries explicit. The interfaces between components are declared, the data flowing across them is typed, and the contract is enforceable.
+    </p>
+    
+    <p id="p-example-linked-data-preserves-facts" data-note-target>
+      <strong>Paragraph 3:</strong> Linked data preserves facts that the application does not understand. This matters because tomorrow's application might understand them, and the user's data should survive the transition.
+    </p>
+    
+    <p id="p-example-reload-the-page" data-note-target>Reload the page to see that your notes persist in browser storage.</p>
+  </main>
+  
+  <aside id="margin-notes-container">
+    <!-- Component UI will be mounted here -->
+  </aside>
+
+  <!-- 
+    Load the built margin-notes bundle.
+    
+    The component is built from src/**/*.js using esbuild.
+    Build with: npm run build
+    
+    Anchor ID Pattern (adopted from programming-for-wizards):
+      {type}-{namespace}-{text-slug}
+    
+    Examples:
+      p-example-dependencies-are-not-a-problem  (paragraph)
+      h-example-margin-notes-example            (heading)
+      aside-example-sidebar-note                (blockquote/aside)
+    
+    This pattern is stable, human-readable, and includes a text hint.
+  -->
+  <script type="module">
+    // Import the component from the built bundle
+    // In production, this would be a minified external script
+    import { MarginNotesAPI } from '../dist/index.js';
+    
+    async function initMarginNotes() {
+      // Find all elements marked as note targets
+      // Pattern: id="{type}-{namespace}-{text-slug}"
+      // Adopted from programming-for-wizards
+      const anchors = Array.from(document.querySelectorAll('[data-note-target]')).map(el => ({
+        id: el.id,  // Use the element's ID as the stable anchor
+        element: el,
+        label: el.textContent.substring(0, 50) + '...'
+      }));
+      
+      console.log('Initializing margin-notes with anchors:', anchors);
+      
+      // Create and initialize the component
+      const component = MarginNotesAPI.create();
+      try {
+        await component.initialize({
+          anchors,
+          container: { element: document.getElementById('margin-notes-container') },
+          namespace: 'example'
+        });
+        console.log('Margin Notes initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize Margin Notes:', error);
+      }
+    }
+    
+    document.addEventListener('DOMContentLoaded', initMarginNotes);
+  </script>
+</body>
+</html>

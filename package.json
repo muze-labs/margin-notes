@@ -1,0 +1,34 @@
+{
+  "name": "margin-notes",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "An embeddable margin-notes component for Solid",
+  "license": "MIT",
+  "packageManager": "npm@10",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/**/*.test.js",
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/dev.mjs",
+    "lint": "eslint src test"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "globals": "^16.5.0",
+    "esbuild": "^0.25.0"
+  },
+  "keywords": [
+    "solid",
+    "annotations",
+    "margin-notes",
+    "linked-data"
+  ]
+}

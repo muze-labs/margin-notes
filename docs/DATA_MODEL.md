@@ -23,7 +23,7 @@ Additional common terms may include:
 - `dcterms:creator`
 - `schema:text` or an editor-specific body format where justified
 
-The exact prefixes and OLDM `$` property names should be generated from the selected contexts rather than manually duplicated across the codebase.
+The exact prefixes, OLDM `$` property names, and normative annotation shape should be filled in when the first implementation slice needs them rather than frozen from this design note.
 
 ## Example graph
 
@@ -74,13 +74,15 @@ Target resolution should therefore support multiple selectors and report its res
 
 ## Body formats
 
-The initial vertical slice may use plain text. The architecture must allow a Cobalt body without requiring every consumer to understand Cobalt internals.
+The initial vertical slice should preserve the Cobalt body in its minimal JSON format when writing to browser storage such as localStorage or IndexedDB. The architecture must allow a Cobalt body without requiring every consumer to understand Cobalt internals.
 
 Possible approaches to test:
 
 - a textual body with a media type;
 - a linked body resource containing Cobalt data;
 - a plain-text fallback alongside structured content.
+
+These approaches remain open for Solid and interoperability work. The local browser-storage choice is only the minimal Cobalt JSON representation needed by the first slice.
 
 ## Collections and resources
 

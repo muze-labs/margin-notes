@@ -20,6 +20,8 @@ Design repository only. No implementation has started.
 
 The first implementation milestone is deliberately local: identify a page fragment, create a note with the Cobalt note editor, save it in browser storage, and restore it after navigation or reload.
 
+The package name will be `margin-notes`.
+
 ## Guiding principles
 
 1. Build the application before writing the tutorial around it.
@@ -62,4 +64,4 @@ Implement the slice in [`docs/CURRENT_SLICE.md`](docs/CURRENT_SLICE.md) without 
 
 ## Licence
 
-No licence has been selected yet. Until one is added, the repository should not be treated as open-source software merely because its source is visible.
+MIT. Copyright muze.nl.

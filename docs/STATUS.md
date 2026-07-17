@@ -18,6 +18,9 @@ Milestone 0 is complete enough to begin implementation. The active work item is 
 - SimplySolid feature-state matrix;
 - one explicit active implementation slice;
 - privacy and test requirements.
+- MIT licence selected;
+- package name selected as `margin-notes`;
+- Jest selected as the preferred test runner.
 
 ## Next implementation target
 
@@ -33,13 +36,11 @@ Slice M1.1: a browser-only end-to-end note:
 
 ## Known unresolved choices
 
-- repository and package name;
-- licence;
+- repository location;
 - exact Web Annotation shape;
 - local identifier namespace;
-- Cobalt body representation;
 - host integration API;
-- test runner and browser tooling.
+- browser tooling.
 
 
 ## SimplySolid status

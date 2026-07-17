@@ -14,8 +14,9 @@ The project should grow through complete vertical slices. Each milestone must le
 - [x] Add demand-driven SimplySolid workflow and stopping rules
 - [x] Add design-pressure, proposal, and feature-state records
 - [x] Define the first active implementation slice
-- [ ] Select licence
-- [ ] Confirm package name and repository location
+- [x] Select licence
+- [x] Select package name
+- [ ] Confirm repository location
 
 
 ## Gate for every milestone
