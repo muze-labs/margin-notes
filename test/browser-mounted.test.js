@@ -140,6 +140,158 @@ test('BrowserMounted: public API creates, restores, edits, and deletes one local
   }
 });
 
+test('BrowserMounted: keyboard users can create, traverse, and collapse notes', async () => {
+  const server = await startServer();
+  const chrome = await startChrome(`${server.url}/test.html`);
+  let page;
+
+  try {
+    page = await chrome.page();
+    await page.ready();
+
+    await page.evaluate(async () => {
+      const { MarginNotesAPI } = await import(`/dist/index.js?test=${Date.now()}`);
+      const app = MarginNotesAPI.mount({
+        anchors: anchorsFromPage(),
+        container: { element: document.getElementById('margin-notes-container') },
+        storeKey: `browser-keyboard-${crypto.randomUUID()}`,
+      });
+      await waitFor(() => app.data.marginNotes.anchors.length === 2);
+
+      app.api.notes.CobaltEditorModal = class TestEditorModal {
+        async show() {
+          return { text: globalThis.__nextNoteText, annotations: [] };
+        }
+      };
+      globalThis.__app = app;
+      globalThis.__waitFor = waitFor;
+
+      function anchorsFromPage() {
+        return Array.from(document.querySelectorAll('[data-note-target]'), element => ({
+          id: element.id,
+          element,
+          label: element.textContent,
+        }));
+      }
+
+      async function waitFor(predicate) {
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+          if (predicate()) return;
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        throw new Error('Timed out waiting for browser condition');
+      }
+    });
+
+    await page.press('Tab');
+    assert.deepEqual(await page.evaluate(activeElement), {
+      id: 'p-browser-one',
+      className: 'margin-notes-target-tabstop',
+      text: 'One',
+    });
+
+    await page.press('Tab');
+    assert.deepEqual(await page.evaluate(activeElement), {
+      id: '',
+      className: 'margin-notes-target-add-btn',
+      text: '+',
+    });
+
+    await page.evaluate(() => {
+      globalThis.__nextNoteText = 'First keyboard note';
+    });
+    await page.press('Enter');
+    await page.evaluate(() => globalThis.__waitFor(() => globalThis.__app.getNotesForAnchor('p-browser-one').length === 1));
+
+    await page.evaluate(async () => {
+      globalThis.__nextNoteText = 'Second keyboard note';
+      await globalThis.__app.actions.createNote({ anchorId: 'p-browser-one' });
+    });
+    await page.evaluate(() => globalThis.__waitFor(() => globalThis.__app.getNotesForAnchor('p-browser-one').length === 2));
+
+    await page.evaluate(() => {
+      document.getElementById('p-browser-one').focus();
+    });
+    await page.press('Tab');
+    assert.deepEqual(await page.evaluate(activeElement), {
+      id: '',
+      className: 'margin-notes-target-add-btn',
+      text: '+',
+    });
+
+    await page.evaluate(() => {
+      document.querySelector('.margin-notes-target-note-toggle')?.focus();
+    });
+    assert.deepEqual(await page.evaluate(activeElement), {
+      id: '',
+      className: 'margin-notes-target-note-toggle',
+      text: 'First keyboard note',
+    });
+
+    await page.press('ArrowDown');
+    await page.evaluate(() => globalThis.__waitFor(() => document.activeElement?.textContent.trim() === 'Second keyboard note'));
+    assert.deepEqual(await page.evaluate(activeElement), {
+      id: '',
+      className: 'margin-notes-target-note-toggle',
+      text: 'Second keyboard note',
+    });
+
+    await page.press('ArrowUp');
+    await page.evaluate(() => globalThis.__waitFor(() => document.activeElement?.textContent.trim() === 'First keyboard note'));
+    assert.deepEqual(await page.evaluate(activeElement), {
+      id: '',
+      className: 'margin-notes-target-note-toggle',
+      text: 'First keyboard note',
+    });
+
+    await page.press('Enter');
+    await page.evaluate(() => globalThis.__waitFor(() => document.activeElement.closest('.margin-notes-target-note')?.classList.contains('is-expanded')));
+    assert.equal(await page.evaluate(() => {
+      return document.activeElement.closest('.margin-notes-target-note')?.classList.contains('is-expanded');
+    }), true);
+
+    await page.press('Tab');
+    assert.deepEqual(await page.evaluate(activeElement), {
+      id: '',
+      className: 'margin-notes-target-note-close',
+      text: 'x',
+    });
+
+    await page.press('Tab');
+    assert.deepEqual(await page.evaluate(activeElement), {
+      id: '',
+      className: 'margin-notes-target-note-action',
+      text: 'Edit',
+    });
+
+    await page.press('Tab');
+    assert.deepEqual(await page.evaluate(activeElement), {
+      id: '',
+      className: 'margin-notes-target-note-action',
+      text: 'Delete',
+    });
+
+    await page.evaluate(() => {
+      document.querySelector('.margin-notes-target-note-toggle')?.focus();
+    });
+    await page.press('Enter');
+    await page.evaluate(() => globalThis.__waitFor(() => document.querySelector('.margin-notes-target-note.is-expanded')));
+    await page.press('Escape');
+    await page.evaluate(() => globalThis.__waitFor(() => !document.querySelector('.margin-notes-target-note.is-expanded')));
+    assert.equal(await page.evaluate(() => document.activeElement === document.body), true);
+
+    await page.evaluate(async () => {
+      await globalThis.__app.destroy();
+      delete globalThis.__app;
+      delete globalThis.__waitFor;
+    });
+  } finally {
+    page?.close();
+    await chrome.close();
+    await server.close();
+  }
+});
+
 async function startServer() {
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url, 'http://127.0.0.1');
@@ -147,6 +299,9 @@ async function startServer() {
       response.writeHead(200, { 'Content-Type': 'text/html' });
       response.end(`<!doctype html>
         <meta charset="utf-8">
+        <style>
+          p[data-note-target] { min-height: 96px; }
+        </style>
         <main>
           <p id="p-browser-one" data-note-target>One</p>
           <p id="p-browser-two" data-note-target>Two</p>
@@ -298,6 +453,24 @@ async function connectPage(url) {
       return result.result.value;
     },
 
+    async press(key) {
+      const definition = keyDefinition(key);
+      await this.send('Input.dispatchKeyEvent', {
+        type: 'rawKeyDown',
+        ...definition,
+      });
+      if (definition.text) {
+        await this.send('Input.dispatchKeyEvent', {
+          type: 'char',
+          ...definition,
+        });
+      }
+      await this.send('Input.dispatchKeyEvent', {
+        type: 'keyUp',
+        ...definition,
+      });
+    },
+
     close() {
       socket.close();
     },
@@ -359,4 +532,61 @@ function contentType(filePath) {
   if (filePath.endsWith('.css')) return 'text/css';
   if (filePath.endsWith('.json')) return 'application/json';
   return 'text/plain';
+}
+
+function keyDefinition(key) {
+  const definitions = {
+    ArrowDown: {
+      key: 'ArrowDown',
+      code: 'ArrowDown',
+      windowsVirtualKeyCode: 40,
+      nativeVirtualKeyCode: 40,
+    },
+    ArrowUp: {
+      key: 'ArrowUp',
+      code: 'ArrowUp',
+      windowsVirtualKeyCode: 38,
+      nativeVirtualKeyCode: 38,
+    },
+    Enter: {
+      key: 'Enter',
+      code: 'Enter',
+      text: '\r',
+      unmodifiedText: '\r',
+      windowsVirtualKeyCode: 13,
+      nativeVirtualKeyCode: 13,
+    },
+    Escape: {
+      key: 'Escape',
+      code: 'Escape',
+      windowsVirtualKeyCode: 27,
+      nativeVirtualKeyCode: 27,
+    },
+    Tab: {
+      key: 'Tab',
+      code: 'Tab',
+      windowsVirtualKeyCode: 9,
+      nativeVirtualKeyCode: 9,
+    },
+  };
+
+  if (!definitions[key]) {
+    throw new Error(`Unsupported test key: ${key}`);
+  }
+  return definitions[key];
+}
+
+function activeElement() {
+  const element = document.activeElement;
+  const ownText = Array.from(element?.childNodes || [])
+    .filter(node => node.nodeType === Node.TEXT_NODE)
+    .map(node => node.textContent)
+    .join('')
+    .trim();
+
+  return {
+    id: element?.id || '',
+    className: Array.from(element?.classList || []).sort().join(' '),
+    text: ownText || element?.textContent.trim() || '',
+  };
 }

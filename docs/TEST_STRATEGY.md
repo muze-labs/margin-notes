@@ -28,7 +28,7 @@ The current test command builds the browser bundle, then uses Node.js' native te
 - save-result reduction;
 - permission-state mapping.
 
-The mounted browser test should stay focused on the public API and observable browser persistence. It should not reach into private module helpers except where the app deliberately exposes a replaceable dependency, such as the editor modal constructor under `app.api`.
+The mounted browser tests should stay focused on the public API, observable browser persistence, and keyboard operation. They should not reach into private module helpers except where the app deliberately exposes a replaceable dependency, such as the editor modal constructor under `app.api`.
 
 ## Linked-data fixtures
 

@@ -26,6 +26,7 @@ Milestone 0 is complete enough to support implementation. The active work item i
 - local browser persistence using OLDMed annotation subjects through an IndexedDB-backed local store;
 - executable host contract validation used by the real component;
 - headless browser coverage for the mounted public API create, restore, edit, and delete path;
+- mounted keyboard coverage for focus, create, note traversal, action reachability, and Escape collapse;
 - mounted edit coverage preserves subject identity and unknown predicates;
 - quiet paragraph-side creation affordances and collapsed note stacks.
 
@@ -33,9 +34,8 @@ Milestone 0 is complete enough to support implementation. The active work item i
 
 Slice M1.1: a browser-only end-to-end note:
 
-1. extend browser coverage to keyboard access;
-2. run the browser path against `examples/simple.html` or explain why the fixture remains preferable;
-3. update data-model, open-question, and book notes with the evidence from that implementation.
+1. run the browser path against `examples/simple.html` or explain why the fixture remains preferable;
+2. update data-model, open-question, and book notes with the evidence from that implementation.
 
 ## Known unresolved choices
 
