@@ -1,5 +1,6 @@
 import { path } from '@muze-labs/simplyflow';
 import { CobaltEditorModal, COBALT_EDITOR_STYLES } from '../cobalt-editor-modal.js';
+import { annotationModel } from './paragraph-note-stacks/annotation-model.js';
 import MARGIN_NOTES_ROOT_TEMPLATE from './paragraph-note-stacks/root.html';
 import MARGIN_NOTES_ANCHOR_WIDGET_TEMPLATE from './paragraph-note-stacks/anchor-widget.html';
 import MARGIN_NOTES_INLINE_NOTE_TEMPLATE from './paragraph-note-stacks/inline-note.html';
@@ -16,13 +17,17 @@ export const paragraphNoteStacks = {
     'margin-notes-cobalt-editor': COBALT_EDITOR_STYLES,
   },
   actions: {
-    async setupParagraphNoteStacks({ anchors, storageKey }) {
+    async setupParagraphNoteStacks({ anchors, storeKey }) {
       const notesApi = this.api.notes;
-      this.data.marginNotes.storageKey = storageKey;
+      this.data.marginNotes.storeKey = storeKey;
       await this.actions.installAnchorAffordances({ anchors });
 
+      this.data.marginNotes.graph = await notesApi.loadGraph({
+        app: this,
+        key: storeKey,
+      });
       const notesByAnchor = notesApi.groupNotesByAnchor({
-        notes: notesApi.loadFromStorage({ storageKey }),
+        notes: this.data.marginNotes.graph,
       });
       const anchorState = anchors.map(anchor => {
         const notes = notesByAnchor[anchor.id] || [];
@@ -73,20 +78,12 @@ export const paragraphNoteStacks = {
       const fragment = await modal.show();
       if (!fragment) return;
 
-      const id = `note-${Date.now()}`;
-      const now = new Date().toISOString();
-      const note = {
-        id,
-        anchorId,
-        body: fragment,
-        created: now,
-        modified: now,
-      };
-
-      anchor.notes.push(notesApi.toRenderableNote({ note }));
+      const annotation = notesApi.createAnnotationNote({ anchorId, fragment });
+      this.data.marginNotes.graph.push(annotation);
+      anchor.notes.push(notesApi.toRenderableNote({ annotation }));
       await this.actions.updateAnchorNoteState({ anchor });
       await this.actions.renderAnchorNotes({ anchor });
-      await this.actions.saveNotesToStorage({});
+      await this.actions.saveNotes({});
     },
 
     async updateNote({ noteId }) {
@@ -102,11 +99,13 @@ export const paragraphNoteStacks = {
       const fragment = await modal.show();
       if (!fragment) return;
 
-      match.note.body = fragment;
-      match.note.bodyText = notesApi.noteText({ fragment });
-      match.note.modified = new Date().toISOString();
+      notesApi.updateAnnotationBody({
+        annotation: match.note.annotation,
+        fragment,
+      });
+      notesApi.syncRenderableNote({ note: match.note });
       await this.actions.renderAnchorNotes({ anchor: match.anchor });
-      await this.actions.saveNotesToStorage({});
+      await this.actions.saveNotes({});
     },
 
     async deleteNote({ noteId }) {
@@ -115,21 +114,22 @@ export const paragraphNoteStacks = {
       if (!match) return;
 
       match.anchor.notes.splice(match.index, 1);
+      notesApi.removeAnnotationFromGraph({
+        app: this,
+        annotationId: match.note.id,
+      });
       await this.actions.updateAnchorNoteState({ anchor: match.anchor });
       await this.actions.renderAnchorNotes({ anchor: match.anchor });
-      await this.actions.saveNotesToStorage({});
+      await this.actions.saveNotes({});
     },
 
-    async saveNotesToStorage() {
+    async saveNotes() {
       const notesApi = this.api.notes;
-      try {
-        const data = this.data.marginNotes.anchors.flatMap(anchor => {
-          return Array.from(anchor.notes, note => notesApi.toStoredNote({ note }));
-        });
-        localStorage.setItem(this.data.marginNotes.storageKey, JSON.stringify(data));
-      } catch (error) {
-        console.error('Failed to save notes to storage:', error);
-      }
+      await notesApi.saveGraph({
+        app: this,
+        key: this.data.marginNotes.storeKey,
+        subjects: this.data.marginNotes.graph,
+      });
     },
 
     async installAnchorAffordances({ anchors }) {
@@ -476,6 +476,7 @@ export const paragraphNoteStacks = {
   },
   api: {
     notes: {
+      ...annotationModel,
       CobaltEditorModal,
       path,
       installedViewAssets: [
@@ -490,7 +491,7 @@ export const paragraphNoteStacks = {
         const anchor = this.findAnchor({ app, anchorId });
         if (!anchor) return [];
 
-        return Array.from(anchor.notes, note => this.toStoredNote({ note }));
+        return Array.from(anchor.notes, note => this.toStoredAnnotation({ annotation: note.annotation }));
       },
 
       removeInstalledViewAssets() {
@@ -499,25 +500,40 @@ export const paragraphNoteStacks = {
         }
       },
 
-      loadFromStorage({ storageKey }) {
+      async loadGraph({ app, key }) {
         try {
-          const data = localStorage.getItem(storageKey);
-          if (!data) return [];
+          const value = await app.marginNotesRuntime.store.load({ key });
+          if (!value) return [];
 
-          const notes = JSON.parse(data);
-          return Array.isArray(notes) ? notes : [];
+          return this.toStoredGraph({ value });
         } catch (error) {
-          console.error('Failed to load notes from storage:', error);
+          console.error('Failed to load notes:', error);
           return [];
+        }
+      },
+
+      async saveGraph({ app, key, subjects }) {
+        try {
+          await app.marginNotesRuntime.store.save({
+            key,
+            value: this.toStorageDocument({ subjects }),
+          });
+          return true;
+        } catch (error) {
+          console.error('Failed to save notes:', error);
+          return false;
         }
       },
 
       groupNotesByAnchor({ notes }) {
         return notes.reduce((grouped, note) => {
-          if (!grouped[note.anchorId]) {
-            grouped[note.anchorId] = [];
+          const anchorId = this.annotationAnchorId({ annotation: note }) || note.anchorId;
+          if (!anchorId) return grouped;
+
+          if (!grouped[anchorId]) {
+            grouped[anchorId] = [];
           }
-          grouped[note.anchorId].push(this.toRenderableNote({ note }));
+          grouped[anchorId].push(this.toRenderableNote({ annotation: note }));
           return grouped;
         }, {});
       },
@@ -606,28 +622,6 @@ export const paragraphNoteStacks = {
 
       isNaturallyFocusable({ element }) {
         return element.matches('a[href], button, input, select, textarea, summary, [tabindex]');
-      },
-
-      toRenderableNote({ note }) {
-        return {
-          ...note,
-          bodyText: this.noteText({ fragment: note.body }),
-          createdLabel: `Created: ${note.created.substring(0, 10)}`,
-        };
-      },
-
-      toStoredNote({ note }) {
-        return {
-          id: note.id,
-          anchorId: note.anchorId,
-          body: note.body,
-          created: note.created,
-          modified: note.modified,
-        };
-      },
-
-      noteText({ fragment }) {
-        return fragment?.text || '(empty note)';
       },
     },
   },

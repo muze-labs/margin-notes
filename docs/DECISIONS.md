@@ -12,7 +12,7 @@ Statuses:
 | ID | Status | Decision | Reason |
 |---|---|---|---|
 | D001 | Accepted | Build the reference application before writing the book. | The application should expose real constraints and prevent the book from teaching speculative solutions. |
-| D002 | Accepted | Start with browser storage and no login. | It produces a complete vertical slice and keeps Solid integration from hiding basic product problems. |
+| D002 | Accepted | Start with browser-local storage and no login. | It produces a complete vertical slice and keeps Solid integration from hiding basic product problems. |
 | D003 | Accepted | Use one linked-data model for local and Solid-backed notes. | Storage mode should not create two application models or a later migration rewrite. |
 | D004 | Accepted | Keep the component reusable outside *Programming for Wizards*. | Reuse is one of the claims the project is meant to test. |
 | D005 | Accepted | Allow the host page to configure or advertise a submission inbox. | Other site authors must not be forced to use the book author's inbox. |
@@ -33,9 +33,9 @@ Statuses:
 | D020 | Accepted | Require a design-pressure entry and small proposal before adding a shared-library capability. | The record prevents AI-assisted work from turning speculative gaps into broad abstractions. |
 | D021 | Accepted | Keep SimplySolid implementation in `solid-tools`, with separate library and application commits. | The reference application must validate the package boundary rather than hide framework code locally. |
 | D022 | Accepted | Use `margin-notes` as the package name. | The name matches the component's reusable role and leaves Solid support as a capability rather than the package identity. |
-| D023 | Accepted | Use Jest as the preferred test runner. | The implementation can choose browser tooling around Jest while keeping one familiar test entry point. |
+| D023 | Accepted | Use Node.js' native test runner as the current `npm test` entry point. | The current slice has simple contract tests and does not need Jest yet; browser automation can be added when end-to-end coverage requires it. |
 | D024 | Accepted | Leave the exact Web Annotation shape open until implementation needs it. | The project should not freeze a normative annotation shape before the local slice proves the required facts. |
-| D025 | Accepted | Store Cobalt bodies in the minimal JSON format for browser storage. | LocalStorage or IndexedDB should preserve the editor body without inventing a richer body model before interoperability requires it. |
+| D025 | Accepted | Store Cobalt bodies in the minimal JSON format for browser-local storage. | The local store should preserve the editor body without inventing a richer body model before interoperability requires it. |
 | D026 | Accepted | Put note-creation affordances on host anchors and reveal them only on hover or keyboard focus. | Creating a note is target-driven; the margin panel should stay quiet until there are notes to show. |
 | D027 | Accepted | Show notes beside their target as collapsed single-line cards that expand in place. | Reader notes should stay spatially tied to the paragraph and avoid turning the margin into a separate feed. |
 | D028 | Accepted | Fit collapsed note stacks to the paragraph height and show an overflow toggle only when notes are hidden. | Multiple notes should not visually run into the next paragraph until the reader deliberately opens that stack. |
@@ -45,6 +45,10 @@ Statuses:
 | D032 | Accepted | Package paragraph note stacks as a SimplyFlow feature component without component-owned state. | Feature components can bundle templates, styles, commands, shortcuts, and actions; app-owned state is initialized in `data.marginNotes` by an explicit app start call. |
 | D033 | Accepted | Keep feature behavior live-edit friendly by routing helper code and dependencies through `app.api`. | Overridden running functions should have the same visible context as the original, so note actions use `this.api.notes` rather than private module helpers or the component registry. |
 | D034 | Accepted | Keep feature HTML and CSS in separate files imported as text. | The app should demonstrate SimplyFlow component composition without burying templates and styles inside JavaScript behavior modules. |
+| D035 | Accepted | Use Muze design principles as standing constraints for the app and associated libraries. | The repository is a teaching example for the Muze stack, so trade-offs should explicitly prefer simplicity, composability, replaceability, browser-native standards, stable APIs, small software, and view-source-friendly code. Package namespaces must also reflect maturity: `@muze-labs` for experiments and `@muze-nl` for production-ready packages. |
+| D036 | Accepted | Use OLDMed `prefix$predicate` property names for local annotation subjects before importing OLDM. | This keeps the current slice small while avoiding a naming migration when OLDM later parses native linked-data resources. The selected M1.1 terms come from RDF, RDFS, Dublin Core Terms, Web Annotation, Schema.org, and a clearly labelled Muze Cobalt convention. |
+| D037 | Accepted | Use *Programming for Wizards* as a standing product and architecture touchstone. | The margin-notes component is the book's concrete example of private notes, stable passage addresses, linked meanings, user-owned storage, deliberate sharing, and replaceable applications. Future work should warn before moving away from those reasons. |
+| D038 | Accepted | Use small generic store names at the app boundary and keep IndexedDB as an implementation detail. | The local store should not advertise its backing mechanism or care about the shape of stored data. This keeps the current slice readable while leaving room for a future JSFS adapter if file-shaped local storage becomes useful. |
 
 ## Decision template
 

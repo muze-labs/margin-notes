@@ -8,6 +8,7 @@
 
 import { app } from '@muze-labs/simplyflow';
 import { paragraphNoteStacks } from './features/paragraph-note-stacks.js';
+import { createLocalStore } from './storage/local-store.js';
 
 /**
  * Mount the margin notes SimplyFlow app.
@@ -19,7 +20,8 @@ export function mount(config) {
   validateHostConfig(config);
 
   const mountContainer = config.container.element;
-  const storageKey = config.storageKey || `margin-notes-${config.namespace || 'default'}`;
+  const storeKey = config.storeKey || config.storageKey || `margin-notes-${config.namespace || 'default'}`;
+  const store = config.store || createLocalStore();
 
   mountContainer.innerHTML = '<simply-render rel="margin-notes"></simply-render>';
   const marginApp = app({
@@ -31,12 +33,14 @@ export function mount(config) {
       marginNotes: {
         anchors: [],
         anchorViews: [],
-        storageKey,
+        graph: [],
+        storeKey,
       },
     },
     marginNotesRuntime: {
       mountContainer,
       hostAnchors: config.anchors,
+      store,
       expandedStackBackground: config.expandedStackBackground || '#fffefb',
       anchorAffordances: [],
       resizeObserver: null,
@@ -45,7 +49,7 @@ export function mount(config) {
     start() {
       return this.actions.setupParagraphNoteStacks({
         anchors: this.marginNotesRuntime.hostAnchors,
-        storageKey,
+        storeKey,
       });
     },
   });

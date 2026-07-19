@@ -9,6 +9,7 @@ This repository exists before the accompanying book does. The application is int
 - *Programming for Wizards* explains why Muze is betting on Solid, linked data, replaceable applications, and user-controlled software.
 - *Building Software on Solid Ground* will explain how to build that kind of software.
 - This repository is the working reference implementation used to discover and test the material for the second book.
+- The margin-notes component is the concrete example from *Programming for Wizards*: private reader notes first, stable passage addresses, linked meanings, user-owned storage, and deliberate sharing.
 
 ## Product in one paragraph
 
@@ -16,11 +17,11 @@ The project will provide an embeddable margin-notes component that a site can lo
 
 ## Current status
 
-Design repository only. No implementation has started.
+Implementation has started for the first local slice. The current code exposes the `margin-notes` package, mounts a SimplyFlow app through `MarginNotes.mount(config)`, attaches quiet note affordances to host-supplied anchors, opens the Cobalt editor, and saves/restores OLDMed annotation subjects through a small browser-local store.
 
-The first implementation milestone is deliberately local: identify a page fragment, create a note with the Cobalt note editor, save it in browser storage, and restore it after navigation or reload.
+The first implementation milestone is still in progress. The current storage shape uses OLDM-style `prefix$predicate` names without importing OLDM itself. The default local store is backed by IndexedDB, but the app-facing store API only stores opaque values by key. The automated tests now cover the annotation model, local store, and the host-contract sketch; browser end-to-end coverage against the real mounted component remains to be added.
 
-The package name will be `margin-notes`.
+The package name is `margin-notes`.
 
 ## Guiding principles
 
@@ -36,6 +37,7 @@ The package name will be `margin-notes`.
 10. Record unexpected design discoveries while they are still fresh.
 11. Treat the application as evidence for SimplySolid, not as a reason to implement its roadmap in advance.
 12. Distinguish designed, required, implemented, and application-validated capabilities.
+13. Warn before accepting changes that move away from the *Programming for Wizards* touchstone.
 
 ## Repository map
 
@@ -43,6 +45,8 @@ The package name will be `margin-notes`.
 - [`docs/DESIGN.md`](docs/DESIGN.md) — product and interaction design
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — proposed system boundaries
 - [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — initial linked-data model
+- [`docs/PROGRAMMING_FOR_WIZARDS_TOUCHSTONE.md`](docs/PROGRAMMING_FOR_WIZARDS_TOUCHSTONE.md) — the book's why applied to this component
+- [`docs/MUZE_DESIGN_PRINCIPLES.md`](docs/MUZE_DESIGN_PRINCIPLES.md) — Muze design principles applied to this project
 - [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) — vertical milestones
 - [`docs/CURRENT_SLICE.md`](docs/CURRENT_SLICE.md) — the one active end-to-end slice
 - [`docs/DEMAND_DRIVEN_SIMPLYSOLID.md`](docs/DEMAND_DRIVEN_SIMPLYSOLID.md) — how application needs may change SimplySolid
@@ -60,7 +64,7 @@ The package name will be `margin-notes`.
 
 ## Immediate next step
 
-Implement the slice in [`docs/CURRENT_SLICE.md`](docs/CURRENT_SLICE.md) without Solid integration. The result should be a small end-to-end path, not a collection of unfinished infrastructure packages. Do not implement SimplySolid until an active slice produces evidence for a missing capability.
+Finish the slice in [`docs/CURRENT_SLICE.md`](docs/CURRENT_SLICE.md) without Solid integration. The next work should close the remaining local gaps: exercise the real component in browser tests, verify the browser-storage round trip for the OLDMed annotation graph, and keep the working path small enough to teach. Do not implement SimplySolid until an active slice produces evidence for a missing capability.
 
 ## Licence
 

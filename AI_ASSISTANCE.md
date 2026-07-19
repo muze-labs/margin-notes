@@ -5,9 +5,13 @@ Use this file as working context when asking an AI assistant to change the margi
 ## First Principles
 
 - Build the smallest working vertical slice that answers the current request.
-- Prefer existing project decisions over generic best practices. Read `docs/DECISIONS.md`, `docs/PROJECT_STRUCTURE.md`, and `AGENTS.md` before architectural edits.
+- Prefer existing project decisions over generic best practices. Read `docs/PROGRAMMING_FOR_WIZARDS_TOUCHSTONE.md`, `docs/MUZE_DESIGN_PRINCIPLES.md`, `docs/DECISIONS.md`, `docs/PROJECT_STRUCTURE.md`, and `AGENTS.md` before architectural edits.
 - Keep the application useful without Solid until the Solid milestone requires otherwise.
 - Treat this app as example code: clarity of stack usage matters as much as behavior.
+- Treat the margin-notes app as the book's practical example: private first, stable passage targets, linked meanings, user-owned storage, deliberate sharing, and replaceable tools.
+- Warn the user before implementing any change that moves away from the book touchstone.
+- Apply the Muze preference for simplicity, composability, replaceability, browser-native standards, long-term API stability, and view-source-friendly code.
+- For associated libraries, keep experimental work under `@muze-labs`; treat any move to `@muze-nl` as a production-readiness decision.
 
 ## SimplyFlow App Shape
 

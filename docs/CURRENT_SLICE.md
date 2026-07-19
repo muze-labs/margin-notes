@@ -4,12 +4,18 @@ Keep exactly one primary slice active. AI assistants and contributors should rea
 
 ## Slice M1.1 — Create and restore one local note
 
-**Status:** Ready  
+**Status:** In progress  
 **Milestone:** 1 — Local note from end to end
 
 ## User-visible outcome
 
 A host page loads the component, a reader selects one supplied paragraph anchor, writes a note with Cobalt, reloads the page, and sees the same note attached to the same paragraph.
+
+## Current implementation state
+
+The app currently mounts through the host API, installs paragraph-side note affordances, opens the Cobalt editor, and saves/restores OLDMed annotation subjects through a browser-local store.
+
+This is useful implementation progress, but the slice is not complete yet. The current storage format uses OLDMed `prefix$predicate` names without importing OLDM itself. The default local store is backed by IndexedDB, but the app-facing store API is generic and does not know the annotation shape. The automated tests do not yet drive the real mounted browser workflow end to end.
 
 ## Why this slice comes first
 
@@ -52,6 +58,7 @@ The slice is complete when an automated browser test demonstrates:
 - What is the smallest useful host API?
 - What identifier should a local annotation use?
 - How should browser storage represent a graph without creating another domain model?
+- Can a generic local store boundary stay small enough now while leaving room for a later JSFS adapter?
 - What Cobalt representation belongs in the annotation body?
 - Which contracts reveal host integration mistakes early?
 

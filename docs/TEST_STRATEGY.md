@@ -17,7 +17,7 @@ Tests should be written narrowly enough that a smaller API can pass. Do not enco
 
 ## Unit tests
 
-Jest is the preferred JavaScript test runner. Browser automation can be selected during implementation while keeping Jest as the main test command where practical.
+The current test command uses Node.js' native test runner. Browser automation can be added for integration and end-to-end coverage while keeping `npm test` as the main entry point.
 
 - selector creation and resolution;
 - identity minting;

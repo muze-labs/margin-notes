@@ -2,6 +2,8 @@
 
 The margin-notes repository tests the SimplySolid design, but it should not contain SimplySolid implementation code.
 
+Cross-repository work must also follow the Muze design principles in [MUZE_DESIGN_PRINCIPLES.md](MUZE_DESIGN_PRINCIPLES.md): small single-concern libraries, correct conceptual boundaries, browser-native standards where practical, stable APIs, replaceability, and view-source-friendly code.
+
 ## Local development layout
 
 A convenient checkout is:
@@ -28,6 +30,8 @@ When a slice exposes a genuine library need:
 8. Make the application test pass without application-specific library options.
 9. Commit the application integration separately.
 10. Update the feature matrix and design documents in both repositories.
+
+Keep experimental package work under `@muze-labs`. Treat any move into `@muze-nl` as release-readiness work requiring a stable public API, fresh-project installability, and clear supported-usage documentation.
 
 ## Commit boundaries
 

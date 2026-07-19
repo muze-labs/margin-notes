@@ -2,6 +2,75 @@
 
 This is a starting hypothesis. The model should be revised when implementation or interoperability tests expose a better answer.
 
+## Selected M1.1 Object Shape
+
+M1.1 uses OLDMed JavaScript property names without importing OLDM yet. The goal is to let application code use the same names that OLDM will expose later from parsed linked data.
+
+Stored annotation subjects currently use these prefixes:
+
+| Prefix | Namespace | Status |
+|---|---|---|
+| `rdf` | `http://www.w3.org/1999/02/22-rdf-syntax-ns#` | W3C standard |
+| `rdfs` | `http://www.w3.org/2000/01/rdf-schema#` | W3C standard |
+| `dcterms` | `http://purl.org/dc/terms/` | established vocabulary |
+| `oa` | `http://www.w3.org/ns/oa#` | W3C Web Annotation vocabulary |
+| `schema` | `https://schema.org/` | established vocabulary |
+| `cobalt` | `https://vocab.muze.nl/cobalt#` | Muze application convention for Cobalt bodies |
+
+The current note graph uses:
+
+- `rdf$type`
+- `dcterms$created`
+- `dcterms$modified`
+- `dcterms$format`
+- `rdf$value`
+- `schema$text`
+- `oa$Annotation`
+- `oa$TextualBody`
+- `oa$SpecificResource`
+- `oa$FragmentSelector`
+- `oa$hasBody`
+- `oa$hasTarget`
+- `oa$hasSource`
+- `oa$hasSelector`
+- `cobalt$Fragment`
+- `cobalt$fragment`
+
+The Cobalt predicate is intentionally marked as a Muze convention. It preserves the editor fragment for this application while `rdf$value` and `schema$text` provide a plain-text body for consumers that do not understand Cobalt.
+
+Example OLDMed object:
+
+```js
+{
+  id: 'urn:uuid:...',
+  rdf$type: 'oa$Annotation',
+  dcterms$created: '2026-07-19T10:00:00.000Z',
+  dcterms$modified: '2026-07-19T10:00:00.000Z',
+  oa$hasBody: {
+    id: 'urn:uuid:...#body',
+    rdf$type: ['oa$TextualBody', 'cobalt$Fragment'],
+    dcterms$format: 'application/vnd.cobalt.fragment+json',
+    rdf$value: 'This paragraph makes the boundary visible.',
+    schema$text: 'This paragraph makes the boundary visible.',
+    cobalt$fragment: { text: 'This paragraph makes the boundary visible.', annotations: [] }
+  },
+  oa$hasTarget: {
+    id: 'urn:uuid:...#target',
+    rdf$type: 'oa$SpecificResource',
+    oa$hasSource: 'https://book.example/chapter/7',
+    oa$hasSelector: {
+      id: 'urn:uuid:...#selector-fragment',
+      rdf$type: 'oa$FragmentSelector',
+      rdf$value: 'p-chapter7-boundary-visible'
+    }
+  }
+}
+```
+
+Browser-local storage currently writes a small document containing `format`, `version`, `prefixes`, and `subjects`. This is still JSON, but the subject objects already use the native OLDMed property names expected from OLDM.
+
+The local store itself stores opaque values by key. It does not know about annotations, OLDMed, or Cobalt. Annotation-specific conversion belongs to the note feature API.
+
 ## Prefer existing annotation terms
 
 The W3C Web Annotation vocabulary is the natural starting point:
@@ -23,7 +92,7 @@ Additional common terms may include:
 - `dcterms:creator`
 - `schema:text` or an editor-specific body format where justified
 
-The exact prefixes, OLDM `$` property names, and normative annotation shape should be filled in when the first implementation slice needs them rather than frozen from this design note.
+The M1.1 prefixes and `$` property names are now selected above. They remain implementation evidence rather than a final interoperability claim until the browser workflow and later Solid-backed save path validate them.
 
 ## Example graph
 
@@ -74,7 +143,7 @@ Target resolution should therefore support multiple selectors and report its res
 
 ## Body formats
 
-The initial vertical slice should preserve the Cobalt body in its minimal JSON format when writing to browser storage such as localStorage or IndexedDB. The architecture must allow a Cobalt body without requiring every consumer to understand Cobalt internals.
+The initial vertical slice preserves the Cobalt body in its minimal JSON format under `cobalt$fragment` when writing to browser-local storage. The body also stores plain text through `rdf$value` and `schema$text` so the annotation is not useful only to Cobalt-aware consumers.
 
 Possible approaches to test:
 
@@ -82,7 +151,7 @@ Possible approaches to test:
 - a linked body resource containing Cobalt data;
 - a plain-text fallback alongside structured content.
 
-These approaches remain open for Solid and interoperability work. The local browser-storage choice is only the minimal Cobalt JSON representation needed by the first slice.
+The `cobalt$fragment` predicate remains a Muze convention to revisit when Solid and interoperability work begin.
 
 ## Collections and resources
 

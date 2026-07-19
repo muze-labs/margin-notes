@@ -12,6 +12,8 @@ An assistant should read, at minimum:
 - `docs/DESIGN.md`;
 - `docs/ARCHITECTURE.md`;
 - `docs/DATA_MODEL.md`;
+- `docs/PROGRAMMING_FOR_WIZARDS_TOUCHSTONE.md`;
+- `docs/MUZE_DESIGN_PRINCIPLES.md`;
 - `docs/DEMAND_DRIVEN_SIMPLYSOLID.md`;
 - `docs/DECISIONS.md`;
 - `docs/OPEN_QUESTIONS.md`;
@@ -44,6 +46,10 @@ An assistant should read, at minimum:
 10. Keep browser-only operation functional while Solid work is incomplete.
 11. Do not describe a Muze convention as part of the Solid specification.
 12. Do not call a feature validated until this application exercises it end to end.
+13. Use Muze design principles when choosing trade-offs: prefer simplicity, composability, replaceability, browser-native standards, long-term API stability, and view-source-friendly code.
+14. Keep experimental packages under `@muze-labs`; use `@muze-nl` only when the package is ready to signal stable supported use.
+15. Keep the margin-notes app aligned with the why from *Programming for Wizards*: private notes, stable passage addresses, linked meanings, user-owned storage, deliberate sharing, and replaceable tools.
+16. Warn before implementing a change that moves away from that touchstone.
 
 ## Task format
 
@@ -93,6 +99,10 @@ For every significant change, ask:
 - Does local mode still work?
 - Is a standard being confused with a project convention?
 - Is a designed feature being described as implemented or validated?
+- Does the change preserve composability, replaceability, browser-platform alignment, and long-term simplicity?
+- Does the change still reflect the *Programming for Wizards* why, or should the user be warned before continuing?
+- Would a curious developer understand the code by reading it directly?
+- Does any package namespace change match the package's maturity?
 - Did the change produce a lesson for the book?
 
 ## Status updates during AI work

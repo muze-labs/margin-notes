@@ -10,9 +10,11 @@ Before editing, read:
 2. `docs/CURRENT_SLICE.md`;
 3. `docs/AI_WORKFLOW.md`;
 4. `docs/DEMAND_DRIVEN_SIMPLYSOLID.md`;
-5. the design, architecture, and data-model documents;
-6. `docs/DECISIONS.md` and `docs/OPEN_QUESTIONS.md`;
-7. `docs/DESIGN_PRESSURES.md` and `docs/SIMPLYSOLID_FEATURES.md`.
+5. `docs/PROGRAMMING_FOR_WIZARDS_TOUCHSTONE.md`;
+6. `docs/MUZE_DESIGN_PRINCIPLES.md`;
+7. the design, architecture, and data-model documents;
+8. `docs/DECISIONS.md` and `docs/OPEN_QUESTIONS.md`;
+9. `docs/DESIGN_PRESSURES.md` and `docs/SIMPLYSOLID_FEATURES.md`.
 
 The current slice outranks speculative future milestones.
 
@@ -26,6 +28,10 @@ The current slice outranks speculative future milestones.
 6. Keep Solid optional until the Solid milestone; local operation must remain useful afterward.
 7. Label standards, conventions, library behaviour, and experiments accurately.
 8. Record design discoveries while evidence is fresh.
+9. Apply Muze design principles: simplicity, small decoupled libraries, correct boundaries, browser-native standards, lightweight abstractions, stable APIs, replaceability, open hosting paths, small software, and view-source-friendly code.
+10. Treat `@muze-nl` as a production-readiness signal and `@muze-labs` as the place for experimental libraries.
+11. Keep the margin-notes app aligned with the why from *Programming for Wizards*: private notes first, user-owned storage, stable passage addresses, linked meanings, deliberate sharing, and replaceable tools.
+12. Warn before implementing a change that would make the app veer away from that touchstone.
 
 ## SimplySolid rule
 
@@ -64,10 +70,14 @@ Record an idea instead of implementing it when:
 - add a central service;
 - silently migrate or publish notes;
 - close the data model around one application's shape;
+- make the book or component the owner of a reader's private margin;
+- treat sharing a note as the default consequence of writing one;
+- make Solid required for the first useful local note-taking path;
 - require residential overlays without explicit opt-in;
 - force a Muze library into the application merely for coverage;
 - rewrite accepted project decisions without implementation evidence;
 - mark a feature validated because unit tests pass.
+- publish or rename an experimental package under `@muze-nl` without release-readiness evidence.
 
 ## Cross-repository work
 

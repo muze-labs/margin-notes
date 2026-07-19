@@ -47,8 +47,11 @@
  * @property {string} [namespace] - Optional namespace for stored notes.
  *   Allows multiple instances on the same host page.
  *   Defaults to "margin-notes"
- * @property {string} [storageKey] - Optional storage key prefix for browser storage.
+ * @property {string} [storeKey] - Optional key for browser-local notes.
  *   Defaults to `margin-notes-${namespace}`
+ * @property {string} [storageKey] - Backwards-compatible alias for storeKey.
+ *   Defaults to `margin-notes-${namespace}`
+ * @property {Object} [store] - Optional store with async load/save/remove methods.
  * @property {string} [expandedStackBackground] - CSS color used behind an opened stack of notes.
  *   Defaults to `#fffefb`
  */

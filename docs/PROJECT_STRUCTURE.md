@@ -1,6 +1,6 @@
-# Project Structure — M1.1 Implementation Start
+# Project Structure — Current M1.1 Implementation
 
-This document describes the initial project structure for the margin-notes application at the start of M1.1 (Create and restore one local note).
+This document describes the current project structure for the margin-notes application while M1.1 is in progress.
 
 ## Technology Stack
 
@@ -22,9 +22,9 @@ margin-notes/
 │   ├── cobalt-editor-modal.css  # Modal styles imported as text
 │   └── features/
 │       ├── paragraph-note-stacks.js # Feature component for paragraph-side notes
-│       └── paragraph-note-stacks/   # Feature templates and styles imported as text
+│       └── paragraph-note-stacks/   # Feature model, templates, and styles
 ├── dist/
-│   ├── index.js              # Built bundle (5.8KB)
+│   ├── index.js              # Built browser bundle
 │   └── index.js.map          # Source map
 ├── test/
 │   └── host-contract.test.js # Contract tests
@@ -41,7 +41,7 @@ margin-notes/
 
 ## Host API Contract
 
-The component exposes a simple API that host pages use. See [src/host-contract.ts](../src/host-contract.ts).
+The component exposes a simple API that host pages use. See [src/host-contract.js](../src/host-contract.js).
 
 ### Key Types & Recommended Anchor ID Format
 
@@ -67,12 +67,13 @@ The component uses a simple host API. Host pages should mark annotatable element
 </aside>
 ```
 
-This pattern (adopted from `programming-for-wizards`) is:
-- ✅ Stable across page reloads
-- ✅ Human-readable and debuggable
-- ✅ Includes a text hint in the slug for easier manual work
-- ✅ Clear element type prefix (p, h, aside, etc.)
-- ✅ Namespaced (chapter, section, etc.)
+This pattern, adopted from `programming-for-wizards`, is intended to be:
+
+- stable across page reloads;
+- human-readable and debuggable;
+- useful for manual work because the slug contains a text hint;
+- explicit about element type through prefixes such as `p`, `h`, and `aside`;
+- namespaced by chapter, page, or host context.
 
 **Type Definitions:**
 
@@ -85,7 +86,9 @@ This pattern (adopted from `programming-for-wizards`) is:
   - `anchors[]`: array of AnchorTarget
   - `container`: where the component UI mounts
   - `namespace?`: for multiple instances (defaults to "margin-notes")
-  - `storageKey?`: custom localStorage key
+  - `storeKey?`: custom browser-local note key
+  - `storageKey?`: backwards-compatible alias for `storeKey`
+  - `store?`: optional object with async `load`, `save`, and `remove` methods
 
 - **`MarginNotesApp`** — The mounted SimplyFlow app
   - `destroy()`: clean up
@@ -121,12 +124,14 @@ The feature component does not define app state. The app owns the state in `data
 Feature helpers and dependencies are merged into `app.api.notes`, so actions can call `this.api.notes` without reaching back through `app.components`.
 Templates and styles live in `.html` and `.css` files and are imported as text by esbuild before being added to the app/component object.
 
-- **Storage**: Simple JSON in localStorage (not yet linked data)
-- **Note structure**: `{ id, anchorId, body, created, modified }`
-- **Operations**: `createNote()`, `updateNote()`, `deleteNote()`, `getNotesForAnchor()`
-- **UI**: SimplyFlow templates and commands for the note list and actions
+- **Store**: small app-facing store API with async `load`, `save`, and `remove` methods over opaque values. The default browser-local implementation is backed by IndexedDB.
+- **Stored value**: JSON-like document containing OLDMed annotation subjects with `prefix$predicate` names.
+- **Note structure**: `oa$Annotation` subjects with `oa$hasBody`, `oa$hasTarget`, `dcterms$created`, and `dcterms$modified`.
+- **Operations**: `createNote()`, `updateNote()`, `deleteNote()`, `getNotesForAnchor()`.
+- **UI**: SimplyFlow templates and commands for the paragraph-side note controls.
+- **Imperative DOM boundary**: host-anchor attachment, layout measurement, focus placement, and Cobalt editor mounting.
 
-M1.1 deliberately uses simple JSON storage to focus on the host-component boundary. The linked-data representation will come when Milestone 2+ pressures require it.
+The current storage path does not import OLDM, parse Turtle, or write to Solid. It deliberately uses the same object naming style OLDM exposes so the later OLDM-backed path does not require renaming the application model. The store boundary is intentionally generic so a later JSFS-backed store can be tested without changing note code.
 
 ## Build & Development
 
@@ -135,14 +140,16 @@ M1.1 deliberately uses simple JSON storage to focus on the host-component bounda
 npm run build
 ```
 
-Output: `dist/index.js` (5.8 KB bundle with source map)
+Output: `dist/index.js` with source map.
+
+The current build script resolves local SimplyFlow and Cobalt package paths from this development workspace. That is useful for stack work, but the dependency story should be made clone-friendly before the repository is used as a public teaching example.
 
 **Run tests:**
 ```bash
 npm test
 ```
 
-Currently 8 contract tests, all passing.
+Currently 8 host-contract sketch tests pass. They use a mock component and should be replaced or supplemented with tests that import the real public API.
 
 **Development server:**
 ```bash
@@ -155,45 +162,43 @@ Serves `examples/simple.html` at `http://localhost:3000` for local testing.
 
 [examples/simple.html](../examples/simple.html) demonstrates:
 
-1. A host page with annotatable paragraphs (marked with `data-anchor` attributes)
+1. A host page with annotatable paragraphs marked with `data-note-target`
 2. A container element where the component mounts
 3. How the host discovers anchors and initializes the component
+4. Local create, edit, delete, and reload behaviour when served with the built bundle
 
 ## Tests
 
-Run `npm test` to verify the host contract tests. They validate:
+Run `npm test` to verify the current host-contract sketch tests. They validate the intended contract shape, but they do not yet validate the real SimplyFlow app implementation.
 
 - Component creation and initialization
 - Config validation (anchors, container required)
 - Support for multiple instances via namespace
 - Component lifecycle (initialize, destroy)
 
-## Next Steps for M1.1
+## Remaining Steps for M1.1
 
 Priority order:
 
-1. **Build setup** — Configure TypeScript transpilation (esbuild/tsc)
-2. **Browser tests** — Set up Playwright or similar for integration tests
-3. **Cobalt integration** — Replace prompt() with Cobalt editor for note body
-4. **Keyboard accessibility** — Ensure all operations work without mouse
-5. **End-to-end validation** — Host page can create, edit, delete, and reload notes
+1. **Real API tests** — Exercise `mount(config)` and the compatibility adapter directly.
+2. **Browser tests** — Set up Playwright or similar for integration tests against `examples/simple.html`.
+3. **Storage round-trip evidence** — Verify that the OLDMed subject graph survives create, edit, delete, and reload.
+4. **Keyboard accessibility evidence** — Demonstrate create, edit, delete, note traversal, and collapse behaviour without mouse-only assumptions.
+5. **End-to-end validation** — Host page can create, edit, delete, reload, and preserve the same annotation subject identity.
 
-Keep storage as JSON for M1.1. The linked-data (RDF/Turtle) graph representation comes in M2 when SimplySolid is introduced.
+Keep Solid login and remote storage out of M1.1. Local storage still needs to prove the linked-data model before SimplySolid work begins.
 
 ## Decision Record
 
 This structure embodies these decisions from [docs/CURRENT_SLICE.md](../docs/CURRENT_SLICE.md):
 
-- ✅ Component mounts through script tag (host API)
-- ✅ Host supplies stable anchors (no auto-discovery yet)
-- ✅ One native data model in memory (simple JSON for now)
-- ✅ Storage policy kept separate (localStorage, no auth)
-- ✅ Tests for the contract boundary
+- Component mounts through the script-tag-friendly host API.
+- Host supplies stable anchors; the component does not auto-discover targets yet.
+- Storage policy remains browser-local with no authentication.
+- Paragraph note chrome is rendered with SimplyFlow templates and commands.
+- Cobalt bodies are preserved in their minimal JSON fragment form under a Muze `cobalt$fragment` predicate, with plain text duplicated through standard body predicates.
 
-Questions to answer in this slice are now testable:
+Questions still being answered in this slice:
 
-- ✅ What is the smallest useful host API? → `HostConfig` with anchors and container
-- ⏳ What identifier should a local annotation use? → Testing in browser tests
-- ⏳ How should browser storage represent a graph? → JSON now, graph later
-- ⏳ What Cobalt representation belongs in the annotation body? → To be integrated
-- ⏳ Which contracts reveal host integration mistakes early? → Covered by tests
+- What identifier should a local annotation use?
+- Which contracts reveal host integration mistakes early when tested against the real implementation?
