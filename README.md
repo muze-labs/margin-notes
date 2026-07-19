@@ -19,7 +19,7 @@ The project will provide an embeddable margin-notes component that a site can lo
 
 Implementation has started for the first local slice. The current code exposes the `margin-notes` package, mounts a SimplyFlow app through `MarginNotes.mount(config)`, attaches quiet note affordances to host-supplied anchors, opens the Cobalt editor, and saves/restores OLDMed annotation subjects through a small browser-local store.
 
-The first implementation milestone is still in progress. The current storage shape uses OLDM-style `prefix$predicate` names without importing OLDM itself. The default local store is backed by IndexedDB, but the app-facing store API only stores opaque values by key. The automated tests now cover the annotation model, local store, and the host-contract sketch; browser end-to-end coverage against the real mounted component remains to be added.
+The first implementation milestone is still in progress. The current storage shape uses OLDM-style `prefix$predicate` names without importing OLDM itself. The default local store is backed by IndexedDB, but the app-facing store API only stores opaque values by key. The automated tests now cover the annotation model, local store, and executable host contract used by the component; browser end-to-end coverage against the real mounted component remains to be added.
 
 The package name is `margin-notes`.
 

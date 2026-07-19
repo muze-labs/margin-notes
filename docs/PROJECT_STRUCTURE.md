@@ -16,7 +16,7 @@ This document describes the current project structure for the margin-notes appli
 margin-notes/
 ├── src/
 │   ├── index.js              # Entry point (exposes API to host)
-│   ├── host-contract.js      # API definitions (JSDoc)
+│   ├── host-contract.js      # API definitions and executable validation
 │   ├── component.js          # SimplyFlow app setup and compatibility adapter
 │   ├── cobalt-editor-modal.html # Modal markup imported as text
 │   ├── cobalt-editor-modal.css  # Modal styles imported as text
@@ -149,7 +149,7 @@ The current build script resolves local SimplyFlow and Cobalt package paths from
 npm test
 ```
 
-Currently 8 host-contract sketch tests pass. They use a mock component and should be replaced or supplemented with tests that import the real public API.
+The current unit tests cover the annotation model, local store, and executable host contract. Browser tests still need to exercise the mounted SimplyFlow app.
 
 **Development server:**
 ```bash
@@ -169,19 +169,19 @@ Serves `examples/simple.html` at `http://localhost:3000` for local testing.
 
 ## Tests
 
-Run `npm test` to verify the current host-contract sketch tests. They validate the intended contract shape, but they do not yet validate the real SimplyFlow app implementation.
+Run `npm test` to verify the current unit tests. The host-contract tests import the executable validation used by the real component. They do not yet validate the full SimplyFlow app in a browser.
 
-- Component creation and initialization
-- Config validation (anchors, container required)
-- Support for multiple instances via namespace
-- Component lifecycle (initialize, destroy)
+- Config validation for anchors, containers, duplicate ids, and optional stores
+- Store-key derivation and backwards-compatible `storageKey` handling
+- Annotation model creation, migration, and preservation behavior
+- Local store contract over opaque values
 
 ## Remaining Steps for M1.1
 
 Priority order:
 
-1. **Real API tests** — Exercise `mount(config)` and the compatibility adapter directly.
-2. **Browser tests** — Set up Playwright or similar for integration tests against `examples/simple.html`.
+1. **Browser tests** — Set up Playwright or similar for integration tests against `examples/simple.html`.
+2. **Mounted API coverage** — Exercise `mount(config)` and the compatibility adapter in a real DOM/browser harness.
 3. **Storage round-trip evidence** — Verify that the OLDMed subject graph survives create, edit, delete, and reload.
 4. **Keyboard accessibility evidence** — Demonstrate create, edit, delete, note traversal, and collapse behaviour without mouse-only assumptions.
 5. **End-to-end validation** — Host page can create, edit, delete, reload, and preserve the same annotation subject identity.
@@ -201,4 +201,4 @@ This structure embodies these decisions from [docs/CURRENT_SLICE.md](../docs/CUR
 Questions still being answered in this slice:
 
 - What identifier should a local annotation use?
-- Which contracts reveal host integration mistakes early when tested against the real implementation?
+- Which host contract checks reveal integration mistakes before the browser workflow runs?

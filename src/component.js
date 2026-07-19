@@ -8,6 +8,7 @@
 
 import { app } from '@muze-labs/simplyflow';
 import { paragraphNoteStacks } from './features/paragraph-note-stacks.js';
+import { storeKeyFromConfig, validateHostConfig } from './host-contract.js';
 import { createLocalStore } from './storage/local-store.js';
 
 /**
@@ -20,7 +21,7 @@ export function mount(config) {
   validateHostConfig(config);
 
   const mountContainer = config.container.element;
-  const storeKey = config.storeKey || config.storageKey || `margin-notes-${config.namespace || 'default'}`;
+  const storeKey = storeKeyFromConfig(config);
   const store = config.store || createLocalStore();
 
   mountContainer.innerHTML = '<simply-render rel="margin-notes"></simply-render>';
@@ -105,17 +106,5 @@ export class MarginNotes {
 
   getNotesForAnchor(anchorId) {
     return this.app?.getNotesForAnchor(anchorId) || [];
-  }
-}
-
-function validateHostConfig(config) {
-  if (!config) {
-    throw new Error('Config is required');
-  }
-  if (!Array.isArray(config.anchors)) {
-    throw new Error('Config must have anchors array');
-  }
-  if (!config.container || !config.container.element) {
-    throw new Error('Config must have container with element');
   }
 }

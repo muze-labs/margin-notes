@@ -74,5 +74,54 @@
  * @property {() => Object} create - Backwards-compatible adapter for the previous initialize/destroy API.
  */
 
-// Export for documentation purposes
-export {};
+export function validateHostConfig(config) {
+  if (!config) {
+    throw new Error('Config is required');
+  }
+  if (!Array.isArray(config.anchors)) {
+    throw new Error('Config must have anchors array');
+  }
+  if (!config.container || !isElementLike(config.container.element)) {
+    throw new Error('Config must have container with element');
+  }
+  if (config.store) {
+    validateStore(config.store);
+  }
+
+  const anchorIds = new Set();
+  config.anchors.forEach((anchor, index) => {
+    validateAnchor(anchor, index);
+    if (anchorIds.has(anchor.id)) {
+      throw new Error(`Config anchors must have unique ids: ${anchor.id}`);
+    }
+    anchorIds.add(anchor.id);
+  });
+
+  return config;
+}
+
+export function storeKeyFromConfig(config) {
+  const namespace = config?.namespace || 'default';
+  return config?.storeKey || config?.storageKey || `margin-notes-${namespace}`;
+}
+
+function validateAnchor(anchor, index) {
+  if (!anchor || typeof anchor.id !== 'string' || anchor.id.length === 0) {
+    throw new Error(`Config anchor at index ${index} must have an id`);
+  }
+  if (!isElementLike(anchor.element)) {
+    throw new Error(`Config anchor "${anchor.id}" must have an element`);
+  }
+}
+
+function validateStore(store) {
+  for (const method of ['load', 'save', 'remove']) {
+    if (typeof store[method] !== 'function') {
+      throw new Error(`Config store must provide ${method}()`);
+    }
+  }
+}
+
+function isElementLike(value) {
+  return value && typeof value === 'object' && value.nodeType === 1;
+}
