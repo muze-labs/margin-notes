@@ -102,6 +102,7 @@ This pattern, adopted from `programming-for-wizards`, is intended to be:
 - **`MarginNotesAPI`** — What the host page receives
   - `mount(config)`: mount and return the SimplyFlow app
   - `create()`: backwards-compatible adapter for the previous component API
+  - `createSolidResourceStore(options)`: create a store adapter for one configured Solid resource
 
 ### Usage Example
 
@@ -130,6 +131,7 @@ Feature helpers and dependencies are merged into `app.api.notes`, so actions can
 Templates and styles live in `.html` and `.css` files and are imported as text by esbuild before being added to the app/component object. The app uses a curated local subset of `the-ds` tokens and button/dialog primitives instead of importing the whole design system into host pages.
 
 - **Store**: small app-facing store API with async `load`, `save`, and `remove` methods over opaque values. The default browser-local implementation is backed by IndexedDB.
+- **Solid resource store**: `createSolidResourceStore({ resourceUrl, solid })` implements the same store API against one configured Solid resource through Lading resource methods. Without an injected client it composes the `jsfs-solid` Metro client stack with Metro-OLDM enabled by default.
 - **Stored value**: JSON-like document containing OLDMed annotation subjects with `prefix$predicate` names.
 - **Note structure**: `oa$Annotation` subjects with `oa$hasBody`, `oa$hasTarget`, `dcterms$created`, and `dcterms$modified`.
 - **Operations**: `createNote()`, `updateNote()`, `deleteNote()`, `getNotesForAnchor()`.
@@ -137,7 +139,7 @@ Templates and styles live in `.html` and `.css` files and are imported as text b
 - **Theme**: `theme` mount config plus `setTheme()` / `getTheme()` keep margin notes on `system`, `light`, or `dark` without reading host-specific settings directly.
 - **Imperative DOM boundary**: host-anchor attachment, layout measurement, focus placement, and Cobalt editor mounting.
 
-The current storage path does not import OLDM, parse Turtle, or write to Solid. It deliberately uses the same object naming style OLDM exposes so the later OLDM-backed path does not require renaming the application model. The store boundary is intentionally generic so a later JSFS-backed store can be tested without changing note code.
+The current stored note document is still JSON rather than Turtle or direct OLDMed resources. It deliberately uses the same object naming style OLDM exposes so the later OLDM-backed path does not require renaming the application model. The store boundary is intentionally generic so browser-local and fixed-resource Solid storage can be tested without changing note code.
 
 ## Build & Development
 
@@ -148,7 +150,7 @@ npm run build
 
 Output: `dist/index.js` with source map.
 
-The current build script resolves local SimplyFlow and Cobalt package paths from this development workspace. That is useful for stack work, but the dependency story should be made clone-friendly before the repository is used as a public teaching example.
+The current build and dependency setup resolves local SimplyFlow, Cobalt, and `solid-tools` packages from this development workspace. That is useful for stack work, but the dependency story should be made clone-friendly before the repository is used as a public teaching example.
 
 **Run tests:**
 ```bash

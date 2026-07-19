@@ -21,8 +21,9 @@ A design pressure begins when an active application slice encounters a real boun
 |---|---|---|---|---|---|
 | DP-000 | Closed | Repository setup | Establish a demand-driven process before SimplySolid implementation begins. | Project workflow | `docs/DEMAND_DRIVEN_SIMPLYSOLID.md` |
 | DP-001 | Resolved in application | M1.1 | Browser persistence should not leak its backing mechanism into note code. | Application | `src/storage/local-store.js`, `test/local-store.test.js` |
+| DP-002 | Resolved in application | M3.1 | A fixed Solid resource should save the same note graph without creating a second data model. | Application | `src/storage/solid-resource-store.js`, `test/solid-resource-store.test.js`, `test/browser-mounted.test.js` |
 
-No SimplySolid capability is currently required by an implemented application slice.
+No SimplySolid capability is currently required by an implemented application slice. The first fixed-resource Solid path still fits the existing small store boundary.
 
 ## DP-001: Local Store Boundary
 
@@ -67,6 +68,51 @@ Unit tests cover the store contract. Browser end-to-end validation remains part 
 ### Book consequence
 
 The book can show that a boundary may start as a tiny application port before it deserves to become a shared library.
+
+## DP-002: Fixed Solid Resource Store Boundary
+
+**Status:** Resolved in application  
+**Active slice:** `docs/CURRENT_SLICE.md`  
+**Opened:** 2026-07-19
+
+### User-visible need
+
+A reader should be able to configure a known private Solid resource and have margin notes load from and save to that resource, while the browser-local path remains useful.
+
+### Attempt with the current stack
+
+The app already accepts a small `store` object with `load`, `save`, and `remove` methods over opaque graph documents.
+
+### Observable problem
+
+Moving the graph to Solid needs Solid resource operations and JSON serialization, but the note UI and annotation model do not need to know whether the resource is IndexedDB-backed or loaded from a Pod.
+
+### Why this is not merely application policy
+
+The choice of one fixed resource is application policy for the first Solid slice. The underlying operations are still ordinary Web resource operations, but application code should reach them through the Muze Solid stack: Metro, Metro-OLDM, and Lading.
+
+### Candidate owning layers
+
+- Application
+- Margin-notes component
+- SimplySolid
+- jsfs-solid
+
+### Smallest experiment
+
+Add a `createSolidResourceStore()` adapter that satisfies the existing store contract against one configured resource URL, using an injected Lading-style Solid client when the host already has one and otherwise composing the `jsfs-solid` Metro client stack.
+
+### Resolution
+
+Resolved in application for the first Solid resource slice. The adapter stores the same JSON graph document used by browser-local storage, so Solid support does not introduce a second note model. The default client composition goes through `createSolidMetroClient()`, which keeps Metro-OLDM/OLDM in the transport stack. Discovery, login, permissions UI, source-aware multi-resource save, and direct Turtle/OLDMed resource modelling remain future pressures.
+
+### Validation
+
+Unit tests cover Lading resource method calls, options, missing-resource load, failed save, and delete behaviour. A mounted browser test creates a note through the public API, saves it through the Solid resource adapter, remounts, and restores the note from the same fake resource.
+
+### Book consequence
+
+The book can show the first Solid step as a replaceable edge adapter over a stable application port. A broader workspace abstraction should wait until the app combines several resources or needs per-source provenance.
 
 ## Entry template
 

@@ -140,6 +140,125 @@ test('BrowserMounted: public API creates, restores, edits, and deletes one local
   }
 });
 
+test('BrowserMounted: public API can persist through a Solid resource store adapter', async () => {
+  const server = await startServer();
+  const chrome = await startChrome(`${server.url}/test.html`);
+  let page;
+
+  try {
+    page = await chrome.page();
+    await page.ready();
+
+    const result = await page.evaluate(async () => {
+      const { MarginNotesAPI } = await import(`/dist/index.js?test=${Date.now()}`);
+      const resourceUrl = 'https://pod.example/private/programming-for-wizards/notes.json';
+      let resourceBody = '';
+      const resourceCalls = [];
+      const solid = {
+        resource(url) {
+          return {
+            async get(options) {
+              resourceCalls.push({ url, method: 'get', options });
+              if (!resourceBody) {
+                return new Response('', { status: 404, statusText: 'Not Found' });
+              }
+              return new Response(resourceBody, {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              });
+            },
+            async put(body, options) {
+              resourceCalls.push({ url, method: 'put', options, body });
+              resourceBody = body;
+              return new Response('', { status: 201, statusText: 'Created' });
+            },
+          };
+        },
+      };
+      const store = MarginNotesAPI.createSolidResourceStore({
+        resourceUrl,
+        solid,
+      });
+
+      const app = MarginNotesAPI.mount({
+        anchors: anchorsFromPage(),
+        container: { element: document.getElementById('margin-notes-container') },
+        store,
+        storeKey: resourceUrl,
+      });
+      await waitFor(() => app.data.marginNotes.anchors.length === 2);
+
+      app.api.notes.CobaltEditorModal = class TestEditorModal {
+        async show() {
+          return { text: globalThis.__nextNoteText, annotations: [] };
+        }
+      };
+      globalThis.__nextNoteText = 'A Solid-backed browser note';
+      await app.actions.createNote({ anchorId: 'p-browser-one' });
+      await waitFor(() => resourceBody.includes('A Solid-backed browser note'));
+      const [created] = app.getNotesForAnchor('p-browser-one');
+      await app.destroy();
+
+      resetPage();
+
+      const restoredApp = MarginNotesAPI.mount({
+        anchors: anchorsFromPage(),
+        container: { element: document.getElementById('margin-notes-container') },
+        store: MarginNotesAPI.createSolidResourceStore({ resourceUrl, solid }),
+        storeKey: resourceUrl,
+      });
+      await waitFor(() => restoredApp.getNotesForAnchor('p-browser-one').length === 1);
+      const [restored] = restoredApp.getNotesForAnchor('p-browser-one');
+      await restoredApp.destroy();
+
+      return {
+        createdId: created.id,
+        restoredId: restored.id,
+        restoredText: restored.oa$hasBody.rdf$value,
+        requestMethods: resourceCalls.map(call => call.method),
+        putBody: resourceCalls.find(call => call.method === 'put')?.body,
+        getAccept: resourceCalls.find(call => call.method === 'get')?.options?.accept,
+      };
+
+      function anchorsFromPage() {
+        return Array.from(document.querySelectorAll('[data-note-target]'), element => ({
+          id: element.id,
+          element,
+          label: element.textContent,
+        }));
+      }
+
+      function resetPage() {
+        document.body.innerHTML = `
+          <main>
+            <p id="p-browser-one" data-note-target>One</p>
+            <p id="p-browser-two" data-note-target>Two</p>
+          </main>
+          <aside id="margin-notes-container"></aside>
+        `;
+      }
+
+      async function waitFor(predicate) {
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+          if (predicate()) return;
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        throw new Error('Timed out waiting for browser condition');
+      }
+    });
+
+    assert.equal(result.restoredId, result.createdId);
+    assert.equal(result.restoredText, 'A Solid-backed browser note');
+    assert.deepEqual(result.requestMethods, ['get', 'put', 'get']);
+    assert.equal(result.getAccept, 'application/json');
+    assert.match(result.putBody, /"format": "margin-notes-oldmed-graph"/);
+  } finally {
+    page?.close();
+    await chrome.close();
+    await server.close();
+  }
+});
+
 test('BrowserMounted: host slots receive anchor widgets', async () => {
   const server = await startServer();
   const chrome = await startChrome(`${server.url}/test.html`);

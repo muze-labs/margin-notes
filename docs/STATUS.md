@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Milestone 0 is complete enough to support implementation. The active work item is slice M1.1 in `CURRENT_SLICE.md`, and implementation is in progress.
+Milestone 0 is complete enough to support implementation. The active work item is slice M3.1 in `CURRENT_SLICE.md`: saving the existing note graph to one configured Solid resource.
 
 ## Completed
 
@@ -28,14 +28,17 @@ Milestone 0 is complete enough to support implementation. The active work item i
 - headless browser coverage for the mounted public API create, restore, edit, and delete path;
 - mounted keyboard coverage for focus, create, note traversal, action reachability, and Escape collapse;
 - mounted edit coverage preserves subject identity and unknown predicates;
-- quiet paragraph-side creation affordances and collapsed note stacks.
+- quiet paragraph-side creation affordances and collapsed note stacks;
+- fixed-resource Solid store adapter behind the existing store boundary;
+- mounted browser coverage that creates and restores a note through the Solid resource adapter with a fake Lading-style Solid client.
 
-## Remaining M1.1 work
+## Remaining M3.1 work
 
-Slice M1.1: a browser-only end-to-end note:
+Slice M3.1: one configured Solid resource:
 
-1. run the browser path against `examples/simple.html` or explain why the fixture remains preferable;
-2. update data-model, open-question, and book notes with the evidence from that implementation.
+1. run a real Solid server smoke test or record why fake-client evidence is sufficient for this slice;
+2. decide how failed remote saves should become visible in the UI;
+3. decide whether the example page should expose a configured resource URL for manual testing.
 
 ## Known unresolved choices
 
@@ -43,9 +46,10 @@ Slice M1.1: a browser-only end-to-end note:
 - exact Web Annotation shape;
 - local identifier namespace;
 - browser tooling;
-- exact styling and placement for narrow-screen note creation controls.
+- exact styling and placement for narrow-screen note creation controls;
+- whether the first Solid resource should remain JSON or move to Turtle/direct OLDM resource modelling when interoperability is tested.
 
 
 ## SimplySolid status
 
-No SimplySolid capability is required by implemented application code yet. Features listed in `SIMPLYSOLID_FEATURES.md` remain **Designed** until an active slice produces evidence for them.
+No SimplySolid capability is required by implemented application code yet. The first fixed-resource Solid path is resolved in the application as a store adapter. Features listed in `SIMPLYSOLID_FEATURES.md` remain **Designed** until an active slice produces evidence for them.

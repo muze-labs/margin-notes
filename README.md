@@ -17,9 +17,9 @@ The project will provide an embeddable margin-notes component that a site can lo
 
 ## Current status
 
-Implementation has started for the first local slice. The current code exposes the `margin-notes` package, mounts a SimplyFlow app through `MarginNotes.mount(config)`, attaches quiet note affordances to host-supplied anchors, opens the Cobalt editor, and saves/restores OLDMed annotation subjects through a small browser-local store.
+Implementation has started with a local-first slice and now includes the first fixed-resource Solid storage slice. The current code exposes the `margin-notes` package, mounts a SimplyFlow app through `MarginNotes.mount(config)`, attaches quiet note affordances to host-supplied anchors, opens the Cobalt editor, and saves/restores OLDMed annotation subjects through a small browser-local store or a configured Solid resource store.
 
-The first implementation milestone is still in progress. The current storage shape uses OLDM-style `prefix$predicate` names without importing OLDM itself. The default local store is backed by IndexedDB, but the app-facing store API only stores opaque values by key. The automated tests now cover the annotation model, local store, executable host contract used by the component, and headless browser create/restore/edit/delete plus keyboard-access paths against the mounted public API.
+The current storage shape uses OLDM-style `prefix$predicate` names. The default local store is backed by IndexedDB, and `createSolidResourceStore({ resourceUrl, solid })` stores the same opaque graph document at one configured Solid resource through a Lading-style client. When no client is injected, the adapter builds the `jsfs-solid` Metro client stack with Metro-OLDM enabled by default. The automated tests now cover the annotation model, local store, Solid resource store, executable host contract used by the component, and headless browser create/restore/edit/delete plus keyboard-access paths against the mounted public API.
 
 The package name is `margin-notes`.
 
@@ -64,7 +64,7 @@ The package name is `margin-notes`.
 
 ## Immediate next step
 
-Finish the slice in [`docs/CURRENT_SLICE.md`](docs/CURRENT_SLICE.md) without Solid integration. The next work should close the remaining local gaps: exercise the real component in browser tests, verify the browser-storage round trip for the OLDMed annotation graph, and keep the working path small enough to teach. Do not implement SimplySolid until an active slice produces evidence for a missing capability.
+Continue the slice in [`docs/CURRENT_SLICE.md`](docs/CURRENT_SLICE.md): validate the fixed-resource Solid path against either a real disposable Solid server or an explicit reason that fake-client evidence is enough for the current teaching step. Do not implement a SimplySolid workspace until the application needs source provenance, several resources, or per-resource save results.
 
 ## Licence
 

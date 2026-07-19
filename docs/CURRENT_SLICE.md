@@ -2,72 +2,76 @@
 
 Keep exactly one primary slice active. AI assistants and contributors should read this file before proposing code.
 
-## Slice M1.1 — Create and restore one local note
+## Slice M3.1 — Save notes to one configured Solid resource
 
 **Status:** In progress  
-**Milestone:** 1 — Local note from end to end
+**Milestone:** 3 — Solid connection and storage
 
 ## User-visible outcome
 
-A host page loads the component, a reader selects one supplied paragraph anchor, writes a note with Cobalt, reloads the page, and sees the same note attached to the same paragraph.
+A host page can configure a Solid resource URL and, when needed, inject a Lading-style Solid client. The margin-notes app loads the same note graph from that resource, lets the reader create, edit, and delete notes, and saves the graph back to the configured resource.
+
+Browser-local notes must continue to work without Solid.
 
 ## Current implementation state
 
-The app currently mounts through the host API, installs paragraph-side note affordances, opens the Cobalt editor, and saves/restores OLDMed annotation subjects through a browser-local store.
+The app already has a small store boundary: `load({ key })`, `save({ key, value })`, and `remove({ key })` over opaque graph documents. The default implementation uses IndexedDB. The first Solid implementation adds `createSolidResourceStore()`, which implements the same boundary with Lading resource operations against one configured resource URL.
 
-This is useful implementation progress, but the slice is not complete yet. The current storage format uses OLDMed `prefix$predicate` names without importing OLDM itself. The default local store is backed by IndexedDB, but the app-facing store API is generic and does not know the annotation shape. The automated tests drive the real mounted browser workflow for create, restore, edit, and delete, including subject-identity and unknown-predicate preservation during edit. Keyboard coverage exercises focus into the anchor/add affordance, keyboard note creation, arrow traversal between notes, action reachability, and Escape collapse.
+The Solid resource adapter stores the same JSON graph document used by browser-local storage. This is an intentional first step: it exercises Solid resource ownership and HTTP persistence through the Muze Solid stack without introducing login, discovery, Turtle serialization, or source-aware multi-resource work.
 
-## Why this slice comes first
+## Why this slice comes next
 
-It tests the component boundary, annotation identity, target identity, Cobalt body representation, linked-data representation, and browser persistence without allowing authentication or network behaviour to obscure those questions.
+The local slice proved the note UI, annotation identity, target identity, Cobalt body representation, linked-data-like object shape, browser persistence, and unknown-predicate preservation. The next question is whether that same application model can cross the Solid boundary without rewriting note code or adding a broad workspace abstraction too early.
 
 ## Accepted constraints
 
-- Use one native linked-data model in memory and storage.
-- Do not add Solid login or remote storage.
-- Prefer a stable anchor supplied by the host page.
-- Keep resource-location policy out of presentation code.
-- Preserve room for quote and context selectors, but do not implement robust reattachment yet.
-- Use contracts for explicit host and data assumptions.
+- Keep local browser storage available and unchanged.
+- Use the existing store contract.
+- Configure exactly one Solid resource URL.
+- Accept an injected Lading-style Solid client and otherwise create a `jsfs-solid` Metro client with Metro-OLDM enabled by default.
+- Do not implement login UI in this slice.
+- Save the current JSON graph document; do not introduce a second storage model.
+- Treat the adapter as application evidence, not a SimplySolid capability.
+- Preserve unknown facts by saving the loaded graph document shape back as JSON.
 
 ## Explicit non-goals
 
-- automatic paragraph matching after document edits;
-- Solid authentication;
-- SimplySolid implementation;
-- public note sources;
-- permissions or publication;
-- interoperability conventions;
-- residential programming;
-- a generic storage-provider framework.
+- Solid login;
+- storage discovery;
+- type indexes;
+- WAC or ACP permission UI;
+- inboxes, submission, or publication;
+- public/private multi-source views;
+- per-subject source provenance;
+- Turtle or direct OLDM resource modelling;
+- robust target reattachment;
+- real-server conformance claims beyond a later smoke test.
 
 ## Acceptance evidence
 
-The slice is complete when an automated browser test demonstrates:
+The slice is complete when tests demonstrate:
 
-1. the component mounts through the intended host API;
-2. the reader creates a note for a stable paragraph anchor;
-3. the note is represented as linked data;
-4. the linked-data graph is written to browser storage;
-5. a reload restores the note and target;
-6. the note can be edited and deleted with keyboard access;
-7. no SimplySolid code was added without a separate, evidenced pressure.
+1. the Solid resource adapter loads JSON from a configured resource through a Lading-style resource client;
+2. missing resources load as an empty note graph;
+3. saves use `PUT` with a clear JSON content type;
+4. failed saves report the HTTP failure;
+5. deletion uses `DELETE` and treats already-missing resources as removed;
+6. the mounted app can create a note, save through the adapter, remount, and restore from the same resource;
+7. no SimplySolid package capability was added without a new design pressure.
 
 ## Questions this slice should answer
 
-- What is the smallest useful host API?
-- What identifier should a local annotation use?
-- How should browser storage represent a graph without creating another domain model?
-- Can a generic local store boundary stay small enough now while leaving room for a later JSFS adapter?
-- What Cobalt representation belongs in the annotation body?
-- Which contracts reveal host integration mistakes early?
+- How long can the current store boundary remain useful?
+- What failure information does the app need to show the reader?
+- Is one JSON resource enough for a first private Solid notes file?
+- What evidence would force source-aware workspace semantics into SimplySolid?
+- What must change before a real Solid server smoke test is meaningful?
 
 ## Expected documents to update
 
 - `docs/DATA_MODEL.md`
 - `docs/DECISIONS.md`
-- `docs/OPEN_QUESTIONS.md`
+- `docs/DESIGN_PRESSURES.md`
 - `docs/BOOK_NOTES.md`
 - `docs/STATUS.md`
-
-Add to `docs/DESIGN_PRESSURES.md` only when the slice exposes a concrete stack boundary problem.
+- `docs/SIMPLYSOLID_FEATURES.md` if a SimplySolid capability becomes required, implemented, or validated.

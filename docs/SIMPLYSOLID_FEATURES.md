@@ -16,7 +16,7 @@ A feature normally moves through the states in order. A prototype may be impleme
 
 | Capability | State | First expected slice | Design pressure | Library evidence | Application evidence | Notes |
 |---|---|---|---|---|---|---|
-| Workspace over explicitly named resources | Designed | Milestone 3 | — | — | — | Do not implement before the application reaches Solid storage. |
+| Workspace over explicitly named resources | Designed | Milestone 3 | — | — | — | DP-002 reached fixed-resource Solid storage but was resolved by the existing store boundary; no workspace pressure yet. |
 | Resource descriptors and shorthand inputs | Designed | Milestone 3 | — | — | — | Exact API remains provisional. |
 | Source provenance for loaded subjects | Designed | Milestone 3 or 4 | — | — | — | Must be observable in the application, not only internal metadata. |
 | Read-only source handling | Designed | Milestone 4 | — | — | — | Public-note coexistence should drive it. |

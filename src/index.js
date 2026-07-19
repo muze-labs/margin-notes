@@ -14,6 +14,7 @@
  */
 
 import { MarginNotes, mount } from './component.js';
+import { createSolidResourceStore } from './storage/solid-resource-store.js';
 
 /**
  * Global API that the host page receives.
@@ -21,6 +22,7 @@ import { MarginNotes, mount } from './component.js';
  * @type {Object}
  * @property {(config: Object) => Object} mount - Mount and return the SimplyFlow app
  * @property {() => MarginNotes} create - Create a new component instance
+ * @property {(options: Object) => Object} createSolidResourceStore - Create a Solid resource-backed store
  */
 const MarginNotesAPI = {
   mount(config) {
@@ -30,12 +32,17 @@ const MarginNotesAPI = {
   create() {
     return new MarginNotes();
   },
+
+  createSolidResourceStore(options) {
+    return createSolidResourceStore(options);
+  },
 };
 
 // Export for module systems
 export { MarginNotesAPI };
 export { MarginNotes };
 export { mount };
+export { createSolidResourceStore };
 export {};
 
 // Also attach to global for script-tag usage

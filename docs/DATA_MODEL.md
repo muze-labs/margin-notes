@@ -4,7 +4,7 @@ This is a starting hypothesis. The model should be revised when implementation o
 
 ## Selected M1.1 Object Shape
 
-M1.1 uses OLDMed JavaScript property names without importing OLDM yet. The goal is to let application code use the same names that OLDM will expose later from parsed linked data.
+M1.1 selected OLDMed JavaScript property names before the application had a direct OLDM-backed resource model. The goal is to let application code use the same names that OLDM exposes from parsed linked data.
 
 Stored annotation subjects currently use these prefixes:
 
@@ -70,6 +70,8 @@ Example OLDMed object:
 Browser-local storage currently writes a small document containing `format`, `version`, `prefixes`, and `subjects`. This is still JSON, but the subject objects already use the native OLDMed property names expected from OLDM.
 
 The local store itself stores opaque values by key. It does not know about annotations, OLDMed, or Cobalt. Annotation-specific conversion belongs to the note feature API.
+
+The first Solid-backed storage slice writes the same JSON graph document to one configured Solid resource through `createSolidResourceStore()`. The adapter uses a Lading-style client and can compose a Metro client with Metro-OLDM enabled, but the stored note document is not yet a direct Turtle or OLDMed resource format. This is a deliberate boundary test: Solid resource persistence can be added without teaching the note UI a second model. Turtle or direct OLDM resource modelling should wait for a slice that needs cross-application editing or real linked-data resource composition.
 
 ## Prefer existing annotation terms
 
