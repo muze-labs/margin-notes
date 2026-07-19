@@ -11,6 +11,7 @@
   --margin-notes-radius: var(--ds-box-radius, 4px);
   --margin-notes-shadow: var(--ds-shadow-small, 0 4px 14px rgba(20, 31, 56, 0.16));
   --margin-notes-font: var(--ds-font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+  color-scheme: var(--ds-color-scheme, light);
 }
 
 [data-margin-notes-target] {

@@ -25,6 +25,18 @@ test('HostContract: accepts an optional host-owned anchor slot', () => {
   assert.equal(validateHostConfig(config), config);
 });
 
+test('HostContract: accepts supported optional themes', () => {
+  for (const theme of ['system', 'light', 'dark']) {
+    const config = {
+      anchors: [],
+      container: { element: element() },
+      theme,
+    };
+
+    assert.equal(validateHostConfig(config), config);
+  }
+});
+
 test('HostContract: rejects a missing config', () => {
   assert.throws(() => validateHostConfig(null), /Config is required/);
 });
@@ -110,6 +122,16 @@ test('HostContract: validates optional store capability', () => {
       },
     });
   }, /store must provide remove/);
+});
+
+test('HostContract: rejects unsupported optional themes', () => {
+  assert.throws(() => {
+    validateHostConfig({
+      anchors: [],
+      container: { element: element() },
+      theme: 'contrast',
+    });
+  }, /theme must be "system", "light", or "dark"/);
 });
 
 test('HostContract: derives the default store key from namespace', () => {

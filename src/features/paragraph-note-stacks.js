@@ -22,6 +22,9 @@ export const paragraphNoteStacks = {
     async setupParagraphNoteStacks({ anchors, storeKey }) {
       const notesApi = this.api.notes;
       this.data.marginNotes.storeKey = storeKey;
+      await this.actions.setTheme({
+        theme: this.data.marginNotes.theme,
+      });
       await this.actions.installAnchorAffordances({ anchors });
 
       this.data.marginNotes.graph = await notesApi.loadGraph({
@@ -64,7 +67,20 @@ export const paragraphNoteStacks = {
 
       await this.actions.removeAnchorAffordances({});
       notesApi.removeInstalledViewAssets({ app: this });
+      notesApi.restoreTheme({ app: this });
       this.marginNotesRuntime.mountContainer?.replaceChildren();
+    },
+
+    async setTheme({ theme }) {
+      const notesApi = this.api.notes;
+      const normalizedTheme = notesApi.normalizeTheme({ theme });
+
+      this.data.marginNotes.theme = normalizedTheme;
+      notesApi.applyTheme({
+        app: this,
+        theme: normalizedTheme,
+      });
+      return normalizedTheme;
     },
 
     async createNote({ anchorId }) {
@@ -493,6 +509,28 @@ export const paragraphNoteStacks = {
         'margin-notes-ui.css',
         'margin-notes-cobalt-editor.css',
       ],
+
+      normalizeTheme({ theme }) {
+        if (theme === undefined) return 'system';
+        if (['system', 'light', 'dark'].includes(theme)) return theme;
+
+        throw new Error('Theme must be "system", "light", or "dark"');
+      },
+
+      applyTheme({ app, theme }) {
+        app.marginNotesRuntime.themeRoot?.setAttribute('data-margin-notes-theme', theme);
+      },
+
+      restoreTheme({ app }) {
+        const root = app.marginNotesRuntime.themeRoot;
+        if (!root) return;
+
+        if (app.marginNotesRuntime.hadThemeAttribute) {
+          root.setAttribute('data-margin-notes-theme', app.marginNotesRuntime.previousThemeAttribute);
+        } else {
+          root.removeAttribute('data-margin-notes-theme');
+        }
+      },
 
       getNotesForAnchor({ app, anchorId }) {
         const anchor = this.findAnchor({ app, anchorId });

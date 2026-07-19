@@ -1,24 +1,27 @@
 .margin-notes-editor-modal {
-  align-items: center;
-  bottom: 0;
-  display: flex;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  color-scheme: var(--ds-color-scheme, light);
   font-family: var(--ds-font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
-  justify-content: center;
-  left: 0;
-  position: fixed;
-  right: 0;
-  top: 0;
-  z-index: 10000;
+  margin: auto;
+  max-height: min(80vh, 100%);
+  max-width: min(90vw, 600px);
+  overflow: visible;
+  padding: 0;
+  width: min(90vw, 600px);
 }
 
-.margin-notes-editor-modal-backdrop {
+.margin-notes-editor-modal:not(:popover-open) {
+  display: none;
+}
+
+.margin-notes-editor-modal:popover-open {
+  display: flex;
+}
+
+.margin-notes-editor-modal::backdrop {
   background: rgba(0, 0, 0, 0.5);
-  bottom: 0;
-  left: 0;
-  position: fixed;
-  right: 0;
-  top: 0;
-  z-index: 9999;
 }
 
 .margin-notes-editor-modal-dialog {
@@ -27,8 +30,7 @@
   max-height: 80vh;
   max-width: 600px;
   position: relative;
-  width: min(90vw, 600px);
-  z-index: 10001;
+  width: 100%;
 }
 
 .margin-notes-editor-modal-header {
@@ -71,9 +73,10 @@
 }
 
 .margin-notes-cobalt-editor {
-  background: var(--ds-grey-0, #fafafa);
+  background: var(--ds-color-background, #fff);
   border: 1px solid var(--ds-input-border, #d1d5db);
   border-radius: var(--ds-box-radius, 4px);
+  color: var(--ds-color-contrast, #111);
   font-family: inherit;
   font-size: 1rem;
   line-height: 1.5;
@@ -81,6 +84,14 @@
   min-height: 150px;
   overflow-y: auto;
   padding: var(--ds-space-d2, 0.75rem);
+}
+
+.margin-notes-cobalt-editor[contenteditable="true"],
+.margin-notes-cobalt-editor textarea,
+.margin-notes-cobalt-editor input {
+  background: var(--ds-color-background, #fff);
+  color: var(--ds-color-contrast, #111);
+  caret-color: var(--ds-color-contrast, #111);
 }
 
 .margin-notes-cobalt-editor:focus-within {

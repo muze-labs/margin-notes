@@ -194,6 +194,273 @@ test('BrowserMounted: host slots receive anchor widgets', async () => {
   }
 });
 
+test('BrowserMounted: design-system subset styles editor modal and cleans up on destroy', async () => {
+  const server = await startServer();
+  const chrome = await startChrome(`${server.url}/test.html`);
+  let page;
+
+  try {
+    page = await chrome.page();
+    await page.ready();
+
+    const result = await page.evaluate(async () => {
+      const { MarginNotesAPI } = await import(`/dist/index.js?test=${Date.now()}`);
+      const app = MarginNotesAPI.mount({
+        anchors: anchorsFromPage(),
+        container: { element: document.getElementById('margin-notes-container') },
+        storeKey: `browser-ds-${crypto.randomUUID()}`,
+      });
+      await waitFor(() => app.data.marginNotes.anchors.length === 2);
+
+      const styleIds = Array.from(document.querySelectorAll('style[id^="margin-notes"]'), style => style.id);
+      const modal = new app.api.notes.CobaltEditorModal({
+        title: 'Styled modal',
+        initialFragment: { text: '', annotations: [] },
+      });
+      void modal.show();
+      await waitFor(() => document.querySelector('.margin-notes-editor-modal'));
+
+      const dialog = document.querySelector('.margin-notes-editor-modal-dialog');
+      const saveButton = document.querySelector('.margin-notes-editor-btn-save');
+      const dialogStyle = getComputedStyle(dialog);
+      const saveButtonStyle = getComputedStyle(saveButton);
+      const styledModal = {
+        dialogRadius: dialogStyle.borderRadius,
+        saveButtonBackground: saveButtonStyle.backgroundColor,
+        saveButtonColor: saveButtonStyle.color,
+        saveButtonOutlineColor: saveButtonStyle.outlineColor,
+        hasDesignSystemRule: document
+          .getElementById('margin-notes-design-system.css')
+          ?.textContent.includes('--ds-button-primary-bg-color') || false,
+      };
+
+      modal.destroy();
+      await app.destroy();
+
+      return {
+        styleIds,
+        styledModal,
+        hasDesignSystemAfterDestroy: Boolean(document.getElementById('margin-notes-design-system.css')),
+      };
+
+      function anchorsFromPage() {
+        return Array.from(document.querySelectorAll('[data-note-target]'), element => ({
+          id: element.id,
+          element,
+          label: element.textContent,
+        }));
+      }
+
+      async function waitFor(predicate) {
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+          if (predicate()) return;
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        throw new Error('Timed out waiting for browser condition');
+      }
+    });
+
+    assert.deepEqual(result.styleIds, [
+      'margin-notes-design-system.css',
+      'margin-notes-ui.css',
+      'margin-notes-cobalt-editor.css',
+    ]);
+    assert.equal(result.styledModal.hasDesignSystemRule, true);
+    assert.equal(result.styledModal.dialogRadius, '8px');
+    assert.notEqual(result.styledModal.saveButtonBackground, 'rgba(0, 0, 0, 0)');
+    assert.equal(result.styledModal.saveButtonColor, 'rgb(255, 255, 255)');
+    assert.equal(result.styledModal.saveButtonOutlineColor, 'rgba(0, 0, 0, 0)');
+    assert.equal(result.hasDesignSystemAfterDestroy, false);
+  } finally {
+    page?.close();
+    await chrome.close();
+    await server.close();
+  }
+});
+
+test('BrowserMounted: host can set and update margin notes theme', async () => {
+  const server = await startServer();
+  const chrome = await startChrome(`${server.url}/test.html`);
+  let page;
+
+  try {
+    page = await chrome.page();
+    await page.ready();
+
+    const result = await page.evaluate(async () => {
+      const { MarginNotesAPI } = await import(`/dist/index.js?test=${Date.now()}`);
+      document.documentElement.dataset.marginNotesTheme = 'light';
+
+      const app = MarginNotesAPI.mount({
+        anchors: anchorsFromPage(),
+        container: { element: document.getElementById('margin-notes-container') },
+        storeKey: `browser-theme-${crypto.randomUUID()}`,
+        theme: 'dark',
+      });
+      await waitFor(() => app.data.marginNotes.anchors.length === 2);
+
+      const mountedTheme = app.getTheme();
+      const mountedAttribute = document.documentElement.dataset.marginNotesTheme;
+      const mountedColorScheme = getComputedStyle(document.getElementById('p-browser-one')).colorScheme;
+      const runtimeLight = await app.setTheme('light');
+      const lightAttribute = document.documentElement.dataset.marginNotesTheme;
+      const runtimeSystem = await app.setTheme('system');
+      const systemAttribute = document.documentElement.dataset.marginNotesTheme;
+      const invalidMessage = await app.setTheme('contrast').then(
+        () => '',
+        error => error.message
+      );
+      await app.setTheme('dark');
+      const modal = new app.api.notes.CobaltEditorModal({
+        title: 'Themed modal',
+        initialFragment: { text: '', annotations: [] },
+      });
+      void modal.show();
+      await waitFor(() => document.querySelector('.margin-notes-editor-modal'));
+      const editorStyle = getComputedStyle(document.querySelector('.margin-notes-cobalt-editor'));
+      const darkEditorBackground = editorStyle.backgroundColor;
+      const darkEditorColorScheme = editorStyle.colorScheme;
+      modal.destroy();
+
+      await app.destroy();
+
+      return {
+        mountedTheme,
+        mountedAttribute,
+        mountedColorScheme,
+        runtimeLight,
+        lightAttribute,
+        runtimeSystem,
+        systemAttribute,
+        invalidMessage,
+        darkEditorBackground,
+        darkEditorColorScheme,
+        restoredAttribute: document.documentElement.dataset.marginNotesTheme,
+      };
+
+      function anchorsFromPage() {
+        return Array.from(document.querySelectorAll('[data-note-target]'), element => ({
+          id: element.id,
+          element,
+          label: element.textContent,
+        }));
+      }
+
+      async function waitFor(predicate) {
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+          if (predicate()) return;
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        throw new Error('Timed out waiting for browser condition');
+      }
+    });
+
+    assert.equal(result.mountedTheme, 'dark');
+    assert.equal(result.mountedAttribute, 'dark');
+    assert.equal(result.mountedColorScheme, 'dark');
+    assert.equal(result.runtimeLight, 'light');
+    assert.equal(result.lightAttribute, 'light');
+    assert.equal(result.runtimeSystem, 'system');
+    assert.equal(result.systemAttribute, 'system');
+    assert.match(result.invalidMessage, /Theme must be "system", "light", or "dark"/);
+    assert.notEqual(result.darkEditorBackground, 'rgb(255, 255, 255)');
+    assert.equal(result.darkEditorColorScheme, 'dark');
+    assert.equal(result.restoredAttribute, 'light');
+  } finally {
+    page?.close();
+    await chrome.close();
+    await server.close();
+  }
+});
+
+test('BrowserMounted: editor modal footer cancel and Escape close without saving', async () => {
+  const server = await startServer();
+  const chrome = await startChrome(`${server.url}/test.html`);
+  let page;
+
+  try {
+    page = await chrome.page();
+    await page.ready();
+
+    await page.evaluate(async () => {
+      const { MarginNotesAPI } = await import(`/dist/index.js?test=${Date.now()}`);
+      const app = MarginNotesAPI.mount({
+        anchors: anchorsFromPage(),
+        container: { element: document.getElementById('margin-notes-container') },
+        storeKey: `browser-editor-cancel-${crypto.randomUUID()}`,
+      });
+      await waitFor(() => app.data.marginNotes.anchors.length === 2);
+      globalThis.__modalTestApp = app;
+      globalThis.__modalTestWaitFor = waitFor;
+
+      function anchorsFromPage() {
+        return Array.from(document.querySelectorAll('[data-note-target]'), element => ({
+          id: element.id,
+          element,
+          label: element.textContent,
+        }));
+      }
+
+      async function waitFor(predicate) {
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+          if (predicate()) return;
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        throw new Error('Timed out waiting for browser condition');
+      }
+    });
+
+    await page.evaluate(async () => {
+      const footerCancelModal = new globalThis.__modalTestApp.api.notes.CobaltEditorModal({
+        title: 'Footer cancel',
+        initialFragment: { text: 'unchanged footer', annotations: [] },
+      });
+      globalThis.__footerCancelResultPromise = footerCancelModal.show();
+      await globalThis.__modalTestWaitFor(() => document.querySelector('.margin-notes-editor-modal'));
+    });
+    await page.click('.margin-notes-editor-btn-cancel');
+    const footerCancelResult = await page.evaluate(async () => {
+      const result = await globalThis.__footerCancelResultPromise;
+      delete globalThis.__footerCancelResultPromise;
+      await globalThis.__modalTestWaitFor(() => !document.querySelector('.margin-notes-editor-modal'));
+      return result;
+    });
+
+    await page.evaluate(async () => {
+      const escapeModal = new globalThis.__modalTestApp.api.notes.CobaltEditorModal({
+        title: 'Escape cancel',
+        initialFragment: { text: 'unchanged escape', annotations: [] },
+      });
+      globalThis.__escapeResultPromise = escapeModal.show();
+      await globalThis.__modalTestWaitFor(() => document.querySelector('.margin-notes-editor-modal'));
+      document.querySelector('.margin-notes-cobalt-editor').focus();
+    });
+    await page.press('Escape');
+    const result = await page.evaluate(async () => {
+      const escapeResult = await globalThis.__escapeResultPromise;
+      delete globalThis.__escapeResultPromise;
+      await globalThis.__modalTestWaitFor(() => !document.querySelector('.margin-notes-editor-modal'));
+
+      await globalThis.__modalTestApp.destroy();
+      delete globalThis.__modalTestApp;
+      delete globalThis.__modalTestWaitFor;
+
+      return {
+        escapeResult,
+        modalClosed: !document.querySelector('.margin-notes-editor-modal'),
+      };
+    });
+
+    assert.equal(footerCancelResult, null);
+    assert.equal(result.escapeResult, null);
+    assert.equal(result.modalClosed, true);
+  } finally {
+    page?.close();
+    await chrome.close();
+    await server.close();
+  }
+});
+
 test('BrowserMounted: keyboard users can create, traverse, and collapse notes', async () => {
   const server = await startServer();
   const chrome = await startChrome(`${server.url}/test.html`);
@@ -601,6 +868,49 @@ async function connectPage(url) {
       await this.send('Input.dispatchKeyEvent', {
         type: 'keyUp',
         ...definition,
+      });
+    },
+
+    async click(selector) {
+      const result = await this.send('Runtime.evaluate', {
+        expression: `(() => {
+          const element = document.querySelector(${JSON.stringify(selector)});
+          if (!element) throw new Error('No element for selector: ${selector}');
+
+          element.scrollIntoView({ block: 'center', inline: 'center' });
+          const rect = element.getBoundingClientRect();
+          return {
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
+          };
+        })()`,
+        awaitPromise: true,
+        returnByValue: true,
+      });
+      if (result.exceptionDetails) {
+        throw new Error(result.exceptionDetails.text);
+      }
+      const { x, y } = result.result.value;
+      await this.send('Input.dispatchMouseEvent', {
+        type: 'mouseMoved',
+        x,
+        y,
+      });
+      await this.send('Input.dispatchMouseEvent', {
+        type: 'mousePressed',
+        x,
+        y,
+        button: 'left',
+        buttons: 1,
+        clickCount: 1,
+      });
+      await this.send('Input.dispatchMouseEvent', {
+        type: 'mouseReleased',
+        x,
+        y,
+        button: 'left',
+        buttons: 0,
+        clickCount: 1,
       });
     },
 

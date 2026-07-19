@@ -40,6 +40,7 @@ These questions should be answered through small experiments or working slices, 
 
 - Which parts belong in the reusable component and which remain host-application policy?
 - Does SimplyFlow need new primitives for async effects, partial source failure, or editor state?
+- Should the Cobalt editor modal become a SimplyFlow component or small SimplyFlow app instead of an imperative promise helper with local DOM actions?
 - Can OLDM Shape match the required Web Annotation structures without turning into a mapper?
 - Where should target-resolution algorithms live: this package, a generic annotation library, or the host integration layer?
 - Does Assert need additions to express linked-data invariants cleanly?

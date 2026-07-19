@@ -10,6 +10,8 @@ import COBALT_EDITOR_STYLES from './cobalt-editor-modal.css';
 
 export { COBALT_EDITOR_STYLES };
 
+let modalId = 0;
+
 /**
  * Simple promise-based modal for editing a note with Cobalt.
  * 
@@ -36,31 +38,50 @@ export class CobaltEditorModal {
     return new Promise((resolve) => {
       this.createModal();
       
-      const saveBtn = this.modal.querySelector('[data-action="save"]');
-      const cancelBtn = this.modal.querySelector('[data-action="cancel"]');
+      const modal = this.modal;
+      let settled = false;
+
+      const finish = (value) => {
+        if (settled) return;
+
+        settled = true;
+        if (modal.matches(':popover-open')) {
+          modal.hidePopover();
+        }
+        this.destroy();
+        resolve(value);
+      };
       
       const onSave = async () => {
         const edited = this.editor.getValue();
-        this.destroy();
-        resolve(edited);
+        finish(edited);
       };
       
       const onCancel = () => {
-        this.destroy();
-        resolve(null);
+        finish(null);
       };
-      
-      saveBtn.addEventListener('click', onSave);
-      cancelBtn.addEventListener('click', onCancel);
-      
-      // Also allow Ctrl+S to save
-      this.modal.addEventListener('keydown', (e) => {
-        e.stopPropagation();
+
+      const onModalKeydown = (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
           e.preventDefault();
+          e.stopPropagation();
           onSave();
+          return;
         }
-      });
+
+        e.stopPropagation();
+      };
+
+      const onToggle = (e) => {
+        if (e.newState === 'closed') {
+          onCancel();
+        }
+      };
+
+      modal.querySelector('[data-action="save"]').addEventListener('click', onSave);
+      modal.addEventListener('keydown', onModalKeydown);
+      modal.addEventListener('toggle', onToggle);
+      modal.showPopover();
       
       // Focus the editor
       setTimeout(() => {
@@ -78,21 +99,22 @@ export class CobaltEditorModal {
     // Create modal overlay
     this.modal = document.createElement('div');
     this.modal.className = 'margin-notes-editor-modal';
+    modalId += 1;
+    this.modal.id = `margin-notes-editor-modal-${modalId}`;
     this.modal.dataset.readerKeyScope = 'margin-notes-editor';
+    this.modal.setAttribute('popover', 'auto');
     this.modal.innerHTML = COBALT_EDITOR_TEMPLATE;
     this.modal.querySelector('[data-title]').textContent = this.options.title || 'Edit note';
+    this.modal.querySelectorAll('[data-action="cancel"]').forEach(cancelBtn => {
+      cancelBtn.setAttribute('popovertarget', this.modal.id);
+      cancelBtn.setAttribute('popovertargetaction', 'hide');
+    });
     
     document.body.appendChild(this.modal);
     
     // Create the Cobalt editor in the container
     const editorContainer = this.modal.querySelector('[data-editor-container]');
     this.editor = edit(editorContainer, this.fragment);
-    
-    // Close on backdrop click
-    const backdrop = this.modal.querySelector('.margin-notes-editor-modal-backdrop');
-    backdrop.addEventListener('click', () => {
-      this.modal.querySelector('[data-action="cancel"]').click();
-    });
   }
 
   /**

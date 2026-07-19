@@ -31,7 +31,10 @@ const server = http.createServer((req, res) => {
       '.json': 'application/json'
     };
     
-    res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'text/plain' });
+    res.writeHead(200, {
+      'Content-Type': mimeTypes[ext] || 'text/plain',
+      'Cache-Control': 'no-store',
+    });
     res.end(fs.readFileSync(filePath));
   } else {
     res.writeHead(404);

@@ -65,11 +65,9 @@
     This pattern is stable, human-readable, and includes a text hint.
   -->
   <script type="module">
-    // Import the component from the built bundle
-    // In production, this would be a minified external script
-    import { MarginNotesAPI } from '../dist/index.js';
-    
     async function initMarginNotes() {
+      const { MarginNotesAPI } = await import(`../dist/index.js?dev=${Date.now()}`);
+
       // Find all elements marked as note targets
       // Pattern: id="{type}-{namespace}-{text-slug}"
       // Adopted from programming-for-wizards

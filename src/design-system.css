@@ -38,6 +38,7 @@
 @layer theme {
   :root,
   :host {
+    --ds-color-scheme: light;
     --ds-font-heading: var(--margin-notes-font-family, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
     --ds-font-body: var(--margin-notes-font-family, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
     --ds-font-weight: 400;
@@ -126,6 +127,62 @@
     --ds-dialog-radius: calc(2 * var(--ds-box-radius));
     --ds-dialog-size: calc(50% - (1 / 2 * var(--ds-space)));
     --ds-dialog-min-width: 25em;
+  }
+
+  :root[data-margin-notes-theme="dark"],
+  :host([data-margin-notes-theme="dark"]) {
+    --ds-color-scheme: dark;
+    --ds-primary: oklch(0.78 0.14 142);
+    --ds-support: oklch(0.78 0.13 225);
+    --ds-primary-high: oklch(0.84 0.11 142);
+    --ds-primary-low: oklch(0.3 0.08 142);
+    --ds-support-high: oklch(0.82 0.1 225);
+    --ds-support-low: oklch(0.3 0.08 225);
+    --ds-grey-high: #f3f3ed;
+    --ds-grey-medium: #b8bbad;
+    --ds-grey-low: #343831;
+    --ds-color: #f3f3ed;
+    --ds-color-background: #1b1d19;
+    --ds-color-contrast: #f3f3ed;
+    --ds-shadow-light: rgba(0, 0, 0, 0.18);
+    --ds-shadow-middle: rgba(0, 0, 0, 0.24);
+    --ds-shadow-dark: rgba(0, 0, 0, 0.32);
+    --ds-input-border: #5b6054;
+    --ds-button-bg-color: #343831;
+    --ds-button-default-bg-color: #242720;
+    --ds-button-border: 1px solid #4a5045;
+    --ds-button-disabled-color: #8e9285;
+    --ds-button-disabled-bg-color: #242720;
+    --ds-dialog-background: #1f211d;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root[data-margin-notes-theme="system"],
+    :host([data-margin-notes-theme="system"]) {
+      --ds-color-scheme: dark;
+      --ds-primary: oklch(0.78 0.14 142);
+      --ds-support: oklch(0.78 0.13 225);
+      --ds-primary-high: oklch(0.84 0.11 142);
+      --ds-primary-low: oklch(0.3 0.08 142);
+      --ds-support-high: oklch(0.82 0.1 225);
+      --ds-support-low: oklch(0.3 0.08 225);
+      --ds-grey-high: #f3f3ed;
+      --ds-grey-medium: #b8bbad;
+      --ds-grey-low: #343831;
+      --ds-color: #f3f3ed;
+      --ds-color-background: #1b1d19;
+      --ds-color-contrast: #f3f3ed;
+      --ds-shadow-light: rgba(0, 0, 0, 0.18);
+      --ds-shadow-middle: rgba(0, 0, 0, 0.24);
+      --ds-shadow-dark: rgba(0, 0, 0, 0.32);
+      --ds-input-border: #5b6054;
+      --ds-button-bg-color: #343831;
+      --ds-button-default-bg-color: #242720;
+      --ds-button-border: 1px solid #4a5045;
+      --ds-button-disabled-color: #8e9285;
+      --ds-button-disabled-bg-color: #242720;
+      --ds-dialog-background: #1f211d;
+    }
   }
 }
 

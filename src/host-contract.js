@@ -56,6 +56,8 @@
  * @property {Object} [store] - Optional store with async load/save/remove methods.
  * @property {string} [expandedStackBackground] - CSS color used behind an opened stack of notes.
  *   Defaults to `#fffefb`
+ * @property {'system'|'light'|'dark'} [theme] - Color theme for margin notes.
+ *   Defaults to `system`.
  */
 
 /**
@@ -65,6 +67,8 @@
  * @property {() => Promise<void>} destroy - Clean up resources and unmount the component.
  *   The component should not respond to further interactions after this.
  * @property {(anchorId: string) => Object[]} getNotesForAnchor - Return stored notes for a host anchor.
+ * @property {(theme: 'system'|'light'|'dark') => Promise<string>} setTheme - Change margin notes theme at runtime.
+ * @property {() => 'system'|'light'|'dark'} getTheme - Return the current margin notes theme setting.
  * @property {Object} actions - SimplyFlow actions for note behavior.
  */
 
@@ -89,6 +93,7 @@ export function validateHostConfig(config) {
   if (config.store) {
     validateStore(config.store);
   }
+  validateTheme(config.theme);
 
   const anchorIds = new Set();
   config.anchors.forEach((anchor, index) => {
@@ -124,6 +129,14 @@ function validateStore(store) {
     if (typeof store[method] !== 'function') {
       throw new Error(`Config store must provide ${method}()`);
     }
+  }
+}
+
+function validateTheme(theme) {
+  if (theme === undefined) return;
+
+  if (!['system', 'light', 'dark'].includes(theme)) {
+    throw new Error('Config theme must be "system", "light", or "dark"');
   }
 }
 

@@ -23,6 +23,7 @@ export function mount(config) {
   const mountContainer = config.container.element;
   const storeKey = storeKeyFromConfig(config);
   const store = config.store || createLocalStore();
+  const themeRoot = document.documentElement;
 
   mountContainer.innerHTML = '<simply-render rel="margin-notes"></simply-render>';
   const marginApp = app({
@@ -36,6 +37,7 @@ export function mount(config) {
         anchorViews: [],
         graph: [],
         storeKey,
+        theme: config.theme || 'system',
       },
     },
     marginNotesRuntime: {
@@ -46,6 +48,9 @@ export function mount(config) {
       anchorAffordances: [],
       resizeObserver: null,
       syncTimers: new Map(),
+      themeRoot,
+      hadThemeAttribute: themeRoot.hasAttribute('data-margin-notes-theme'),
+      previousThemeAttribute: themeRoot.getAttribute('data-margin-notes-theme'),
     },
     start() {
       return this.actions.setupParagraphNoteStacks({
@@ -65,6 +70,12 @@ export function mount(config) {
       app: this,
       anchorId,
     });
+  };
+  marginApp.setTheme = function setMountedTheme(theme) {
+    return this.actions.setTheme({ theme });
+  };
+  marginApp.getTheme = function getMountedTheme() {
+    return this.data.marginNotes.theme;
   };
 
   return marginApp;
@@ -106,5 +117,13 @@ export class MarginNotes {
 
   getNotesForAnchor(anchorId) {
     return this.app?.getNotesForAnchor(anchorId) || [];
+  }
+
+  setTheme(theme) {
+    return this.app?.setTheme(theme);
+  }
+
+  getTheme() {
+    return this.app?.getTheme() || 'system';
   }
 }
