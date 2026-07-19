@@ -85,7 +85,7 @@ The app already accepts a small `store` object with `load`, `save`, and `remove`
 
 ### Observable problem
 
-Moving the graph to Solid needs Solid resource operations and JSON serialization, but the note UI and annotation model do not need to know whether the resource is IndexedDB-backed or loaded from a Pod.
+Moving the graph to Solid needs Solid resource operations and linked-data serialization, but the note UI and annotation model do not need to know whether the resource is IndexedDB-backed or loaded from a Pod.
 
 ### Why this is not merely application policy
 
@@ -104,11 +104,11 @@ Add a `createSolidResourceStore()` adapter that satisfies the existing store con
 
 ### Resolution
 
-Resolved in application for the first Solid resource slice. The adapter stores the same JSON graph document used by browser-local storage, so Solid support does not introduce a second note model. The default client composition goes through `createSolidMetroClient()`, which keeps Metro-OLDM/OLDM in the transport stack. Discovery, login, permissions UI, source-aware multi-resource save, and direct Turtle/OLDMed resource modelling remain future pressures.
+Resolved in application for the first Solid resource slice. The adapter translates the same app-facing graph document used by browser-local storage to and from Turtle, so Solid support does not introduce a second note model. The default client composition goes through `createSolidMetroClient()`, which keeps Metro-OLDM/OLDM in the transport stack. Discovery, login, permissions UI, and source-aware multi-resource save remain future pressures.
 
 ### Validation
 
-Unit tests cover Lading resource method calls, options, missing-resource load, failed save, and delete behaviour. A mounted browser test creates a note through the public API, saves it through the Solid resource adapter, remounts, and restores the note from the same fake resource.
+Unit tests cover Lading resource method calls, Turtle parse/write behaviour, missing-resource load, failed save, and delete behaviour. A mounted browser test creates a note through the public API, saves Turtle through the Solid resource adapter, remounts, and restores the note from the same fake resource.
 
 ### Book consequence
 

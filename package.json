@@ -22,7 +22,8 @@
   "dependencies": {
     "@muze-labs/jsfs-solid": "file:../solid-tools/packages/jsfs-solid",
     "@muze-labs/lading": "file:../solid-tools/packages/lading",
-    "@muze-nl/assert": "^0.6.0"
+    "@muze-nl/assert": "^0.6.0",
+    "@muze-nl/oldm": "^0.7.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

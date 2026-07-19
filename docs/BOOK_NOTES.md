@@ -27,5 +27,5 @@ Append implementation discoveries here. Keep entries brief and factual while the
 - **Owning layer:** Application / margin-notes package edge.
 - **Evidence:** `test/solid-resource-store.test.js` and mounted browser coverage in `test/browser-mounted.test.js`.
 - **Book relevance:** A boundary made for local storage becomes the place where Solid can attach without rewriting the application.
-- **Standard, convention, or Muze-specific:** Solid uses ordinary Web resource operations; Metro, Metro-OLDM, and Lading are Muze stack choices; the current JSON graph document is a Muze implementation step, not a final interoperability format.
-- **Remaining question:** When do multiple resources, provenance, or Turtle/OLDM parsing create real pressure for SimplySolid?
+- **Standard, convention, or Muze-specific:** Solid uses ordinary Web resource operations and Turtle linked data; Metro, Metro-OLDM, OLDM, and Lading are Muze stack choices; the app-facing graph document is a Muze implementation shape, not a separate storage format.
+- **Remaining question:** When do multiple resources, provenance, partial failure, or shared editing create real pressure for SimplySolid?

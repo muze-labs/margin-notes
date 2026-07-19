@@ -151,7 +151,7 @@ test('BrowserMounted: public API can persist through a Solid resource store adap
 
     const result = await page.evaluate(async () => {
       const { MarginNotesAPI } = await import(`/dist/index.js?test=${Date.now()}`);
-      const resourceUrl = 'https://pod.example/private/programming-for-wizards/notes.json';
+      const resourceUrl = 'https://pod.example/private/programming-for-wizards/notes.ttl';
       let resourceBody = '';
       const resourceCalls = [];
       const solid = {
@@ -164,12 +164,12 @@ test('BrowserMounted: public API can persist through a Solid resource store adap
               }
               return new Response(resourceBody, {
                 status: 200,
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'text/turtle' },
               });
             },
             async put(body, options) {
-              resourceCalls.push({ url, method: 'put', options, body });
-              resourceBody = body;
+              resourceBody = typeof body?.write === 'function' ? await body.write() : String(body);
+              resourceCalls.push({ url, method: 'put', options, body: resourceBody });
               return new Response('', { status: 201, statusText: 'Created' });
             },
           };
@@ -250,8 +250,9 @@ test('BrowserMounted: public API can persist through a Solid resource store adap
     assert.equal(result.restoredId, result.createdId);
     assert.equal(result.restoredText, 'A Solid-backed browser note');
     assert.deepEqual(result.requestMethods, ['get', 'put', 'get']);
-    assert.equal(result.getAccept, 'application/json');
-    assert.match(result.putBody, /"format": "margin-notes-oldmed-graph"/);
+    assert.equal(result.getAccept, 'text/turtle, application/ld+json;q=0.9, application/json;q=0.2');
+    assert.match(result.putBody, /oa:Annotation/);
+    assert.match(result.putBody, /cobalt:fragment/);
   } finally {
     page?.close();
     await chrome.close();

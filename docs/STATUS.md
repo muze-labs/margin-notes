@@ -30,7 +30,8 @@ Milestone 0 is complete enough to support implementation. The active work item i
 - mounted edit coverage preserves subject identity and unknown predicates;
 - quiet paragraph-side creation affordances and collapsed note stacks;
 - fixed-resource Solid store adapter behind the existing store boundary;
-- mounted browser coverage that creates and restores a note through the Solid resource adapter with a fake Lading-style Solid client.
+- Turtle serialization/parsing for the fixed-resource Solid store through OLDM;
+- mounted browser coverage that creates and restores a note through the Turtle-backed Solid resource adapter with a fake Lading-style Solid client.
 
 ## Remaining M3.1 work
 
@@ -47,7 +48,7 @@ Slice M3.1: one configured Solid resource:
 - local identifier namespace;
 - browser tooling;
 - exact styling and placement for narrow-screen note creation controls;
-- whether the first Solid resource should remain JSON or move to Turtle/direct OLDM resource modelling when interoperability is tested.
+- exact error UI for failed remote saves.
 
 
 ## SimplySolid status

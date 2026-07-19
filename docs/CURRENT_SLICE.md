@@ -15,9 +15,9 @@ Browser-local notes must continue to work without Solid.
 
 ## Current implementation state
 
-The app already has a small store boundary: `load({ key })`, `save({ key, value })`, and `remove({ key })` over opaque graph documents. The default implementation uses IndexedDB. The first Solid implementation adds `createSolidResourceStore()`, which implements the same boundary with Lading resource operations against one configured resource URL.
+The app already has a small store boundary: `load({ key })`, `save({ key, value })`, and `remove({ key })` over opaque graph documents. The default implementation uses IndexedDB. The Solid implementation adds `createSolidResourceStore()`, which implements the same boundary with Lading resource operations against one configured resource URL.
 
-The Solid resource adapter stores the same JSON graph document used by browser-local storage. This is an intentional first step: it exercises Solid resource ownership and HTTP persistence through the Muze Solid stack without introducing login, discovery, Turtle serialization, or source-aware multi-resource work.
+The Solid resource adapter translates the app-facing graph document to and from Turtle using OLDM. This is still intentionally narrow: it exercises Solid resource ownership, linked-data parsing/writing, and HTTP persistence through the Muze Solid stack without introducing login, discovery, or source-aware multi-resource work.
 
 ## Why this slice comes next
 
@@ -30,9 +30,9 @@ The local slice proved the note UI, annotation identity, target identity, Cobalt
 - Configure exactly one Solid resource URL.
 - Accept an injected Lading-style Solid client and otherwise create a `jsfs-solid` Metro client with Metro-OLDM enabled by default.
 - Do not implement login UI in this slice.
-- Save the current JSON graph document; do not introduce a second storage model.
+- Save the configured Solid resource as Turtle while keeping the current app-facing graph document shape.
 - Treat the adapter as application evidence, not a SimplySolid capability.
-- Preserve unknown facts by saving the loaded graph document shape back as JSON.
+- Preserve unknown facts represented in the app-facing graph document.
 
 ## Explicit non-goals
 
@@ -43,7 +43,7 @@ The local slice proved the note UI, annotation identity, target identity, Cobalt
 - inboxes, submission, or publication;
 - public/private multi-source views;
 - per-subject source provenance;
-- Turtle or direct OLDM resource modelling;
+- source-aware multi-resource OLDM modelling;
 - robust target reattachment;
 - real-server conformance claims beyond a later smoke test.
 
@@ -51,9 +51,9 @@ The local slice proved the note UI, annotation identity, target identity, Cobalt
 
 The slice is complete when tests demonstrate:
 
-1. the Solid resource adapter loads JSON from a configured resource through a Lading-style resource client;
+1. the Solid resource adapter loads Turtle from a configured resource through a Lading-style resource client;
 2. missing resources load as an empty note graph;
-3. saves use `PUT` with a clear JSON content type;
+3. saves use `PUT` with a clear Turtle content type;
 4. failed saves report the HTTP failure;
 5. deletion uses `DELETE` and treats already-missing resources as removed;
 6. the mounted app can create a note, save through the adapter, remount, and restore from the same resource;
@@ -63,7 +63,7 @@ The slice is complete when tests demonstrate:
 
 - How long can the current store boundary remain useful?
 - What failure information does the app need to show the reader?
-- Is one JSON resource enough for a first private Solid notes file?
+- Is one Turtle resource enough for a first private Solid notes file?
 - What evidence would force source-aware workspace semantics into SimplySolid?
 - What must change before a real Solid server smoke test is meaningful?
 

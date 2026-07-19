@@ -71,7 +71,7 @@ Browser-local storage currently writes a small document containing `format`, `ve
 
 The local store itself stores opaque values by key. It does not know about annotations, OLDMed, or Cobalt. Annotation-specific conversion belongs to the note feature API.
 
-The first Solid-backed storage slice writes the same JSON graph document to one configured Solid resource through `createSolidResourceStore()`. The adapter uses a Lading-style client and can compose a Metro client with Metro-OLDM enabled, but the stored note document is not yet a direct Turtle or OLDMed resource format. This is a deliberate boundary test: Solid resource persistence can be added without teaching the note UI a second model. Turtle or direct OLDM resource modelling should wait for a slice that needs cross-application editing or real linked-data resource composition.
+The first Solid-backed storage slice writes the same annotation graph to one configured Solid resource through `createSolidResourceStore()`. The adapter uses a Lading-style client and OLDM to translate between the app-facing graph document and Turtle. This is a deliberate boundary test: Solid resource persistence can be real linked data without teaching the note UI a second model. Source-aware multi-resource modelling should wait for a slice that needs cross-application editing or real linked-data resource composition across several resources.
 
 ## Prefer existing annotation terms
 

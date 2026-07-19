@@ -2,35 +2,44 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createSolidResourceStore } from '../src/storage/solid-resource-store.js';
 
-test('SolidResourceStore: loads an opaque graph document from a configured resource', async () => {
-  const graph = {
-    format: 'margin-notes-oldmed-graph',
-    subjects: [{
-      id: 'https://pod.example/private/notes.json#note-1',
-      rdf$type: 'oa$Annotation',
-      schema$about: 'kept',
-    }],
-  };
+test('SolidResourceStore: loads a Turtle resource into an OLDMed graph document', async () => {
+  const turtle = turtleFixture({ text: 'A linked-data note' });
   const solid = solidDouble([
-    response(JSON.stringify(graph), { status: 200 }),
+    response(turtle, {
+      status: 200,
+      headers: { 'Content-Type': 'text/turtle' },
+    }),
   ]);
   const store = createSolidResourceStore({
-    resourceUrl: 'https://pod.example/private/notes.json',
+    resourceUrl: 'https://pod.example/private/notes.ttl',
     solid,
   });
 
-  assert.deepEqual(await store.load({ key: 'ignored-local-key' }), graph);
+  const document = await store.load({ key: 'ignored-local-key' });
+
+  assert.equal(document.format, 'margin-notes-oldmed-graph');
+  assert.equal(document.version, 1);
+  assert.equal(document.subjects[0].id, 'https://pod.example/private/notes.ttl#note-1');
+  assert.equal(document.subjects[0].rdf$type, 'oa$Annotation');
+  assert.equal(document.subjects[0].schema$about, 'https://example.test/topic');
+  assert.equal(document.subjects[0].oa$hasBody.rdf$value, 'A linked-data note');
+  assert.equal(document.subjects[0].oa$hasBody.schema$comment, 'keep this body fact');
+  assert.deepEqual(document.subjects[0].oa$hasBody.cobalt$fragment, {
+    text: 'A linked-data note',
+    annotations: [],
+  });
+  assert.equal(document.subjects[0].oa$hasTarget.oa$hasSelector.rdf$value, 'p-chapter-boundaries');
   assert.deepEqual(solid.calls[0], {
-    url: 'https://pod.example/private/notes.json',
+    url: 'https://pod.example/private/notes.ttl',
     method: 'get',
-    options: { accept: 'application/json' },
+    options: { accept: 'text/turtle, application/ld+json;q=0.9, application/json;q=0.2' },
     body: undefined,
   });
 });
 
 test('SolidResourceStore: returns null when the configured resource does not exist yet', async () => {
   const store = createSolidResourceStore({
-    resourceUrl: 'https://pod.example/private/missing-notes.json',
+    resourceUrl: 'https://pod.example/private/missing-notes.ttl',
     solid: solidDouble([
       response('', { status: 404, statusText: 'Not Found' }),
     ]),
@@ -39,32 +48,34 @@ test('SolidResourceStore: returns null when the configured resource does not exi
   assert.equal(await store.load({ key: 'ignored-local-key' }), null);
 });
 
-test('SolidResourceStore: saves an opaque graph document with PUT', async () => {
+test('SolidResourceStore: saves an OLDMed graph document as Turtle with PUT', async () => {
   const solid = solidDouble([
     response('', { status: 201, statusText: 'Created' }),
   ]);
   const store = createSolidResourceStore({ solid });
-  const value = {
-    format: 'margin-notes-oldmed-graph',
-    subjects: [{ id: 'urn:note:one', unknown$fact: true }],
-  };
+  const value = graphDocument({
+    resourceUrl: 'https://pod.example/private/notes.ttl',
+    text: 'A Turtle-backed note',
+  });
 
   const result = await store.save({
-    key: 'https://pod.example/private/notes.json',
+    key: 'https://pod.example/private/notes.ttl',
     value,
   });
+  const turtle = await solid.calls[0].body.write();
 
   assert.deepEqual(result, {
-    key: 'https://pod.example/private/notes.json',
-    resourceUrl: 'https://pod.example/private/notes.json',
+    key: 'https://pod.example/private/notes.ttl',
+    resourceUrl: 'https://pod.example/private/notes.ttl',
     status: 201,
   });
-  assert.deepEqual(solid.calls[0], {
-    url: 'https://pod.example/private/notes.json',
-    method: 'put',
-    options: { contentType: 'application/json; charset=utf-8' },
-    body: `${JSON.stringify(value, null, 2)}\n`,
-  });
+  assert.equal(solid.calls[0].url, 'https://pod.example/private/notes.ttl');
+  assert.equal(solid.calls[0].method, 'put');
+  assert.deepEqual(solid.calls[0].options, { contentType: 'text/turtle' });
+  assert.match(turtle, /oa:Annotation/);
+  assert.match(turtle, /oa:hasBody <https:\/\/pod\.example\/private\/notes\.ttl#note-1-body>/);
+  assert.match(turtle, /cobalt:fragment/);
+  assert.match(turtle, /A Turtle-backed note/);
 });
 
 test('SolidResourceStore: removes a resource with DELETE and treats missing resources as already removed', async () => {
@@ -73,18 +84,18 @@ test('SolidResourceStore: removes a resource with DELETE and treats missing reso
     response('', { status: 404, statusText: 'Not Found' }),
   ]);
   const store = createSolidResourceStore({
-    resourceUrl: 'https://pod.example/private/notes.json',
+    resourceUrl: 'https://pod.example/private/notes.ttl',
     solid,
   });
 
   assert.deepEqual(await store.remove({}), {
-    key: 'https://pod.example/private/notes.json',
-    resourceUrl: 'https://pod.example/private/notes.json',
+    key: 'https://pod.example/private/notes.ttl',
+    resourceUrl: 'https://pod.example/private/notes.ttl',
     status: 204,
   });
   assert.deepEqual(await store.remove({}), {
-    key: 'https://pod.example/private/notes.json',
-    resourceUrl: 'https://pod.example/private/notes.json',
+    key: 'https://pod.example/private/notes.ttl',
+    resourceUrl: 'https://pod.example/private/notes.ttl',
     status: 404,
   });
   assert.equal(solid.calls[0].method, 'delete');
@@ -93,7 +104,7 @@ test('SolidResourceStore: removes a resource with DELETE and treats missing reso
 
 test('SolidResourceStore: reports failed Solid resource writes', async () => {
   const store = createSolidResourceStore({
-    resourceUrl: 'https://pod.example/private/notes.json',
+    resourceUrl: 'https://pod.example/private/notes.ttl',
     solid: solidDouble([
       response('ACL denied', { status: 403, statusText: 'Forbidden' }),
     ]),
@@ -128,7 +139,7 @@ test('SolidResourceStore: accepts a Metro thrower error for a missing resource',
     },
   };
   const store = createSolidResourceStore({
-    resourceUrl: 'https://pod.example/private/missing-notes.json',
+    resourceUrl: 'https://pod.example/private/missing-notes.ttl',
     solid,
   });
 
@@ -173,4 +184,78 @@ function response(body, options = {}) {
     statusText: options.statusText,
     headers: options.headers,
   });
+}
+
+function graphDocument({ resourceUrl, text }) {
+  return {
+    format: 'margin-notes-oldmed-graph',
+    version: 1,
+    prefixes: {
+      rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+      rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
+      dcterms: 'http://purl.org/dc/terms/',
+      oa: 'http://www.w3.org/ns/oa#',
+      schema: 'https://schema.org/',
+      cobalt: 'https://vocab.muze.nl/cobalt#',
+    },
+    subjects: [{
+      id: `${resourceUrl}#note-1`,
+      rdf$type: 'oa$Annotation',
+      schema$about: 'https://example.test/topic',
+      oa$hasBody: {
+        id: `${resourceUrl}#note-1-body`,
+        rdf$type: ['oa$TextualBody', 'cobalt$Fragment'],
+        dcterms$format: 'application/vnd.cobalt.fragment+json',
+        rdf$value: text,
+        schema$text: text,
+        schema$comment: 'keep this body fact',
+        cobalt$fragment: { text, annotations: [] },
+      },
+      oa$hasTarget: {
+        id: `${resourceUrl}#note-1-target`,
+        rdf$type: 'oa$SpecificResource',
+        oa$hasSource: 'https://book.example/chapter/1',
+        oa$hasSelector: {
+          id: `${resourceUrl}#note-1-selector`,
+          rdf$type: 'oa$FragmentSelector',
+          rdf$value: 'p-chapter-boundaries',
+        },
+      },
+    }],
+  };
+}
+
+function turtleFixture({ text }) {
+  const escapedFragment = JSON.stringify(JSON.stringify({ text, annotations: [] }));
+
+  return `
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+@prefix dcterms: <http://purl.org/dc/terms/>.
+@prefix oa: <http://www.w3.org/ns/oa#>.
+@prefix schema: <https://schema.org/>.
+@prefix cobalt: <https://vocab.muze.nl/cobalt#>.
+
+<#note-1>
+  a oa:Annotation;
+  schema:about <https://example.test/topic>;
+  oa:hasBody <#note-1-body>;
+  oa:hasTarget <#note-1-target>.
+
+<#note-1-body>
+  a oa:TextualBody, cobalt:Fragment;
+  dcterms:format "application/vnd.cobalt.fragment+json";
+  rdf:value ${JSON.stringify(text)};
+  schema:text ${JSON.stringify(text)};
+  schema:comment "keep this body fact";
+  cobalt:fragment ${escapedFragment}.
+
+<#note-1-target>
+  a oa:SpecificResource;
+  oa:hasSource <https://book.example/chapter/1>;
+  oa:hasSelector <#note-1-selector>.
+
+<#note-1-selector>
+  a oa:FragmentSelector;
+  rdf:value "p-chapter-boundaries".
+`;
 }

@@ -52,6 +52,7 @@ Statuses:
 | D039 | Accepted | Use a curated `the-ds` subset for margin-notes styling instead of importing the whole design system. | Margin notes is embedded into host pages and should not reset or restyle the book around it. The app keeps selected DS tokens and button/dialog primitives locally, with `:host`-ready token defaults for future Shadow DOM use. |
 | D040 | Accepted | Expose a generic margin-notes theme setting instead of reading host page theme state. | Hosts can mount with `theme: "system" | "light" | "dark"` and update it through `setTheme()`. Book-specific adapters may translate their own reader settings into that API, while the component remains reusable outside *Programming for Wizards*. |
 | D041 | Accepted | Add a fixed-resource Solid store adapter before introducing a SimplySolid workspace. | The first Solid-backed slice only needs one configured resource through the Muze Solid client stack: Metro, Metro-OLDM, and Lading. Keeping this as a store adapter preserves the existing component boundary and avoids making source-aware workspace concepts appear before the application needs them. |
+| D042 | Accepted | Store the fixed Solid resource as Turtle instead of JSON. | Switching to Metro's JSON API would improve a temporary format. The cleaner teaching step is to keep the app-facing graph document stable while the Solid adapter uses OLDM and Lading to read and write actual linked data. |
 
 ## Decision template
 
