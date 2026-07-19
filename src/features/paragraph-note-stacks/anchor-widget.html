@@ -1,0 +1,23 @@
+<span class="margin-notes-anchor-widget">
+  <button
+    type="button"
+    class="margin-notes-target-add-btn"
+    title="Add note"
+    aria-label="Add note"
+    data-simply-command="createNote"
+    data-simply-value=":value"
+  >+</button>
+  <span class="margin-notes-target-note-list" data-simply-shortcuts="marginNotesNote">
+    <span class="margin-notes-target-note-items" data-simply-list="visibleNotes">
+      <template rel="margin-notes-inline-note"></template>
+    </span>
+    <button
+      type="button"
+      class="margin-notes-target-note-count"
+      aria-expanded="false"
+      data-margin-notes-empty="true"
+      data-simply-command="toggleAnchorNoteList"
+      data-simply-value=":value"
+    ><span data-simply-field="overflowLabel"></span></button>
+  </span>
+</span>

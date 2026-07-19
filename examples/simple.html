@@ -22,96 +22,6 @@
     p {
       margin: 1.5em 0;
     }
-    
-    p[data-anchor] {
-      background: #f5f5f5;
-      padding: 0.5em;
-      border-left: 3px solid #ddd;
-    }
-    
-    .margin-notes-list {
-      background: #fafafa;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 20px;
-      max-height: 80vh;
-      overflow-y: auto;
-    }
-    
-    .margin-notes-anchor {
-      margin-bottom: 20px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid #eee;
-    }
-    
-    .margin-notes-anchor:last-child {
-      border-bottom: none;
-    }
-    
-    .margin-notes-anchor h3 {
-      margin: 0 0 10px 0;
-      font-size: 0.9em;
-      color: #666;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    
-    .margin-notes-empty {
-      color: #999;
-      font-style: italic;
-      margin: 10px 0;
-    }
-    
-    .margin-notes-item {
-      background: white;
-      border: 1px solid #e0e0e0;
-      border-radius: 3px;
-      padding: 10px;
-      margin-bottom: 10px;
-      list-style: none;
-    }
-    
-    .margin-notes-item p {
-      margin: 0 0 5px 0;
-      font-size: 0.95em;
-    }
-    
-    .margin-notes-item small {
-      display: block;
-      color: #999;
-      font-size: 0.85em;
-      margin-bottom: 8px;
-    }
-    
-    .margin-notes-item button {
-      padding: 4px 8px;
-      font-size: 0.85em;
-      background: #f0f0f0;
-      border: 1px solid #ddd;
-      border-radius: 3px;
-      cursor: pointer;
-    }
-    
-    .margin-notes-item button:hover {
-      background: #e0e0e0;
-    }
-    
-    .margin-notes-anchor button {
-      display: block;
-      width: 100%;
-      padding: 8px;
-      margin-top: 10px;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-      font-weight: 500;
-    }
-    
-    .margin-notes-anchor button:hover {
-      background: #0056b3;
-    }
   </style>
 </head>
 <body>
@@ -171,13 +81,12 @@
       
       console.log('Initializing margin-notes with anchors:', anchors);
       
-      // Create and initialize the component
-      const component = MarginNotesAPI.create();
       try {
-        await component.initialize({
+        MarginNotesAPI.mount({
           anchors,
           container: { element: document.getElementById('margin-notes-container') },
-          namespace: 'example'
+          namespace: 'example',
+          expandedStackBackground: '#fffdf5'
         });
         console.log('Margin Notes initialized successfully');
       } catch (error) {

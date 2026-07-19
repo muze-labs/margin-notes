@@ -49,25 +49,26 @@
  *   Defaults to "margin-notes"
  * @property {string} [storageKey] - Optional storage key prefix for browser storage.
  *   Defaults to `margin-notes-${namespace}`
+ * @property {string} [expandedStackBackground] - CSS color used behind an opened stack of notes.
+ *   Defaults to `#fffefb`
  */
 
 /**
- * The host API that the component presents to the host page.
+ * The mounted SimplyFlow app returned to the host page.
  *
- * @typedef {Object} MarginNotesComponent
- * @property {(config: HostConfig) => Promise<void>} initialize - Initialize the component with configuration and make it ready to interact.
- *   Called by the host page after the component is loaded.
+ * @typedef {Object} MarginNotesApp
  * @property {() => Promise<void>} destroy - Clean up resources and unmount the component.
  *   The component should not respond to further interactions after this.
+ * @property {(anchorId: string) => Object[]} getNotesForAnchor - Return stored notes for a host anchor.
+ * @property {Object} actions - SimplyFlow actions for note behavior.
  */
 
 /**
  * The entry point that the host page receives after loading the script.
- * Minimal for M1.1: just enough to mount and initialize the component.
  *
  * @typedef {Object} MarginNotesAPI
- * @property {() => MarginNotesComponent} create - Create a new margin-notes component instance.
- *   Each instance is independent and can be mounted in different containers.
+ * @property {(config: HostConfig) => MarginNotesApp} mount - Mount and return the SimplyFlow app.
+ * @property {() => Object} create - Backwards-compatible adapter for the previous initialize/destroy API.
  */
 
 // Export for documentation purposes

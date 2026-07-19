@@ -20,7 +20,8 @@ Milestone 0 is complete enough to begin implementation. The active work item is 
 - privacy and test requirements.
 - MIT licence selected;
 - package name selected as `margin-notes`;
-- Jest selected as the preferred test runner.
+- Jest selected as the preferred test runner;
+- host integration API exposes `mount(config)` as the primary app entry point.
 
 ## Next implementation target
 
@@ -39,8 +40,8 @@ Slice M1.1: a browser-only end-to-end note:
 - repository location;
 - exact Web Annotation shape;
 - local identifier namespace;
-- host integration API;
-- browser tooling.
+- browser tooling;
+- exact styling and placement for narrow-screen note creation controls.
 
 
 ## SimplySolid status

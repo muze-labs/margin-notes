@@ -60,6 +60,10 @@ try {
       '@cobalt/note-core': cobaltNoteCorePath
     },
     plugins: [simplyflowResolver],
+    loader: {
+      '.css': 'text',
+      '.html': 'text'
+    },
     define: {
       'process.env.NODE_ENV': '"production"'
     }

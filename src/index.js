@@ -6,23 +6,27 @@
  * Usage:
  *   <script src="margin-notes.js"></script>
  *   <script>
- *     const component = MarginNotes.create();
- *     await component.initialize({
+ *     const app = MarginNotes.mount({
  *       anchors: [ ... ],
  *       container: { element: document.getElementById('notes') }
  *     });
  *   </script>
  */
 
-import { MarginNotes } from './component.js';
+import { MarginNotes, mount } from './component.js';
 
 /**
  * Global API that the host page receives.
  * 
  * @type {Object}
+ * @property {(config: Object) => Object} mount - Mount and return the SimplyFlow app
  * @property {() => MarginNotes} create - Create a new component instance
  */
 const MarginNotesAPI = {
+  mount(config) {
+    return mount(config);
+  },
+
   create() {
     return new MarginNotes();
   },
@@ -31,6 +35,7 @@ const MarginNotesAPI = {
 // Export for module systems
 export { MarginNotesAPI };
 export { MarginNotes };
+export { mount };
 export {};
 
 // Also attach to global for script-tag usage

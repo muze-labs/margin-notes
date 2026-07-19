@@ -1,0 +1,233 @@
+[data-margin-notes-target] {
+  position: relative;
+  outline: none;
+}
+
+.margin-notes-anchor-widget,
+.margin-notes-anchor-widget-host {
+  display: contents;
+}
+
+[data-margin-notes-target]::before {
+  bottom: 0;
+  content: "";
+  left: -3rem;
+  position: absolute;
+  top: 0;
+  width: 3rem;
+}
+
+[data-margin-notes-target].margin-notes-target-tabstop:focus-visible {
+  outline: 2px solid #3162d4;
+  outline-offset: 4px;
+}
+
+.margin-notes-target-add-btn {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #cfd6e6;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(20, 31, 56, 0.16);
+  color: #1e335f;
+  cursor: pointer;
+  display: inline-flex;
+  font: 600 1rem/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  height: 2rem;
+  justify-content: center;
+  left: -2.75rem;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0.35rem;
+  transform: translateX(0.25rem);
+  transition: opacity 120ms ease, transform 120ms ease, border-color 120ms ease;
+  width: 2rem;
+  z-index: 2;
+}
+
+[data-margin-notes-target]:hover .margin-notes-target-add-btn,
+[data-margin-notes-target]:focus .margin-notes-target-add-btn,
+[data-margin-notes-target]:focus-within .margin-notes-target-add-btn,
+.margin-notes-target-add-btn:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.margin-notes-target-add-btn:hover,
+.margin-notes-target-add-btn:focus-visible {
+  border-color: #3162d4;
+}
+
+.margin-notes-target-note-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  left: calc(100% + 1.25rem);
+  position: absolute;
+  top: 0;
+  width: min(17rem, 34vw);
+  z-index: 3;
+}
+
+.margin-notes-target-note-list.is-expanded {
+  background: var(--margin-notes-open-background, #fffefb);
+  border-radius: 4px;
+  box-shadow: 0 0 0 0.35rem var(--margin-notes-open-background, #fffefb);
+  z-index: 30;
+}
+
+.margin-notes-target-note-count {
+  align-items: center;
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  color: #5d5a51;
+  cursor: pointer;
+  display: inline-flex;
+  font: 600 0.78rem/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  gap: 0.25rem;
+  padding: 0.05rem 0.2rem;
+}
+
+.margin-notes-target-note-count::before,
+.margin-notes-target-note-toggle::before {
+  background: #c9a84f;
+  border-radius: 1px;
+  content: "";
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 0.72rem;
+  opacity: 0.72;
+  transform: rotate(-2deg);
+  width: 0.58rem;
+}
+
+.margin-notes-target-note-count[hidden],
+.margin-notes-target-note-count[data-margin-notes-empty="true"],
+.margin-notes-target-note[hidden] {
+  display: none;
+}
+
+.margin-notes-target-note-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.margin-notes-target-note {
+  background: transparent;
+  border-radius: 4px;
+  color: #302a1d;
+  min-height: 2rem;
+  position: relative;
+}
+
+.margin-notes-target-note.is-expanded {
+  background: var(--margin-notes-open-background, #fffefb);
+  left: 0;
+  position: absolute;
+  right: auto;
+  top: var(--margin-notes-expanded-top, 0);
+  width: min(24rem, 54vw);
+  z-index: 20;
+}
+
+.margin-notes-target-note-toggle {
+  align-items: baseline;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  gap: 0.38rem;
+  font: 0.875rem/1.35 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow: hidden;
+  padding: 0.16rem 0;
+  text-align: left;
+  width: 100%;
+}
+
+.margin-notes-target-note-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.margin-notes-target-note.is-expanded .margin-notes-target-note-toggle {
+  cursor: text;
+  overflow: visible;
+  padding: 0.35rem 2rem 0.55rem 0;
+}
+
+.margin-notes-target-note.is-expanded .margin-notes-target-note-text {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.margin-notes-target-note-actions {
+  border-top: 1px solid #ebe4d1;
+  display: none;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  padding: 0 0.45rem 0.45rem;
+}
+
+.margin-notes-target-note.is-expanded .margin-notes-target-note-actions {
+  display: flex;
+}
+
+.margin-notes-target-note-action {
+  background: transparent;
+  border: 0;
+  color: #4d5f8f;
+  cursor: pointer;
+  font: 600 0.78rem/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 0.35rem;
+}
+
+.margin-notes-target-note-close {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: #5f5541;
+  cursor: pointer;
+  display: none;
+  font: 1.1rem/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  height: 1.65rem;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 0.25rem;
+  top: 0.25rem;
+  width: 1.65rem;
+}
+
+.margin-notes-target-note.is-expanded .margin-notes-target-note-close {
+  display: inline-flex;
+}
+
+@media (max-width: 760px) {
+  [data-margin-notes-target]::before {
+    display: none;
+  }
+
+  .margin-notes-target-add-btn {
+    left: auto;
+    right: 0;
+    top: -0.85rem;
+  }
+
+  .margin-notes-target-note-list {
+    left: 0;
+    position: relative;
+    top: auto;
+    width: 100%;
+  }
+
+  .margin-notes-target-note.is-expanded {
+    width: min(100%, 24rem);
+  }
+}

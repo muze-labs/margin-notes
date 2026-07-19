@@ -36,6 +36,15 @@ Statuses:
 | D023 | Accepted | Use Jest as the preferred test runner. | The implementation can choose browser tooling around Jest while keeping one familiar test entry point. |
 | D024 | Accepted | Leave the exact Web Annotation shape open until implementation needs it. | The project should not freeze a normative annotation shape before the local slice proves the required facts. |
 | D025 | Accepted | Store Cobalt bodies in the minimal JSON format for browser storage. | LocalStorage or IndexedDB should preserve the editor body without inventing a richer body model before interoperability requires it. |
+| D026 | Accepted | Put note-creation affordances on host anchors and reveal them only on hover or keyboard focus. | Creating a note is target-driven; the margin panel should stay quiet until there are notes to show. |
+| D027 | Accepted | Show notes beside their target as collapsed single-line cards that expand in place. | Reader notes should stay spatially tied to the paragraph and avoid turning the margin into a separate feed. |
+| D028 | Accepted | Fit collapsed note stacks to the paragraph height and show an overflow toggle only when notes are hidden. | Multiple notes should not visually run into the next paragraph until the reader deliberately opens that stack. |
+| D029 | Accepted | Let arrow keys move note focus within a paragraph stack and let Escape collapse and blur the stack. | Keyboard readers should be able to traverse note context without being forced into pointer-only expansion controls. |
+| D030 | Accepted | Render paragraph note chrome with SimplyFlow templates and route note interactions through SimplyFlow commands and shortcuts. | The app is an example of the stack; imperative DOM remains only for host-anchor attachment, layout measurement, and focus placement. |
+| D031 | Accepted | Expose `mount(config)` as the primary API and let the mounted SimplyFlow app own note behavior through async actions. | The example should demonstrate the app framework directly; the old component class can remain as a compatibility adapter rather than the main architecture. |
+| D032 | Accepted | Package paragraph note stacks as a SimplyFlow feature component without component-owned state. | Feature components can bundle templates, styles, commands, shortcuts, and actions; app-owned state is initialized in `data.marginNotes` by an explicit app start call. |
+| D033 | Accepted | Keep feature behavior live-edit friendly by routing helper code and dependencies through `app.api`. | Overridden running functions should have the same visible context as the original, so note actions use `this.api.notes` rather than private module helpers or the component registry. |
+| D034 | Accepted | Keep feature HTML and CSS in separate files imported as text. | The app should demonstrate SimplyFlow component composition without burying templates and styles inside JavaScript behavior modules. |
 
 ## Decision template
 
