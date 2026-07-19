@@ -1,3 +1,18 @@
+[data-margin-notes-target],
+.margin-notes-anchor-widget {
+  --margin-notes-paper-background: var(--ds-color-background, #fff);
+  --margin-notes-open-background: var(--ds-color-background, #fffefb);
+  --margin-notes-note-color: var(--ds-grey-high, #302a1d);
+  --margin-notes-muted-color: var(--ds-grey-medium, #5d5a51);
+  --margin-notes-rule-color: var(--ds-grey-low, #ebe4d1);
+  --margin-notes-marker-color: var(--ds-support, #c9a84f);
+  --margin-notes-action-color: var(--ds-primary-high, #4d5f8f);
+  --margin-notes-focus-color: var(--ds-primary-high, #3162d4);
+  --margin-notes-radius: var(--ds-box-radius, 4px);
+  --margin-notes-shadow: var(--ds-shadow-small, 0 4px 14px rgba(20, 31, 56, 0.16));
+  --margin-notes-font: var(--ds-font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+}
+
 [data-margin-notes-target] {
   position: relative;
   outline: none;
@@ -18,20 +33,20 @@
 }
 
 [data-margin-notes-target].margin-notes-target-tabstop:focus-visible {
-  outline: 2px solid #3162d4;
+  outline: 2px solid var(--margin-notes-focus-color);
   outline-offset: 4px;
 }
 
 .margin-notes-target-add-btn {
   align-items: center;
-  background: #ffffff;
-  border: 1px solid #cfd6e6;
+  background: var(--margin-notes-paper-background);
+  border: 1px solid var(--ds-grey-30, #cfd6e6);
   border-radius: 999px;
-  box-shadow: 0 4px 14px rgba(20, 31, 56, 0.16);
-  color: #1e335f;
+  box-shadow: var(--margin-notes-shadow);
+  color: var(--margin-notes-action-color);
   cursor: pointer;
   display: inline-flex;
-  font: 600 1rem/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: 600 1rem/1 var(--margin-notes-font);
   height: 2rem;
   justify-content: center;
   left: -2.75rem;
@@ -56,7 +71,7 @@
 
 .margin-notes-target-add-btn:hover,
 .margin-notes-target-add-btn:focus-visible {
-  border-color: #3162d4;
+  border-color: var(--margin-notes-focus-color);
 }
 
 .margin-notes-target-note-list {
@@ -71,9 +86,9 @@
 }
 
 .margin-notes-target-note-list.is-expanded {
-  background: var(--margin-notes-open-background, #fffefb);
-  border-radius: 4px;
-  box-shadow: 0 0 0 0.35rem var(--margin-notes-open-background, #fffefb);
+  background: var(--margin-notes-open-background);
+  border-radius: var(--margin-notes-radius);
+  box-shadow: 0 0 0 0.35rem var(--margin-notes-open-background);
   z-index: 30;
 }
 
@@ -82,17 +97,17 @@
   align-self: flex-start;
   background: transparent;
   border: 0;
-  color: #5d5a51;
+  color: var(--margin-notes-muted-color);
   cursor: pointer;
   display: inline-flex;
-  font: 600 0.78rem/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: 600 0.78rem/1 var(--margin-notes-font);
   gap: 0.25rem;
   padding: 0.05rem 0.2rem;
 }
 
 .margin-notes-target-note-count::before,
 .margin-notes-target-note-toggle::before {
-  background: #c9a84f;
+  background: var(--margin-notes-marker-color);
   border-radius: 1px;
   content: "";
   display: inline-block;
@@ -117,14 +132,14 @@
 
 .margin-notes-target-note {
   background: transparent;
-  border-radius: 4px;
-  color: #302a1d;
+  border-radius: var(--margin-notes-radius);
+  color: var(--margin-notes-note-color);
   min-height: 2rem;
   position: relative;
 }
 
 .margin-notes-target-note.is-expanded {
-  background: var(--margin-notes-open-background, #fffefb);
+  background: var(--margin-notes-open-background);
   left: 0;
   position: absolute;
   right: auto;
@@ -141,7 +156,7 @@
   cursor: pointer;
   display: flex;
   gap: 0.38rem;
-  font: 0.875rem/1.35 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: 0.875rem/1.35 var(--margin-notes-font);
   overflow: hidden;
   padding: 0.16rem 0;
   text-align: left;
@@ -168,7 +183,7 @@
 }
 
 .margin-notes-target-note-actions {
-  border-top: 1px solid #ebe4d1;
+  border-top: 1px solid var(--margin-notes-rule-color);
   display: none;
   gap: 0.35rem;
   justify-content: flex-end;
@@ -182,9 +197,9 @@
 .margin-notes-target-note-action {
   background: transparent;
   border: 0;
-  color: #4d5f8f;
+  color: var(--margin-notes-action-color);
   cursor: pointer;
-  font: 600 0.78rem/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: 600 0.78rem/1 var(--margin-notes-font);
   padding: 0.35rem;
 }
 
@@ -192,10 +207,10 @@
   align-items: center;
   background: transparent;
   border: 0;
-  color: #5f5541;
+  color: var(--margin-notes-muted-color);
   cursor: pointer;
   display: none;
-  font: 1.1rem/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font: 1.1rem/1 var(--margin-notes-font);
   height: 1.65rem;
   justify-content: center;
   padding: 0;

@@ -1,0 +1,196 @@
+/*
+ * Curated the-ds subset for margin-notes.
+ *
+ * This intentionally does not import the-ds wholesale. Margin notes is embedded
+ * into host documents, so this file only defines design tokens and the small
+ * button/dialog primitives used by the component.
+ */
+
+@layer reset, setup, theme, base, component, page, utility;
+
+@layer setup {
+  :root,
+  :host {
+    --ds-black: #000;
+    --ds-white: #fff;
+    --ds-primary: oklch(0.7388 0.1792 126.69);
+    --ds-support: oklch(0.7388 0.1792 216.69);
+
+    --ds-grey-0: #eef1f8;
+    --ds-grey-5: #e9edf6;
+    --ds-grey-10: #e4eaf4;
+    --ds-grey-20: #dae2ed;
+    --ds-grey-30: #cdd7e3;
+    --ds-grey-40: #bdc8d4;
+    --ds-grey-50: #a8b4c0;
+    --ds-grey-60: #8f9ba6;
+    --ds-grey-70: #707c84;
+    --ds-grey-80: #4d565c;
+    --ds-grey-90: #262c2f;
+    --ds-grey-100: #000;
+
+    --ds-color-error: rgb(253, 143, 143);
+    --ds-color-warning: #ffffcc;
+    --ds-color-info: rgb(140, 180, 250);
+  }
+}
+
+@layer theme {
+  :root,
+  :host {
+    --ds-font-heading: var(--margin-notes-font-family, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    --ds-font-body: var(--margin-notes-font-family, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    --ds-font-weight: 400;
+    --ds-font-size: 1rem;
+    --ds-line-height: 1.5rem;
+
+    --ds-heading-weight: 600;
+    --ds-space: var(--ds-line-height);
+    --ds-space-d4: calc(var(--ds-space) / 4);
+    --ds-space-d3: calc(var(--ds-space) / 3);
+    --ds-space-d2: calc(var(--ds-space) / 2);
+    --ds-space-x2: calc(2 * var(--ds-space));
+    --ds-space-x3: calc(3 * var(--ds-space));
+    --ds-space-x4: calc(4 * var(--ds-space));
+
+    --ds-primary-10: oklch(from var(--ds-primary) calc(l + 0.3) c h);
+    --ds-primary-90: oklch(from var(--ds-primary) calc(l - 0.3) c h);
+    --ds-primary-high: var(--ds-primary-90);
+    --ds-primary-low: var(--ds-primary-10);
+    --ds-primary-contrast: var(--ds-white);
+
+    --ds-support-10: oklch(from var(--ds-support) calc(l + 0.3) c h);
+    --ds-support-90: oklch(from var(--ds-support) calc(l - 0.3) c h);
+    --ds-support-high: var(--ds-support-90);
+    --ds-support-low: var(--ds-support-10);
+    --ds-support-contrast: var(--ds-white);
+
+    --ds-grey-high: var(--ds-grey-90);
+    --ds-grey-medium: var(--ds-grey-60);
+    --ds-grey-low: var(--ds-grey-10);
+    --ds-color: var(--ds-black);
+    --ds-color-background: var(--ds-white);
+    --ds-color-contrast: var(--ds-color);
+
+    --ds-shadow-light: rgba(0, 0, 0, 0.07);
+    --ds-shadow-middle: rgba(0, 0, 0, 0.09);
+    --ds-shadow-dark: rgba(0, 0, 0, 0.11);
+    --ds-shadow-tiny: 0 1px 1px var(--ds-shadow-dark);
+    --ds-shadow-small:
+      0 1px 1px var(--ds-shadow-dark),
+      0 2px 2px var(--ds-shadow-middle),
+      0 4px 4px var(--ds-shadow-light);
+    --ds-shadow-medium:
+      0 1px 1px var(--ds-shadow-middle),
+      0 2px 2px var(--ds-shadow-middle),
+      0 4px 4px var(--ds-shadow-middle),
+      0 6px 8px var(--ds-shadow-middle),
+      0 8px 16px var(--ds-shadow-middle);
+    --ds-shadow-large:
+      0 -2px 2px var(--ds-shadow-light),
+      0 4px 2px var(--ds-shadow-light),
+      0 8px 4px var(--ds-shadow-light),
+      0 16px 8px var(--ds-shadow-light),
+      0 32px 16px var(--ds-shadow-light);
+
+    --ds-box-radius: 4px;
+
+    --ds-input-border: var(--ds-grey-medium);
+    --ds-input-space: var(--ds-space);
+    --ds-input-font: var(--ds-font-body);
+    --ds-input-height: calc(var(--ds-line-height) * 1.5);
+    --ds-input-margin: calc(var(--ds-line-height) * 0.5);
+
+    --ds-button-space: calc(0.5 * var(--ds-input-space));
+    --ds-button-bg-color: var(--ds-grey-low);
+    --ds-button-default-bg-color: var(--ds-white);
+    --ds-button-border: 1px solid var(--ds-grey-low);
+    --ds-button-disabled-color: var(--ds-grey-medium);
+    --ds-button-disabled-bg-color: var(--ds-white);
+    --ds-button-primary-bg-color: var(--ds-primary);
+    --ds-button-primary-color: var(--ds-primary-contrast);
+    --ds-button-primary-border-color: transparent;
+    --ds-button-support-bg-color: var(--ds-support);
+    --ds-button-support-color: var(--ds-support-contrast);
+    --ds-button-support-border-color: transparent;
+    --ds-button-line-height: calc(var(--ds-line-height) * 1.5);
+    --ds-button-shadow: 0;
+    --ds-button-shadow-hover: var(--ds-shadow-small);
+    --ds-button-radius: var(--ds-box-radius);
+    --ds-button-padding: calc(0.5 * var(--ds-line-height));
+    --ds-button-font-size: calc(0.875 * var(--ds-font-size));
+
+    --ds-dialog-background: var(--ds-color-background);
+    --ds-dialog-color: var(--ds-color-contrast);
+    --ds-dialog-shadow: var(--ds-shadow-large);
+    --ds-dialog-radius: calc(2 * var(--ds-box-radius));
+    --ds-dialog-size: calc(50% - (1 / 2 * var(--ds-space)));
+    --ds-dialog-min-width: 25em;
+  }
+}
+
+@layer component {
+  .ds-button {
+    background-color: var(--ds-button-bg-color);
+    border: 0;
+    border-radius: var(--ds-button-radius);
+    box-shadow: var(--ds-button-shadow);
+    box-sizing: border-box;
+    color: inherit;
+    cursor: pointer;
+    display: inline-block;
+    font: inherit;
+    font-size: var(--ds-button-font-size);
+    line-height: var(--ds-button-line-height);
+    margin: 0 var(--ds-button-space) var(--ds-button-space) 0;
+    min-height: var(--ds-button-line-height);
+    outline: var(--ds-button-border);
+    overflow: visible;
+    padding: 0 var(--ds-button-padding);
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .ds-button:hover,
+  .ds-button:focus {
+    box-shadow: var(--ds-button-shadow-hover);
+    text-decoration: none;
+  }
+
+  .ds-button-default {
+    background-color: var(--ds-button-default-bg-color);
+  }
+
+  .ds-button-primary,
+  .ds-button-primary:hover {
+    background-color: var(--ds-button-primary-bg-color);
+    color: var(--ds-button-primary-color);
+    outline: 1px solid var(--ds-button-primary-border-color);
+  }
+
+  .ds-button-support,
+  .ds-button-support:hover {
+    background-color: var(--ds-button-support-bg-color);
+    color: var(--ds-button-support-color);
+    outline: 1px solid var(--ds-button-support-border-color);
+  }
+
+  .ds-button-naked {
+    background: none;
+    box-shadow: none;
+    outline: none;
+  }
+
+  .ds-dialog {
+    background: var(--ds-dialog-background);
+    border: 0;
+    border-radius: var(--ds-dialog-radius);
+    box-shadow: var(--ds-dialog-shadow);
+    color: var(--ds-dialog-color);
+    max-width: 100%;
+    min-width: min(100%, var(--ds-dialog-min-width));
+    padding: 0;
+    width: var(--ds-dialog-size);
+  }
+}

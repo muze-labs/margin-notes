@@ -4,6 +4,7 @@ import { annotationModel } from './paragraph-note-stacks/annotation-model.js';
 import MARGIN_NOTES_ROOT_TEMPLATE from './paragraph-note-stacks/root.html';
 import MARGIN_NOTES_ANCHOR_WIDGET_TEMPLATE from './paragraph-note-stacks/anchor-widget.html';
 import MARGIN_NOTES_INLINE_NOTE_TEMPLATE from './paragraph-note-stacks/inline-note.html';
+import MARGIN_NOTES_DESIGN_SYSTEM_STYLES from '../design-system.css';
 import MARGIN_NOTES_UI_STYLES from './paragraph-note-stacks/ui.css';
 
 export const paragraphNoteStacks = {
@@ -13,6 +14,7 @@ export const paragraphNoteStacks = {
     'margin-notes-inline-note': MARGIN_NOTES_INLINE_NOTE_TEMPLATE,
   },
   styles: {
+    'margin-notes-design-system': MARGIN_NOTES_DESIGN_SYSTEM_STYLES,
     'margin-notes-ui': MARGIN_NOTES_UI_STYLES,
     'margin-notes-cobalt-editor': COBALT_EDITOR_STYLES,
   },
@@ -416,6 +418,8 @@ export const paragraphNoteStacks = {
 
       const sync = () => notesApi.syncAnchorLayoutDomNow({ app: this, anchorId });
       sync();
+      await notesApi.waitForViewRender();
+      sync();
       this.marginNotesRuntime.syncTimers.set(anchorId, setTimeout(sync, 75));
     },
 
@@ -485,6 +489,7 @@ export const paragraphNoteStacks = {
         'margin-notes',
         'margin-notes-anchor-widget',
         'margin-notes-inline-note',
+        'margin-notes-design-system.css',
         'margin-notes-ui.css',
         'margin-notes-cobalt-editor.css',
       ],
@@ -595,6 +600,10 @@ export const paragraphNoteStacks = {
         if (!valuePath || !app) return;
 
         return this.path.get(app.data, valuePath);
+      },
+
+      waitForViewRender() {
+        return new Promise(resolve => globalThis.setTimeout(resolve, 75));
       },
 
       syncAnchorLayoutDomNow({ app, anchorId }) {

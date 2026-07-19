@@ -1,137 +1,112 @@
 .margin-notes-editor-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  align-items: center;
   bottom: 0;
   display: flex;
-  align-items: center;
+  font-family: var(--ds-font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
   justify-content: center;
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
   z-index: 10000;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .margin-notes-editor-modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
   background: rgba(0, 0, 0, 0.5);
+  bottom: 0;
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
   z-index: 9999;
 }
 
 .margin-notes-editor-modal-dialog {
-  position: relative;
-  z-index: 10001;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-  max-width: 600px;
-  width: 90vw;
-  max-height: 80vh;
   display: flex;
   flex-direction: column;
+  max-height: 80vh;
+  max-width: 600px;
+  position: relative;
+  width: min(90vw, 600px);
+  z-index: 10001;
 }
 
 .margin-notes-editor-modal-header {
-  padding: 20px;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid var(--ds-grey-low, #e5e7eb);
+  display: flex;
+  padding: var(--ds-space, 1.5rem);
 }
 
 .margin-notes-editor-modal-header h2 {
+  font-family: var(--ds-font-heading, inherit);
   margin: 0;
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: var(--ds-heading-weight, 600);
 }
 
 .margin-notes-editor-close {
-  background: none;
-  border: none;
+  align-items: center;
+  color: var(--ds-grey-medium, #6b7280);
+  display: flex;
   font-size: 2rem;
+  height: 32px;
+  justify-content: center;
   line-height: 1;
-  cursor: pointer;
-  color: #6b7280;
+  margin: 0;
   padding: 0;
   width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
 }
 
 .margin-notes-editor-close:hover {
-  background: #f3f4f6;
-  color: #1f2937;
+  background: var(--ds-grey-low, #f3f4f6);
+  color: var(--ds-grey-high, #1f2937);
 }
 
 .margin-notes-editor-modal-content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: var(--ds-space, 1.5rem);
 }
 
 .margin-notes-cobalt-editor {
-  min-height: 150px;
-  max-height: 400px;
-  overflow-y: auto;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  padding: 8px;
-  background: #fafafa;
+  background: var(--ds-grey-0, #fafafa);
+  border: 1px solid var(--ds-input-border, #d1d5db);
+  border-radius: var(--ds-box-radius, 4px);
   font-family: inherit;
   font-size: 1rem;
   line-height: 1.5;
+  max-height: 400px;
+  min-height: 150px;
+  overflow-y: auto;
+  padding: var(--ds-space-d2, 0.75rem);
 }
 
 .margin-notes-cobalt-editor:focus-within {
+  background: var(--ds-color-background, white);
+  border-color: var(--ds-primary-high, #3b82f6);
   outline: none;
-  border-color: #3b82f6;
-  background: white;
 }
 
 .margin-notes-editor-modal-footer {
-  padding: 20px;
-  border-top: 1px solid #e5e7eb;
   display: flex;
+  gap: var(--ds-space-d2, 0.75rem);
   justify-content: flex-end;
-  gap: 10px;
+  border-top: 1px solid var(--ds-grey-low, #e5e7eb);
+  padding: var(--ds-space, 1.5rem);
 }
 
 .margin-notes-editor-btn-cancel,
 .margin-notes-editor-btn-save {
-  padding: 8px 16px;
-  border-radius: 4px;
   font-weight: 500;
-  cursor: pointer;
-  border: 1px solid #d1d5db;
-  font-size: 0.95rem;
+  margin: 0;
 }
 
 .margin-notes-editor-btn-cancel {
-  background: white;
-  color: #374151;
+  color: var(--ds-grey-high, #374151);
 }
 
 .margin-notes-editor-btn-cancel:hover {
-  background: #f3f4f6;
-}
-
-.margin-notes-editor-btn-save {
-  background: #3b82f6;
-  color: white;
-  border-color: #3b82f6;
-}
-
-.margin-notes-editor-btn-save:hover {
-  background: #2563eb;
-  border-color: #2563eb;
-}
-
-.margin-notes-editor-btn-save:active {
-  background: #1d4ed8;
+  background: var(--ds-grey-low, #f3f4f6);
 }
