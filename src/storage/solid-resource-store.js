@@ -304,6 +304,7 @@ function solidClientFor({ options, providedSolid, resourceUrl, generatedClient }
 
   const metroClient = createSolidMetroClient(rootUrl, {
     ...options,
+    oidc: options.oidc ?? Boolean(options.issuer),
     configureMetro: options.configureMetro ?? true,
   });
   generatedClient.rootUrl = rootUrl;

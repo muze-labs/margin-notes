@@ -260,6 +260,156 @@ test('BrowserMounted: public API can persist through a Solid resource store adap
   }
 });
 
+test('BrowserMounted: optional Solid connection slot resolves WebID storage and reloads notes', async () => {
+  const server = await startServer();
+  const chrome = await startChrome(`${server.url}/test.html`);
+  let page;
+
+  try {
+    page = await chrome.page();
+    await page.ready();
+
+    const result = await page.evaluate(async () => {
+      const { MarginNotesAPI } = await import(`/dist/index.js?test=${Date.now()}`);
+      const slot = document.createElement('aside');
+      slot.id = 'solid-connection-slot';
+      document.body.append(slot);
+
+      const calls = [];
+      const solid = {
+        async discoverWebId(webId) {
+          calls.push({ method: 'discoverWebId', webId });
+          return {
+            storage: ['https://pod.example/storage/'],
+            issuer: 'https://issuer.example/',
+            profile: {
+              pim$preferencesFile: { id: 'https://pod.example/settings/prefs.ttl' },
+              solid$oidcIssuer: { id: 'https://issuer.example/' },
+            },
+          };
+        },
+        resource(url) {
+          return {
+            async get(options) {
+              calls.push({ method: 'get', url, options });
+              if (url === 'https://pod.example/settings/prefs.ttl') {
+                return new Response(`
+                  @prefix mn: <https://vocab.muze.nl/margin-notes#>.
+
+                  <#margin-notes> a mn:Preferences;
+                    mn:rootFolder <https://pod.example/private/margin-notes/>.
+                `, {
+                  status: 200,
+                  headers: { 'Content-Type': 'text/turtle' },
+                });
+              }
+
+              return new Response(`
+                @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+                @prefix dcterms: <http://purl.org/dc/terms/>.
+                @prefix oa: <http://www.w3.org/ns/oa#>.
+                @prefix cobalt: <https://vocab.muze.nl/cobalt#>.
+
+                <#note-1>
+                  a oa:Annotation;
+                  dcterms:created "2026-07-19T10:00:00.000Z";
+                  dcterms:modified "2026-07-19T10:00:00.000Z";
+                  oa:hasBody <#note-1-body>;
+                  oa:hasTarget <#note-1-target>.
+
+                <#note-1-body>
+                  a oa:TextualBody, cobalt:Fragment;
+                  dcterms:format "application/vnd.cobalt.fragment+json";
+                  rdf:value "Loaded after WebID connection";
+                  cobalt:fragment "{\\"text\\":\\"Loaded after WebID connection\\",\\"annotations\\":[]}".
+
+                <#note-1-target>
+                  a oa:SpecificResource;
+                  oa:hasSelector <#note-1-selector>.
+
+                <#note-1-selector>
+                  a oa:FragmentSelector;
+                  rdf:value "p-browser-one".
+              `, {
+                status: 200,
+                headers: { 'Content-Type': 'text/turtle' },
+              });
+            },
+            async put() {
+              calls.push({ method: 'put', url });
+              return new Response('', { status: 201 });
+            },
+            async delete() {
+              calls.push({ method: 'delete', url });
+              return new Response('', { status: 205 });
+            },
+          };
+        },
+      };
+
+      const app = MarginNotesAPI.mount({
+        anchors: anchorsFromPage(),
+        container: { element: document.getElementById('margin-notes-container') },
+        storeKey: `browser-solid-connection-${crypto.randomUUID()}`,
+        solidConnection: {
+          container: { element: slot },
+          pageUrl: 'https://book.example/chapters/one.html#book-start',
+          solid,
+        },
+      });
+      await waitFor(() => slot.querySelector('[data-margin-notes-solid-webid]'));
+
+      slot.querySelector('[data-margin-notes-solid-webid]').value = 'https://pod.example/profile/card#me';
+      slot.querySelector('[data-margin-notes-solid-connection]').dispatchEvent(new Event('submit', {
+        bubbles: true,
+        cancelable: true,
+      }));
+
+      await waitFor(() => app.getSolidConnection().status === 'connected'
+        && app.getNotesForAnchor('p-browser-one').length === 1);
+      const status = app.getSolidConnection();
+      const statusText = slot.querySelector('[data-margin-notes-solid-status]').textContent;
+      const [note] = app.getNotesForAnchor('p-browser-one');
+      await app.destroy();
+
+      return {
+        status,
+        statusText,
+        noteText: note.oa$hasBody.rdf$value,
+        requestMethods: calls.map(call => call.method),
+      };
+
+      function anchorsFromPage() {
+        return Array.from(document.querySelectorAll('[data-note-target]'), element => ({
+          id: element.id,
+          element,
+          label: element.textContent,
+        }));
+      }
+
+      async function waitFor(predicate) {
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+          if (predicate()) return;
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        throw new Error('Timed out waiting for browser condition');
+      }
+    });
+
+    assert.equal(result.status.status, 'connected');
+    assert.equal(result.status.webId, 'https://pod.example/profile/card#me');
+    assert.equal(result.status.storageUrl, 'https://pod.example/storage/');
+    assert.match(result.status.resourceUrl, /^https:\/\/pod\.example\/private\/margin-notes\/page-[a-f0-9]+\.ttl$/);
+    assert.equal(result.statusText, 'Connected to https://pod.example/storage/');
+    assert.equal(result.noteText, 'Loaded after WebID connection');
+    assert.deepEqual(result.requestMethods, ['discoverWebId', 'get', 'get']);
+  } finally {
+    page?.close();
+    await chrome.close();
+    await server.close();
+  }
+});
+
 test('BrowserMounted: host slots receive anchor widgets', async () => {
   const server = await startServer();
   const chrome = await startChrome(`${server.url}/test.html`);
@@ -383,6 +533,7 @@ test('BrowserMounted: design-system subset styles editor modal and cleans up on 
     assert.deepEqual(result.styleIds, [
       'margin-notes-design-system.css',
       'margin-notes-ui.css',
+      'margin-notes-solid-connection.css',
       'margin-notes-cobalt-editor.css',
     ]);
     assert.equal(result.styledModal.hasDesignSystemRule, true);

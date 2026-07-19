@@ -54,6 +54,14 @@
  * @property {string} [storageKey] - Backwards-compatible alias for storeKey.
  *   Defaults to `margin-notes-${namespace}`
  * @property {Object} [store] - Optional store with async load/save/remove methods.
+ * @property {Object} [solidConnection] - Optional Solid WebID connection control.
+ *   When provided, margin-notes renders a small WebID connection UI into the
+ *   supplied container and resolves the current page to a Solid notes resource.
+ * @property {HTMLElement|HostContainer} [solidConnection.container] - Host-owned slot
+ *   for the connection UI.
+ * @property {string} [solidConnection.webId] - Optional initial WebID value.
+ * @property {string} [solidConnection.pageUrl] - Optional page URI to hash into
+ *   the notes filename. Defaults to the current URL without a fragment.
  * @property {string} [expandedStackBackground] - CSS color used behind an opened stack of notes.
  *   Defaults to `#fffefb`
  * @property {'system'|'light'|'dark'} [theme] - Color theme for margin notes.
@@ -93,6 +101,7 @@ export function validateHostConfig(config) {
   if (config.store) {
     validateStore(config.store);
   }
+  validateSolidConnection(config.solidConnection);
   validateTheme(config.theme);
 
   const anchorIds = new Set();
@@ -129,6 +138,18 @@ function validateStore(store) {
     if (typeof store[method] !== 'function') {
       throw new Error(`Config store must provide ${method}()`);
     }
+  }
+}
+
+function validateSolidConnection(solidConnection) {
+  if (solidConnection === undefined) return;
+  if (!solidConnection || typeof solidConnection !== 'object') {
+    throw new Error('Config solidConnection must be an object');
+  }
+
+  const container = solidConnection.container?.element || solidConnection.container;
+  if (!isElementLike(container)) {
+    throw new Error('Config solidConnection must have a container element');
   }
 }
 

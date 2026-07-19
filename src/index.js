@@ -15,6 +15,7 @@
 
 import { MarginNotes, mount } from './component.js';
 import { createSolidResourceStore } from './storage/solid-resource-store.js';
+import { createSolidNotesConnection, notesResourceUrlForPage } from './storage/solid-notes-location.js';
 
 /**
  * Global API that the host page receives.
@@ -36,6 +37,14 @@ const MarginNotesAPI = {
   createSolidResourceStore(options) {
     return createSolidResourceStore(options);
   },
+
+  createSolidNotesConnection(options) {
+    return createSolidNotesConnection(options);
+  },
+
+  notesResourceUrlForPage(options) {
+    return notesResourceUrlForPage(options);
+  },
 };
 
 // Export for module systems
@@ -43,6 +52,7 @@ export { MarginNotesAPI };
 export { MarginNotes };
 export { mount };
 export { createSolidResourceStore };
+export { createSolidNotesConnection, notesResourceUrlForPage };
 export {};
 
 // Also attach to global for script-tag usage

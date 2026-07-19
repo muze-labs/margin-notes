@@ -4,18 +4,23 @@ import { annotationModel } from './paragraph-note-stacks/annotation-model.js';
 import MARGIN_NOTES_ROOT_TEMPLATE from './paragraph-note-stacks/root.html';
 import MARGIN_NOTES_ANCHOR_WIDGET_TEMPLATE from './paragraph-note-stacks/anchor-widget.html';
 import MARGIN_NOTES_INLINE_NOTE_TEMPLATE from './paragraph-note-stacks/inline-note.html';
+import SOLID_CONNECTION_TEMPLATE from './solid-connection/control.html';
 import MARGIN_NOTES_DESIGN_SYSTEM_STYLES from '../design-system.css';
 import MARGIN_NOTES_UI_STYLES from './paragraph-note-stacks/ui.css';
+import SOLID_CONNECTION_STYLES from './solid-connection/ui.css';
+import { createSolidNotesConnection } from '../storage/solid-notes-location.js';
 
 export const paragraphNoteStacks = {
   templates: {
     'margin-notes': MARGIN_NOTES_ROOT_TEMPLATE,
     'margin-notes-anchor-widget': MARGIN_NOTES_ANCHOR_WIDGET_TEMPLATE,
     'margin-notes-inline-note': MARGIN_NOTES_INLINE_NOTE_TEMPLATE,
+    'margin-notes-solid-connection': SOLID_CONNECTION_TEMPLATE,
   },
   styles: {
     'margin-notes-design-system': MARGIN_NOTES_DESIGN_SYSTEM_STYLES,
     'margin-notes-ui': MARGIN_NOTES_UI_STYLES,
+    'margin-notes-solid-connection': SOLID_CONNECTION_STYLES,
     'margin-notes-cobalt-editor': COBALT_EDITOR_STYLES,
   },
   actions: {
@@ -69,6 +74,47 @@ export const paragraphNoteStacks = {
       notesApi.removeInstalledViewAssets({ app: this });
       notesApi.restoreTheme({ app: this });
       this.marginNotesRuntime.mountContainer?.replaceChildren();
+    },
+
+    async setupSolidConnection({ config }) {
+      if (!config) return;
+
+      const notesApi = this.api.notes;
+      const container = notesApi.hostElement(config.container);
+      if (!container) return;
+
+      container.innerHTML = notesApi.templates.solidConnection;
+      const element = container.querySelector('[data-margin-notes-solid-connection]');
+      const input = container.querySelector('[data-margin-notes-solid-webid]');
+      if (!element || !input) return;
+
+      input.value = config.webId || '';
+      notesApi.setSolidConnectionStatus({
+        app: this,
+        status: 'idle',
+        message: 'Not connected',
+      });
+      notesApi.renderSolidConnectionStatus({ app: this });
+
+      const onSubmit = event => {
+        event.preventDefault();
+        void this.actions.connectSolidStorage({
+          webId: input.value,
+        });
+      };
+      element.addEventListener('submit', onSubmit);
+
+      this.marginNotesRuntime.solidConnectionElement = element;
+      this.marginNotesRuntime.solidConnectionCleanup = () => {
+        element.removeEventListener('submit', onSubmit);
+        container.replaceChildren();
+      };
+    },
+
+    async destroySolidConnection() {
+      this.marginNotesRuntime.solidConnectionCleanup?.();
+      this.marginNotesRuntime.solidConnectionCleanup = null;
+      this.marginNotesRuntime.solidConnectionElement = null;
     },
 
     async setTheme({ theme }) {
@@ -148,6 +194,72 @@ export const paragraphNoteStacks = {
         key: this.data.marginNotes.storeKey,
         subjects: this.data.marginNotes.graph,
       });
+    },
+
+    async connectSolidStorage({ webId }) {
+      const notesApi = this.api.notes;
+      const config = this.marginNotesRuntime.solidConnectionConfig || {};
+
+      try {
+        notesApi.setSolidConnectionStatus({
+          app: this,
+          status: 'connecting',
+          webId,
+          message: 'Resolving Solid storage...',
+        });
+        notesApi.renderSolidConnectionStatus({ app: this });
+
+        const connection = await notesApi.createSolidNotesConnection({
+          ...config,
+          webId,
+        });
+
+        this.marginNotesRuntime.store = connection.store;
+        this.data.marginNotes.storeKey = connection.resourceUrl;
+        this.marginNotesRuntime.solidConnection = connection;
+        notesApi.setSolidConnectionStatus({
+          app: this,
+          status: 'connected',
+          webId: connection.webId,
+          storageUrl: connection.storageUrl,
+          resourceUrl: connection.resourceUrl,
+          message: `Connected to ${connection.storageUrl}`,
+        });
+        notesApi.renderSolidConnectionStatus({ app: this });
+        await this.actions.reloadNotesFromStore({});
+        notesApi.renderSolidConnectionStatus({ app: this });
+        return connection;
+      } catch (error) {
+        notesApi.setSolidConnectionStatus({
+          app: this,
+          status: 'error',
+          webId,
+          message: error.message,
+        });
+        notesApi.renderSolidConnectionStatus({ app: this });
+        throw error;
+      }
+    },
+
+    async reloadNotesFromStore() {
+      const notesApi = this.api.notes;
+      this.data.marginNotes.graph = await notesApi.loadGraph({
+        app: this,
+        key: this.data.marginNotes.storeKey,
+      });
+      const notesByAnchor = notesApi.groupNotesByAnchor({
+        notes: this.data.marginNotes.graph,
+      });
+
+      for (const anchor of this.data.marginNotes.anchors) {
+        anchor.notes = notesByAnchor[anchor.id] || [];
+        anchor.visibleNotes = [];
+        anchor.noteCount = anchor.notes.length;
+        anchor.overflowLabel = '';
+        anchor.hasOverflow = false;
+        anchor.expanded = false;
+        await this.actions.renderAnchorNotes({ anchor });
+      }
     },
 
     async installAnchorAffordances({ anchors }) {
@@ -500,13 +612,18 @@ export const paragraphNoteStacks = {
     notes: {
       ...annotationModel,
       CobaltEditorModal,
+      createSolidNotesConnection,
       path,
+      templates: {
+        solidConnection: SOLID_CONNECTION_TEMPLATE,
+      },
       installedViewAssets: [
         'margin-notes',
         'margin-notes-anchor-widget',
         'margin-notes-inline-note',
         'margin-notes-design-system.css',
         'margin-notes-ui.css',
+        'margin-notes-solid-connection.css',
         'margin-notes-cobalt-editor.css',
       ],
 
@@ -537,6 +654,39 @@ export const paragraphNoteStacks = {
         if (!anchor) return [];
 
         return Array.from(anchor.notes, note => this.toStoredAnnotation({ annotation: note.annotation }));
+      },
+
+      hostElement(value) {
+        return value?.element || value || null;
+      },
+
+      setSolidConnectionStatus({ app, status, message, webId, storageUrl, resourceUrl }) {
+        app.data.marginNotes.solidConnection = {
+          ...app.data.marginNotes.solidConnection,
+          status,
+          message,
+          webId: webId ?? app.data.marginNotes.solidConnection.webId,
+          storageUrl: storageUrl ?? app.data.marginNotes.solidConnection.storageUrl,
+          resourceUrl: resourceUrl ?? app.data.marginNotes.solidConnection.resourceUrl,
+        };
+      },
+
+      renderSolidConnectionStatus({ app }) {
+        const element = app.marginNotesRuntime.solidConnectionElement;
+        const statusElement = element?.querySelector('[data-margin-notes-solid-status]');
+        const input = element?.querySelector('[data-margin-notes-solid-webid]');
+        const button = element?.querySelector('button[type="submit"]');
+        const state = app.data.marginNotes.solidConnection;
+        if (!statusElement) return;
+
+        statusElement.textContent = state.message || 'Not connected';
+        statusElement.dataset.status = state.status || 'idle';
+        if (input && state.webId && input.value !== state.webId) {
+          input.value = state.webId;
+        }
+        if (button) {
+          button.disabled = state.status === 'connecting';
+        }
       },
 
       removeInstalledViewAssets() {

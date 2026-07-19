@@ -25,6 +25,17 @@ test('HostContract: accepts an optional host-owned anchor slot', () => {
   assert.equal(validateHostConfig(config), config);
 });
 
+test('HostContract: accepts an optional Solid connection slot', () => {
+  const config = validConfig({
+    solidConnection: {
+      container: { element: element() },
+      webId: 'https://pod.example/profile/card#me',
+    },
+  });
+
+  assert.equal(validateHostConfig(config), config);
+});
+
 test('HostContract: accepts supported optional themes', () => {
   for (const theme of ['system', 'light', 'dark']) {
     const config = {
@@ -124,6 +135,15 @@ test('HostContract: validates optional store capability', () => {
   }, /store must provide remove/);
 });
 
+test('HostContract: validates optional Solid connection capability', () => {
+  assert.throws(
+    () => validateHostConfig(validConfig({
+      solidConnection: {},
+    })),
+    /solidConnection must have a container element/
+  );
+});
+
 test('HostContract: rejects unsupported optional themes', () => {
   assert.throws(() => {
     validateHostConfig({
@@ -154,4 +174,12 @@ test('HostContract: prefers storeKey over the backwards-compatible storageKey al
 
 function element() {
   return { nodeType: 1 };
+}
+
+function validConfig(overrides = {}) {
+  return {
+    anchors: [],
+    container: { element: element() },
+    ...overrides,
+  };
 }

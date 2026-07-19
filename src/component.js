@@ -37,6 +37,13 @@ export function mount(config) {
         anchorViews: [],
         graph: [],
         storeKey,
+        solidConnection: {
+          status: 'idle',
+          message: 'Not connected',
+          webId: '',
+          storageUrl: '',
+          resourceUrl: '',
+        },
         theme: config.theme || 'system',
       },
     },
@@ -48,20 +55,27 @@ export function mount(config) {
       anchorAffordances: [],
       resizeObserver: null,
       syncTimers: new Map(),
+      solidConnectionConfig: config.solidConnection || null,
+      solidConnectionElement: null,
+      solidConnectionCleanup: null,
       themeRoot,
       hadThemeAttribute: themeRoot.hasAttribute('data-margin-notes-theme'),
       previousThemeAttribute: themeRoot.getAttribute('data-margin-notes-theme'),
     },
-    start() {
-      return this.actions.setupParagraphNoteStacks({
+    async start() {
+      await this.actions.setupParagraphNoteStacks({
         anchors: this.marginNotesRuntime.hostAnchors,
         storeKey,
+      });
+      await this.actions.setupSolidConnection({
+        config: this.marginNotesRuntime.solidConnectionConfig,
       });
     },
   });
 
   const destroyApp = marginApp.destroy.bind(marginApp);
   marginApp.destroy = async function destroyMarginNotesApp() {
+    await this.actions.destroySolidConnection({});
     await this.actions.destroyParagraphNoteStacks({});
     destroyApp();
   };
@@ -76,6 +90,12 @@ export function mount(config) {
   };
   marginApp.getTheme = function getMountedTheme() {
     return this.data.marginNotes.theme;
+  };
+  marginApp.connectSolidStorage = function connectMountedSolidStorage(webId) {
+    return this.actions.connectSolidStorage({ webId });
+  };
+  marginApp.getSolidConnection = function getMountedSolidConnection() {
+    return { ...this.data.marginNotes.solidConnection };
   };
 
   return marginApp;
@@ -125,5 +145,13 @@ export class MarginNotes {
 
   getTheme() {
     return this.app?.getTheme() || 'system';
+  }
+
+  connectSolidStorage(webId) {
+    return this.app?.connectSolidStorage(webId);
+  }
+
+  getSolidConnection() {
+    return this.app?.getSolidConnection() || null;
   }
 }
