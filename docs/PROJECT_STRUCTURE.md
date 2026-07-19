@@ -175,17 +175,16 @@ Run `npm test` to build the browser bundle, run the unit tests, and exercise a m
 - Store-key derivation and backwards-compatible `storageKey` handling
 - Annotation model creation, migration, and preservation behavior
 - Local store contract over opaque values
-- Mounted browser create, restore, and delete path through `MarginNotesAPI.mount()`
+- Mounted browser create, restore, edit, and delete path through `MarginNotesAPI.mount()`
+- Mounted edit preservation of subject identity and unknown predicates
 
 ## Remaining Steps for M1.1
 
 Priority order:
 
-1. **Edit-flow browser coverage** — Verify that editing a mounted note preserves subject identity.
-2. **Unknown-predicate round trip** — Verify that unrelated OLDMed facts survive mounted edit and save.
-3. **Keyboard accessibility evidence** — Demonstrate create, edit, delete, note traversal, and collapse behaviour without mouse-only assumptions.
-4. **Example-page coverage** — Run the browser path against `examples/simple.html` or keep the fixture equivalent and explain why.
-5. **End-to-end validation** — Host page can create, edit, delete, reload, and preserve the same annotation subject identity.
+1. **Keyboard accessibility evidence** — Demonstrate create, edit, delete, note traversal, and collapse behaviour without mouse-only assumptions.
+2. **Example-page coverage** — Run the browser path against `examples/simple.html` or keep the fixture equivalent and explain why.
+3. **End-to-end validation** — Host page can create, edit, delete, reload, and preserve the same annotation subject identity.
 
 Keep Solid login and remote storage out of M1.1. Local storage still needs to prove the linked-data model before SimplySolid work begins.
 

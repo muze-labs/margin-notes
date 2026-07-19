@@ -25,15 +25,16 @@ Milestone 0 is complete enough to support implementation. The active work item i
 - Cobalt editor modal integration for creating and editing note bodies;
 - local browser persistence using OLDMed annotation subjects through an IndexedDB-backed local store;
 - executable host contract validation used by the real component;
-- headless browser coverage for the mounted public API create, restore, and delete path;
+- headless browser coverage for the mounted public API create, restore, edit, and delete path;
+- mounted edit coverage preserves subject identity and unknown predicates;
 - quiet paragraph-side creation affordances and collapsed note stacks.
 
 ## Remaining M1.1 work
 
 Slice M1.1: a browser-only end-to-end note:
 
-1. extend browser coverage to edit flow and keyboard access;
-2. add browser round-trip coverage for unknown predicates and subject identity during edits;
+1. extend browser coverage to keyboard access;
+2. run the browser path against `examples/simple.html` or explain why the fixture remains preferable;
 3. update data-model, open-question, and book notes with the evidence from that implementation.
 
 ## Known unresolved choices

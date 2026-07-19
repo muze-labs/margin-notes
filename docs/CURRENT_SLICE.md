@@ -15,7 +15,7 @@ A host page loads the component, a reader selects one supplied paragraph anchor,
 
 The app currently mounts through the host API, installs paragraph-side note affordances, opens the Cobalt editor, and saves/restores OLDMed annotation subjects through a browser-local store.
 
-This is useful implementation progress, but the slice is not complete yet. The current storage format uses OLDMed `prefix$predicate` names without importing OLDM itself. The default local store is backed by IndexedDB, but the app-facing store API is generic and does not know the annotation shape. The automated tests drive the real mounted browser workflow for create, restore, and delete; edit flow, keyboard access, and unknown-predicate preservation still need mounted-browser coverage.
+This is useful implementation progress, but the slice is not complete yet. The current storage format uses OLDMed `prefix$predicate` names without importing OLDM itself. The default local store is backed by IndexedDB, but the app-facing store API is generic and does not know the annotation shape. The automated tests drive the real mounted browser workflow for create, restore, edit, and delete, including subject-identity and unknown-predicate preservation during edit. Keyboard access still needs mounted-browser coverage.
 
 ## Why this slice comes first
 

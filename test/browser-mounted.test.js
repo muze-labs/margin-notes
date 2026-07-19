@@ -8,12 +8,13 @@ import assert from 'node:assert/strict';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-test('BrowserMounted: public API creates, restores, and deletes one local note', async () => {
+test('BrowserMounted: public API creates, restores, edits, and deletes one local note', async () => {
   const server = await startServer();
   const chrome = await startChrome(`${server.url}/test.html`);
+  let page;
 
   try {
-    const page = await chrome.page();
+    page = await chrome.page();
     await page.ready();
 
     const result = await page.evaluate(async () => {
@@ -40,6 +41,9 @@ test('BrowserMounted: public API creates, restores, and deletes one local note',
 
       const [created] = app.getNotesForAnchor('p-browser-one');
       const storedAfterCreate = await app.marginNotesRuntime.store.load({ key: storeKey });
+      storedAfterCreate.subjects[0].schema$about = 'https://example.test/topic';
+      storedAfterCreate.subjects[0].oa$hasBody.schema$comment = 'keep this body fact';
+      await app.marginNotesRuntime.store.save({ key: storeKey, value: storedAfterCreate });
       await app.destroy();
 
       resetPage();
@@ -52,6 +56,19 @@ test('BrowserMounted: public API creates, restores, and deletes one local note',
       await waitFor(() => restoredApp.getNotesForAnchor('p-browser-one').length === 1);
 
       const [restored] = restoredApp.getNotesForAnchor('p-browser-one');
+      restoredApp.api.notes.CobaltEditorModal = class TestEditorModal {
+        async show() {
+          return { text: globalThis.__nextNoteText, annotations: [] };
+        }
+      };
+      globalThis.__nextNoteText = 'An edited browser note';
+      await restoredApp.actions.updateNote({ noteId: restored.id });
+      await waitFor(() => {
+        return restoredApp.getNotesForAnchor('p-browser-one')[0]?.oa$hasBody.rdf$value === 'An edited browser note';
+      });
+
+      const [edited] = restoredApp.getNotesForAnchor('p-browser-one');
+      const storedAfterEdit = await restoredApp.marginNotesRuntime.store.load({ key: storeKey });
       await restoredApp.actions.deleteNote({ noteId: restored.id });
       await waitFor(() => restoredApp.getNotesForAnchor('p-browser-one').length === 0);
 
@@ -66,6 +83,11 @@ test('BrowserMounted: public API creates, restores, and deletes one local note',
         storedSubjectCount: storedAfterCreate.subjects.length,
         restoredId: restored.id,
         restoredText: restored.oa$hasBody.rdf$value,
+        editedId: edited.id,
+        editedText: edited.oa$hasBody.rdf$value,
+        editedFragment: edited.oa$hasBody.cobalt$fragment,
+        editedUnknownSubjectFact: storedAfterEdit.subjects[0].schema$about,
+        editedUnknownBodyFact: storedAfterEdit.subjects[0].oa$hasBody.schema$comment,
         storedAfterDeleteCount: storedAfterDelete.subjects.length,
       };
 
@@ -102,8 +124,17 @@ test('BrowserMounted: public API creates, restores, and deletes one local note',
     assert.equal(result.storedSubjectCount, 1);
     assert.equal(result.restoredId, result.createdId);
     assert.equal(result.restoredText, 'A browser-created note');
+    assert.equal(result.editedId, result.createdId);
+    assert.equal(result.editedText, 'An edited browser note');
+    assert.deepEqual(result.editedFragment, {
+      text: 'An edited browser note',
+      annotations: [],
+    });
+    assert.equal(result.editedUnknownSubjectFact, 'https://example.test/topic');
+    assert.equal(result.editedUnknownBodyFact, 'keep this body fact');
     assert.equal(result.storedAfterDeleteCount, 0);
   } finally {
+    page?.close();
     await chrome.close();
     await server.close();
   }
@@ -187,9 +218,14 @@ async function startChrome(url) {
     async close() {
       if (!closed) {
         chrome.kill('SIGTERM');
-        await new Promise(resolve => chrome.once('exit', resolve));
+        await waitForExit({ process: chrome, isClosed: () => closed });
       }
-      await fs.rm(userDataDir, { recursive: true, force: true });
+      await fs.rm(userDataDir, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 100,
+      });
     },
   };
 }
@@ -283,6 +319,21 @@ async function waitForEndpoint({ debugPort, isClosed }) {
     }
   }
   throw new Error('Timed out waiting for Chrome DevTools');
+}
+
+async function waitForExit({ process, isClosed }) {
+  if (isClosed()) return;
+
+  await new Promise(resolve => {
+    const timer = setTimeout(() => {
+      process.kill('SIGKILL');
+      resolve();
+    }, 2000);
+    process.once('exit', () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
 }
 
 function fetchJson(url) {
