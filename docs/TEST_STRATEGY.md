@@ -15,9 +15,9 @@ Passing the first level makes a capability **Implemented**. Passing an end-to-en
 
 Tests should be written narrowly enough that a smaller API can pass. Do not encode speculative future flexibility in test fixtures.
 
-## Unit tests
+## Unit And Browser Tests
 
-The current test command uses Node.js' native test runner. Browser automation can be added for integration and end-to-end coverage while keeping `npm test` as the main entry point.
+The current test command builds the browser bundle, then uses Node.js' native test runner for unit tests and a small headless Chrome integration test. Browser automation is intentionally dependency-light for now; a fuller framework can be added when interaction coverage outgrows the local harness.
 
 - selector creation and resolution;
 - identity minting;
@@ -27,6 +27,8 @@ The current test command uses Node.js' native test runner. Browser automation ca
 - storage-target selection;
 - save-result reduction;
 - permission-state mapping.
+
+The mounted browser test should stay focused on the public API and observable browser persistence. It should not reach into private module helpers except where the app deliberately exposes a replaceable dependency, such as the editor modal constructor under `app.api`.
 
 ## Linked-data fixtures
 

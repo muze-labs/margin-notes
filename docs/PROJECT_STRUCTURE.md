@@ -169,21 +169,22 @@ Serves `examples/simple.html` at `http://localhost:3000` for local testing.
 
 ## Tests
 
-Run `npm test` to verify the current unit tests. The host-contract tests import the executable validation used by the real component. They do not yet validate the full SimplyFlow app in a browser.
+Run `npm test` to build the browser bundle, run the unit tests, and exercise a mounted public API path in headless Chrome.
 
 - Config validation for anchors, containers, duplicate ids, and optional stores
 - Store-key derivation and backwards-compatible `storageKey` handling
 - Annotation model creation, migration, and preservation behavior
 - Local store contract over opaque values
+- Mounted browser create, restore, and delete path through `MarginNotesAPI.mount()`
 
 ## Remaining Steps for M1.1
 
 Priority order:
 
-1. **Browser tests** — Set up Playwright or similar for integration tests against `examples/simple.html`.
-2. **Mounted API coverage** — Exercise `mount(config)` and the compatibility adapter in a real DOM/browser harness.
-3. **Storage round-trip evidence** — Verify that the OLDMed subject graph survives create, edit, delete, and reload.
-4. **Keyboard accessibility evidence** — Demonstrate create, edit, delete, note traversal, and collapse behaviour without mouse-only assumptions.
+1. **Edit-flow browser coverage** — Verify that editing a mounted note preserves subject identity.
+2. **Unknown-predicate round trip** — Verify that unrelated OLDMed facts survive mounted edit and save.
+3. **Keyboard accessibility evidence** — Demonstrate create, edit, delete, note traversal, and collapse behaviour without mouse-only assumptions.
+4. **Example-page coverage** — Run the browser path against `examples/simple.html` or keep the fixture equivalent and explain why.
 5. **End-to-end validation** — Host page can create, edit, delete, reload, and preserve the same annotation subject identity.
 
 Keep Solid login and remote storage out of M1.1. Local storage still needs to prove the linked-data model before SimplySolid work begins.
