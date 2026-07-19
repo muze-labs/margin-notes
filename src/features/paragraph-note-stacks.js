@@ -160,9 +160,11 @@ export const paragraphNoteStacks = {
           anchor.element.classList.add('margin-notes-target-tabstop');
         }
 
-        anchor.element.appendChild(widget);
+        const slot = notesApi.anchorSlot({ anchor });
+        slot.appendChild(widget);
         this.marginNotesRuntime.anchorAffordances.push({
           element: anchor.element,
+          slot,
           widget,
           anchorId: anchor.id,
           expanded: false,
@@ -558,7 +560,12 @@ export const paragraphNoteStacks = {
           anchor?.id
           && typeof HTMLElement !== 'undefined'
           && anchor.element instanceof HTMLElement
+          && (anchor.slot === undefined || anchor.slot instanceof HTMLElement)
         );
+      },
+
+      anchorSlot({ anchor }) {
+        return anchor.slot || anchor.element;
       },
 
       findAnchor({ app, anchorId }) {

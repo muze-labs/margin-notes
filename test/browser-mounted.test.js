@@ -140,6 +140,60 @@ test('BrowserMounted: public API creates, restores, edits, and deletes one local
   }
 });
 
+test('BrowserMounted: host slots receive anchor widgets', async () => {
+  const server = await startServer();
+  const chrome = await startChrome(`${server.url}/test.html`);
+  let page;
+
+  try {
+    page = await chrome.page();
+    await page.ready();
+
+    const result = await page.evaluate(async () => {
+      const { MarginNotesAPI } = await import(`/dist/index.js?test=${Date.now()}`);
+      const anchorElement = document.getElementById('p-browser-one');
+      const slot = document.createElement('span');
+      slot.className = 'host-margin-slot';
+      anchorElement.prepend(slot);
+
+      const app = MarginNotesAPI.mount({
+        anchors: [{
+          id: 'p-browser-one',
+          element: anchorElement,
+          slot,
+          label: anchorElement.textContent,
+        }],
+        container: { element: document.getElementById('margin-notes-container') },
+        storeKey: `browser-slots-${crypto.randomUUID()}`,
+      });
+      await waitFor(() => slot.querySelector('.margin-notes-anchor-widget-host'));
+      const widget = slot.querySelector('.margin-notes-anchor-widget-host');
+      const targetContainsWidget = anchorElement.querySelector(':scope > .margin-notes-anchor-widget-host');
+      await app.destroy();
+
+      return {
+        widgetAnchor: widget?.dataset.marginNotesAnchor,
+        targetContainsWidget: Boolean(targetContainsWidget),
+      };
+
+      async function waitFor(predicate) {
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+          if (predicate()) return;
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        throw new Error('Timed out waiting for browser condition');
+      }
+    });
+
+    assert.equal(result.widgetAnchor, 'p-browser-one');
+    assert.equal(result.targetContainsWidget, false);
+  } finally {
+    page?.close();
+    await chrome.close();
+    await server.close();
+  }
+});
+
 test('BrowserMounted: keyboard users can create, traverse, and collapse notes', async () => {
   const server = await startServer();
   const chrome = await startChrome(`${server.url}/test.html`);
@@ -222,6 +276,7 @@ test('BrowserMounted: keyboard users can create, traverse, and collapse notes', 
     await page.evaluate(() => {
       document.querySelector('.margin-notes-target-note-toggle')?.focus();
     });
+    await page.evaluate(() => globalThis.__waitFor(() => document.activeElement?.textContent.trim() === 'First keyboard note'));
     assert.deepEqual(await page.evaluate(activeElement), {
       id: '',
       className: 'margin-notes-target-note-toggle',
@@ -285,6 +340,84 @@ test('BrowserMounted: keyboard users can create, traverse, and collapse notes', 
       delete globalThis.__app;
       delete globalThis.__waitFor;
     });
+  } finally {
+    page?.close();
+    await chrome.close();
+    await server.close();
+  }
+});
+
+test('BrowserMounted: editor modal key events do not bubble to host shortcuts', async () => {
+  const server = await startServer();
+  const chrome = await startChrome(`${server.url}/test.html`);
+  let page;
+
+  try {
+    page = await chrome.page();
+    await page.ready();
+
+    const result = await page.evaluate(async () => {
+      const { MarginNotesAPI } = await import(`/dist/index.js?test=${Date.now()}`);
+      const app = MarginNotesAPI.mount({
+        anchors: anchorsFromPage(),
+        container: { element: document.getElementById('margin-notes-container') },
+        storeKey: `browser-editor-keys-${crypto.randomUUID()}`,
+      });
+      await waitFor(() => app.data.marginNotes.anchors.length === 2);
+
+      let bubbledKeyCount = 0;
+      document.addEventListener('keydown', () => {
+        bubbledKeyCount += 1;
+      });
+
+      const modal = new app.api.notes.CobaltEditorModal({
+        title: 'Keyboard boundary',
+        initialFragment: { text: '', annotations: [] },
+      });
+      void modal.show();
+      await waitFor(() => document.querySelector('.margin-notes-editor-modal'));
+
+      const editorTarget = document.querySelector('.margin-notes-cobalt-editor');
+      editorTarget.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        bubbles: true,
+        cancelable: true,
+      }));
+      editorTarget.dispatchEvent(new KeyboardEvent('keydown', {
+        key: ' ',
+        bubbles: true,
+        cancelable: true,
+      }));
+
+      const modalElement = document.querySelector('.margin-notes-editor-modal');
+      const scope = modalElement?.dataset.readerKeyScope;
+      modal.destroy();
+      await app.destroy();
+
+      return {
+        bubbledKeyCount,
+        scope,
+      };
+
+      function anchorsFromPage() {
+        return Array.from(document.querySelectorAll('[data-note-target]'), element => ({
+          id: element.id,
+          element,
+          label: element.textContent,
+        }));
+      }
+
+      async function waitFor(predicate) {
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+          if (predicate()) return;
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        throw new Error('Timed out waiting for browser condition');
+      }
+    });
+
+    assert.equal(result.bubbledKeyCount, 0);
+    assert.equal(result.scope, 'margin-notes-editor');
   } finally {
     page?.close();
     await chrome.close();

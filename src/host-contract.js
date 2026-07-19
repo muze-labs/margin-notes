@@ -26,6 +26,8 @@
  *   Should be stable across page reloads.
  *   Should follow the pattern: {type}-{namespace}-{text-slug}
  * @property {HTMLElement} element - The element in the document that this anchor refers to
+ * @property {HTMLElement} [slot] - Optional host-owned element where note controls
+ *   for this anchor should render. Defaults to `element`.
  * @property {string} [label] - Human-readable description of what this anchor targets
  */
 
@@ -111,6 +113,9 @@ function validateAnchor(anchor, index) {
   }
   if (!isElementLike(anchor.element)) {
     throw new Error(`Config anchor "${anchor.id}" must have an element`);
+  }
+  if (anchor.slot !== undefined && !isElementLike(anchor.slot)) {
+    throw new Error(`Config anchor "${anchor.id}" slot must be an element`);
   }
 }
 

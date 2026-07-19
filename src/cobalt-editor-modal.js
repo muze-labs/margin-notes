@@ -55,6 +55,7 @@ export class CobaltEditorModal {
       
       // Also allow Ctrl+S to save
       this.modal.addEventListener('keydown', (e) => {
+        e.stopPropagation();
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
           e.preventDefault();
           onSave();
@@ -77,6 +78,7 @@ export class CobaltEditorModal {
     // Create modal overlay
     this.modal = document.createElement('div');
     this.modal.className = 'margin-notes-editor-modal';
+    this.modal.dataset.readerKeyScope = 'margin-notes-editor';
     this.modal.innerHTML = COBALT_EDITOR_TEMPLATE;
     this.modal.querySelector('[data-title]').textContent = this.options.title || 'Edit note';
     

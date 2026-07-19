@@ -14,6 +14,17 @@ test('HostContract: accepts the minimal valid mount config', () => {
   assert.equal(validateHostConfig(config), config);
 });
 
+test('HostContract: accepts an optional host-owned anchor slot', () => {
+  const config = {
+    anchors: [
+      { id: 'p-example-one', element: element(), slot: element(), label: 'One' },
+    ],
+    container: { element: element() },
+  };
+
+  assert.equal(validateHostConfig(config), config);
+});
+
 test('HostContract: rejects a missing config', () => {
   assert.throws(() => validateHostConfig(null), /Config is required/);
 });
@@ -55,6 +66,13 @@ test('HostContract: requires each anchor to have a stable id and element', () =>
       container: { element: element() },
     });
   }, /anchor "p-example-one" must have an element/);
+
+  assert.throws(() => {
+    validateHostConfig({
+      anchors: [{ id: 'p-example-one', element: element(), slot: {} }],
+      container: { element: element() },
+    });
+  }, /anchor "p-example-one" slot must be an element/);
 });
 
 test('HostContract: requires anchor ids to be unique', () => {
