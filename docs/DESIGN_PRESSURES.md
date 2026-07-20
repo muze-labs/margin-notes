@@ -218,6 +218,7 @@ Use a SimplySolid local-first `notes` resource as the default store. On Solid co
 - `test/browser-mounted.test.js` covers local create/restore through the SimplySolid path.
 - `test/browser-mounted.test.js` covers connecting with existing local notes and existing remote notes, then syncing both into the discovered resource.
 - `test/browser-mounted.test.js` covers reconnecting to a remembered Solid resource and restoring the synced note.
+- Manual validation on 2026-07-20 confirmed the margin-notes flow works in the programming-for-wizards book and previously stored notes remain available after the migration.
 
 ### Resolution
 
@@ -227,7 +228,7 @@ The app keeps a small custom-store fallback so host-provided stores remain compa
 
 ### Validation
 
-`npm test` passes the mounted browser paths for local create/restore/edit/delete, Solid connection reload, and local-to-remote sync.
+`npm test` passes the mounted browser paths for local create/restore/edit/delete, Solid connection reload, and local-to-remote sync. Manual validation in the programming-for-wizards book confirms the app still works with previously stored notes.
 
 ### Book consequence
 

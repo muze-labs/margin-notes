@@ -33,13 +33,14 @@ Milestone 0 is complete enough to support implementation. The active work item i
 - Turtle serialization/parsing for the fixed-resource Solid store through OLDM;
 - mounted browser coverage that creates and restores a note through the Turtle-backed Solid resource adapter with a fake Lading-style Solid client;
 - default local-first notes storage through SimplySolid and solid-workspace;
-- mounted browser coverage that creates/restores local notes through SimplySolid, connects to a discovered Solid notes resource, merges existing local and remote notes, and syncs the result.
+- mounted browser coverage that creates/restores local notes through SimplySolid, connects to a discovered Solid notes resource, merges existing local and remote notes, and syncs the result;
+- manual validation in the programming-for-wizards book that margin notes work through the new path and previously stored notes are still available.
 
 ## Remaining M3.2 work
 
 Slice M3.2: local-first notes with a Solid replica:
 
-1. run a real Solid server smoke test or record why fake-client evidence is sufficient for this slice;
+1. record the exact manual smoke-test environment and steps if this validation should become repeatable evidence;
 2. decide how offline sync-pending and failed remote saves should become visible in the UI;
 3. decide whether the example page should expose the Solid connection path for manual testing.
 

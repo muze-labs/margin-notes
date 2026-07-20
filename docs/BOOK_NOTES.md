@@ -38,7 +38,7 @@ Append implementation discoveries here. Keep entries brief and factual while the
 - **What failed:** The merge function made margin-notes responsible for open-world resource semantics that should be reusable across PWA-style Solid apps.
 - **Decision:** Use a SimplySolid local-first `notes` resource by default, then attach the discovered Solid resource as its remote replica and call `sync('notes')`.
 - **Owning layer:** SimplySolid / solid-workspace for resource replicas and sync; margin-notes for note UI and Solid connection UX.
-- **Evidence:** Mounted browser tests cover local SimplySolid restore, connecting with local and remote notes, and syncing the combined graph to the discovered resource.
+- **Evidence:** Mounted browser tests cover local SimplySolid restore, connecting with local and remote notes, and syncing the combined graph to the discovered resource. Manual validation in the programming-for-wizards book confirmed the app works and previously stored notes remain available after the migration.
 - **Book relevance:** Local-first is not an optional storage trick; it changes the right abstraction from "adapter" to "workspace resource".
 - **Standard, convention, or Muze-specific:** Solid resources and Turtle are standards/conventions; SimplySolid local-first resources and `sync('notes')` are Muze stack API choices.
 - **Remaining question:** How should pending sync and remote conflict reconciliation be surfaced in the reader UI?
