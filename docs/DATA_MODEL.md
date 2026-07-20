@@ -71,7 +71,9 @@ Browser-local storage currently writes a small document containing `format`, `ve
 
 The local store itself stores opaque values by key. It does not know about annotations, OLDMed, or Cobalt. Annotation-specific conversion belongs to the note feature API.
 
-The first Solid-backed storage slice writes the same annotation graph to one configured Solid resource through `createSolidResourceStore()`. The adapter uses a Lading-style client and OLDM to translate between the app-facing graph document and Turtle. This is a deliberate boundary test: Solid resource persistence can be real linked data without teaching the note UI a second model. Source-aware multi-resource modelling should wait for a slice that needs cross-application editing or real linked-data resource composition across several resources.
+The default margin-notes path now stores the annotation graph through a SimplySolid local-first resource. The local replica uses IndexedDB and the remote replica is added later when the Solid connection flow discovers the per-page notes resource. The object shape stays the same across both replicas.
+
+The earlier fixed-resource Solid storage slice still exists as `createSolidResourceStore()`. It writes the same annotation graph to one configured Solid resource and translates between the app-facing graph document and Turtle through a Lading-style client and OLDM. That adapter remains useful as compatibility evidence for the Solid stack, while the default path treats local and remote note data as replicas of one logical workspace resource.
 
 ## Prefer existing annotation terms
 

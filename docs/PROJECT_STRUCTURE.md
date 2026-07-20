@@ -1,6 +1,6 @@
-# Project Structure — Current M1.1 Implementation
+# Project Structure — Current M3.2 Implementation
 
-This document describes the current project structure for the margin-notes application while M1.1 is in progress.
+This document describes the current project structure for the margin-notes application while M3.2 is in progress.
 
 ## Technology Stack
 
@@ -130,7 +130,8 @@ The feature component does not define app state. The app owns the state in `data
 Feature helpers and dependencies are merged into `app.api.notes`, so actions can call `this.api.notes` without reaching back through `app.components`.
 Templates and styles live in `.html` and `.css` files and are imported as text by esbuild before being added to the app/component object. The app uses a curated local subset of `the-ds` tokens and button/dialog primitives instead of importing the whole design system into host pages.
 
-- **Store**: small app-facing store API with async `load`, `save`, and `remove` methods over opaque values. The default browser-local implementation is backed by IndexedDB.
+- **Store**: small app-facing store API with async `load`, `save`, and `remove` methods over opaque values. It remains available for custom host stores and legacy local-note migration.
+- **SimplySolid notes service**: the default storage path creates a local-first `notes` resource and collection through `@muze-labs/simplysolid`. The local replica is persisted in the `margin-notes-workspace` IndexedDB database, and the Solid replica is attached after WebID/resource discovery.
 - **Solid resource store**: `createSolidResourceStore({ resourceUrl, solid })` implements the same store API against one configured Solid resource through Lading resource methods and Turtle serialization. Without an injected client it composes the `jsfs-solid` Metro client stack with Metro-OLDM enabled by default.
 - **Stored value**: app-facing graph document containing OLDMed annotation subjects with `prefix$predicate` names; the Solid adapter stores this graph as Turtle.
 - **Note structure**: `oa$Annotation` subjects with `oa$hasBody`, `oa$hasTarget`, `dcterms$created`, and `dcterms$modified`.
@@ -139,7 +140,7 @@ Templates and styles live in `.html` and `.css` files and are imported as text b
 - **Theme**: `theme` mount config plus `setTheme()` / `getTheme()` keep margin notes on `system`, `light`, or `dark` without reading host-specific settings directly.
 - **Imperative DOM boundary**: host-anchor attachment, layout measurement, focus placement, and Cobalt editor mounting.
 
-The current browser-local note document is still JSON-like, while the fixed-resource Solid path stores Turtle. Both deliberately use the same object naming style OLDM exposes so the later source-aware path does not require renaming the application model. The store boundary is intentionally generic so browser-local and fixed-resource Solid storage can be tested without changing note code.
+The current browser-local note document is still JSON-like, while the Solid path stores Turtle. Both deliberately use the same object naming style OLDM exposes so the local-first workspace path does not require renaming the application model. The old store boundary remains for custom host stores and migration, but default create/update/delete/save operations now delegate to SimplySolid.
 
 ## Build & Development
 
@@ -157,7 +158,7 @@ The current build and dependency setup resolves local SimplyFlow, Cobalt, and `s
 npm test
 ```
 
-The current tests cover the annotation model, local store, executable host contract, and mounted browser paths through the SimplyFlow app.
+The current tests cover the annotation model, local store, executable host contract, fixed-resource Solid adapter, local-first SimplySolid storage, Solid connection sync, and mounted browser paths through the SimplyFlow app.
 
 **Development server:**
 ```bash
@@ -187,14 +188,13 @@ Run `npm test` to build the browser bundle, run the unit tests, and exercise a m
 - Mounted edit preservation of subject identity and unknown predicates
 - Mounted keyboard focus, create, note traversal, action reachability, and Escape collapse
 
-## Remaining Steps for M1.1
+## Remaining Steps for M3.2
 
 Priority order:
 
-1. **Example-page coverage** — Run the browser path against `examples/simple.html` or keep the fixture equivalent and explain why.
-2. **End-to-end validation** — Host page can create, edit, delete, reload, and preserve the same annotation subject identity.
-
-Keep Solid login and remote storage out of M1.1. Local storage still needs to prove the linked-data model before SimplySolid work begins.
+1. **Real-server smoke test** — Try the local-first connect/sync path against a disposable Solid Pod or record why fake-client evidence is enough for the current teaching step.
+2. **Pending-sync UI** — Decide how offline sync-pending and failed remote writes should be visible to the reader.
+3. **Example-page coverage** — Run the browser path against `examples/simple.html` or keep the fixture equivalent and explain why.
 
 ## Decision Record
 
@@ -202,7 +202,7 @@ This structure embodies these decisions from [docs/CURRENT_SLICE.md](../docs/CUR
 
 - Component mounts through the script-tag-friendly host API.
 - Host supplies stable anchors; the component does not auto-discover targets yet.
-- Storage policy remains browser-local with no authentication.
+- Storage policy is local-first, with Solid connected later as a remote replica.
 - Paragraph note chrome is rendered with SimplyFlow templates and commands.
 - Cobalt bodies are preserved in their minimal JSON fragment form under a Muze `cobalt$fragment` predicate, with plain text duplicated through standard body predicates.
 

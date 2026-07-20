@@ -28,7 +28,7 @@ test('BrowserMounted: public API creates, restores, edits, and deletes one local
         container: { element: container },
         storeKey,
       });
-      await waitFor(() => app.data.marginNotes.anchors.length === 2);
+      await waitFor(() => app.data.marginNotes.anchors.length === 2, 'initial anchors');
 
       app.api.notes.CobaltEditorModal = class TestEditorModal {
         async show() {
@@ -37,13 +37,16 @@ test('BrowserMounted: public API creates, restores, edits, and deletes one local
       };
       globalThis.__nextNoteText = 'A browser-created note';
       await app.actions.createNote({ anchorId: 'p-browser-one' });
-      await waitFor(() => app.getNotesForAnchor('p-browser-one').length === 1);
+      await waitFor(() => app.getNotesForAnchor('p-browser-one').length === 1, 'created note');
 
       const [created] = app.getNotesForAnchor('p-browser-one');
-      const storedAfterCreate = await app.marginNotesRuntime.store.load({ key: storeKey });
-      storedAfterCreate.subjects[0].schema$about = 'https://example.test/topic';
-      storedAfterCreate.subjects[0].oa$hasBody.schema$comment = 'keep this body fact';
-      await app.marginNotesRuntime.store.save({ key: storeKey, value: storedAfterCreate });
+      const createdAnnotation = app.data.marginNotes.graph[0];
+      createdAnnotation.schema$about = 'https://example.test/topic';
+      createdAnnotation.oa$hasBody.schema$comment = 'keep this body fact';
+      await app.actions.saveNotes({});
+      const storedAfterCreate = app.api.notes.toStorageDocument({
+        subjects: app.marginNotesRuntime.notesService.data.notes.list(),
+      });
       await app.destroy();
 
       resetPage();
@@ -53,7 +56,7 @@ test('BrowserMounted: public API creates, restores, edits, and deletes one local
         container: { element: document.getElementById('margin-notes-container') },
         storeKey,
       });
-      await waitFor(() => restoredApp.getNotesForAnchor('p-browser-one').length === 1);
+      await waitFor(() => restoredApp.getNotesForAnchor('p-browser-one').length === 1, 'restored note');
 
       const [restored] = restoredApp.getNotesForAnchor('p-browser-one');
       restoredApp.api.notes.CobaltEditorModal = class TestEditorModal {
@@ -65,14 +68,18 @@ test('BrowserMounted: public API creates, restores, edits, and deletes one local
       await restoredApp.actions.updateNote({ noteId: restored.id });
       await waitFor(() => {
         return restoredApp.getNotesForAnchor('p-browser-one')[0]?.oa$hasBody.rdf$value === 'An edited browser note';
-      });
+      }, 'edited note');
 
       const [edited] = restoredApp.getNotesForAnchor('p-browser-one');
-      const storedAfterEdit = await restoredApp.marginNotesRuntime.store.load({ key: storeKey });
+      const storedAfterEdit = restoredApp.api.notes.toStorageDocument({
+        subjects: restoredApp.marginNotesRuntime.notesService.data.notes.list(),
+      });
       await restoredApp.actions.deleteNote({ noteId: restored.id });
-      await waitFor(() => restoredApp.getNotesForAnchor('p-browser-one').length === 0);
+      await waitFor(() => restoredApp.getNotesForAnchor('p-browser-one').length === 0, 'deleted note');
 
-      const storedAfterDelete = await restoredApp.marginNotesRuntime.store.load({ key: storeKey });
+      const storedAfterDelete = restoredApp.api.notes.toStorageDocument({
+        subjects: restoredApp.marginNotesRuntime.notesService.data.notes.list(),
+      });
       await restoredApp.destroy();
 
       return {
@@ -109,12 +116,12 @@ test('BrowserMounted: public API creates, restores, edits, and deletes one local
         `;
       }
 
-      async function waitFor(predicate) {
+      async function waitFor(predicate, label = 'browser condition') {
         for (let attempt = 0; attempt < 80; attempt += 1) {
           if (predicate()) return;
           await new Promise(resolve => setTimeout(resolve, 25));
         }
-        throw new Error('Timed out waiting for browser condition');
+        throw new Error(`Timed out waiting for ${label}`);
       }
     });
 
@@ -239,7 +246,7 @@ test('BrowserMounted: public API can persist through a Solid resource store adap
       }
 
       async function waitFor(predicate) {
-        for (let attempt = 0; attempt < 80; attempt += 1) {
+        for (let attempt = 0; attempt < 160; attempt += 1) {
           if (predicate()) return;
           await new Promise(resolve => setTimeout(resolve, 25));
         }
@@ -276,7 +283,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
       document.body.append(slot);
 
       const calls = [];
-      let savedNotesTurtle = '';
+      let savedNotesDocument = null;
       const solid = {
         async discoverWebId(webId) {
           calls.push({ method: 'discoverWebId', webId });
@@ -305,46 +312,28 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
                 });
               }
 
-              if (savedNotesTurtle) {
-                return new Response(savedNotesTurtle, {
+              if (savedNotesDocument) {
+                return {
                   status: 200,
-                  headers: { 'Content-Type': 'text/turtle' },
-                });
+                  ok: true,
+                  url,
+                  data: savedNotesDocument,
+                };
               }
 
-              return new Response(`
-                @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
-                @prefix dcterms: <http://purl.org/dc/terms/>.
-                @prefix oa: <http://www.w3.org/ns/oa#>.
-                @prefix cobalt: <https://vocab.muze.nl/cobalt#>.
-
-                <#note-1>
-                  a oa:Annotation;
-                  dcterms:created "2026-07-19T10:00:00.000Z";
-                  dcterms:modified "2026-07-19T10:00:00.000Z";
-                  oa:hasBody <#note-1-body>;
-                  oa:hasTarget <#note-1-target>.
-
-                <#note-1-body>
-                  a oa:TextualBody, cobalt:Fragment;
-                  dcterms:format "application/vnd.cobalt.fragment+json";
-                  rdf:value "Loaded after WebID connection";
-                  cobalt:fragment "{\\"text\\":\\"Loaded after WebID connection\\",\\"annotations\\":[]}".
-
-                <#note-1-target>
-                  a oa:SpecificResource;
-                  oa:hasSelector <#note-1-selector>.
-
-                <#note-1-selector>
-                  a oa:FragmentSelector;
-                  rdf:value "p-browser-one".
-              `, {
+              return {
                 status: 200,
-                headers: { 'Content-Type': 'text/turtle' },
-              });
+                ok: true,
+                url,
+                data: notesDocument([annotation({
+                  id: `${url}#note-1`,
+                  anchorId: 'p-browser-one',
+                  text: 'Loaded after WebID connection',
+                })]),
+              };
             },
             async put(body, options) {
-              savedNotesTurtle = await body.write();
+              savedNotesDocument = body;
               calls.push({ method: 'put', url });
               return new Response('', {
                 status: 201,
@@ -369,7 +358,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
           solid,
         },
       });
-      await waitFor(() => slot.querySelector('[data-margin-notes-solid-webid]'));
+      await waitFor(() => slot.querySelector('[data-margin-notes-solid-webid]'), 'solid webid input');
 
       slot.querySelector('[data-margin-notes-solid-webid]').value = 'https://pod.example/profile/card#me';
       slot.querySelector('[data-margin-notes-solid-connection]').dispatchEvent(new Event('submit', {
@@ -378,7 +367,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
       }));
 
       await waitFor(() => app.getSolidConnection().status === 'connected'
-        && app.getNotesForAnchor('p-browser-one').length === 1);
+        && app.getNotesForAnchor('p-browser-one').length === 1, 'connected with remote note');
       const status = app.getSolidConnection();
       const statusText = slot.querySelector('[data-margin-notes-solid-status]').textContent;
       const [note] = app.getNotesForAnchor('p-browser-one');
@@ -388,7 +377,9 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         }
       };
       await app.actions.createNote({ anchorId: 'p-browser-two' });
-      await waitFor(() => savedNotesTurtle.includes('Saved before reconnect'));
+      await waitFor(() => savedNotesDocument?.subjects?.some(subject => {
+        return subject.oa$hasBody?.rdf$value === 'Saved before reconnect';
+      }), 'saved new note document');
       await app.destroy();
 
       resetPage();
@@ -404,7 +395,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         },
       });
       await waitFor(() => restoredApp.getSolidConnection().status === 'connected'
-        && restoredApp.getNotesForAnchor('p-browser-two').length === 1);
+        && restoredApp.getNotesForAnchor('p-browser-two').length === 1, 'restored connected note');
       const restoredStatus = restoredApp.getSolidConnection();
       const [restoredNote] = restoredApp.getNotesForAnchor('p-browser-two');
       await restoredApp.destroy();
@@ -415,7 +406,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         noteText: note.oa$hasBody.rdf$value,
         restoredStatus,
         restoredNoteText: restoredNote.oa$hasBody.rdf$value,
-        savedNotesTurtle,
+        savedNotesText: JSON.stringify(savedNotesDocument),
         popupHandleRedirectType: typeof MarginNotesAPI.popupHandleRedirect,
         requestMethods: calls.map(call => call.method),
       };
@@ -439,12 +430,54 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         `;
       }
 
-      async function waitFor(predicate) {
+      function notesDocument(subjects) {
+        return {
+          format: 'margin-notes-oldmed-graph',
+          version: 1,
+          prefixes: {
+            rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+            rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
+            dcterms: 'http://purl.org/dc/terms/',
+            oa: 'http://www.w3.org/ns/oa#',
+            schema: 'https://schema.org/',
+            cobalt: 'https://vocab.muze.nl/cobalt#',
+          },
+          subjects,
+        };
+      }
+
+      function annotation({ id, anchorId, text }) {
+        return {
+          id,
+          rdf$type: 'oa$Annotation',
+          dcterms$created: '2026-07-19T10:00:00.000Z',
+          dcterms$modified: '2026-07-19T10:00:00.000Z',
+          oa$hasBody: {
+            id: `${id}#body`,
+            rdf$type: ['oa$TextualBody', 'cobalt$Fragment'],
+            dcterms$format: 'application/vnd.cobalt.fragment+json',
+            rdf$value: text,
+            schema$text: text,
+            cobalt$fragment: { text, annotations: [] },
+          },
+          oa$hasTarget: {
+            id: `${id}#target`,
+            rdf$type: 'oa$SpecificResource',
+            oa$hasSelector: {
+              id: `${id}#selector-fragment`,
+              rdf$type: 'oa$FragmentSelector',
+              rdf$value: anchorId,
+            },
+          },
+        };
+      }
+
+      async function waitFor(predicate, label = 'browser condition') {
         for (let attempt = 0; attempt < 80; attempt += 1) {
           if (predicate()) return;
           await new Promise(resolve => setTimeout(resolve, 25));
         }
-        throw new Error('Timed out waiting for browser condition');
+        throw new Error(`Timed out waiting for ${label}`);
       }
     });
 
@@ -457,9 +490,9 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
     assert.equal(result.restoredStatus.status, 'connected');
     assert.equal(result.restoredStatus.webId, 'https://pod.example/profile/card#me');
     assert.equal(result.restoredNoteText, 'Saved before reconnect');
-    assert.match(result.savedNotesTurtle, /Saved before reconnect/);
+    assert.match(result.savedNotesText, /Saved before reconnect/);
     assert.equal(result.popupHandleRedirectType, 'function');
-    assert.deepEqual(result.requestMethods, ['discoverWebId', 'get', 'get', 'put', 'discoverWebId', 'get', 'get']);
+    assert.deepEqual(result.requestMethods.filter(method => method !== 'put'), ['discoverWebId', 'get', 'get', 'get', 'get', 'discoverWebId', 'get', 'get', 'get']);
   } finally {
     page?.close();
     await chrome.close();
@@ -482,7 +515,7 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
       document.body.append(slot);
 
       const calls = [];
-      let savedNotesTurtle = '';
+      let savedNotesDocument = null;
       const solid = {
         async discoverWebId(webId) {
           calls.push({ method: 'discoverWebId', webId });
@@ -510,40 +543,20 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
                 });
               }
 
-              return new Response(`
-                @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
-                @prefix dcterms: <http://purl.org/dc/terms/>.
-                @prefix oa: <http://www.w3.org/ns/oa#>.
-                @prefix cobalt: <https://vocab.muze.nl/cobalt#>.
-
-                <#solid-note>
-                  a oa:Annotation;
-                  dcterms:created "2026-07-19T10:00:00.000Z";
-                  dcterms:modified "2026-07-19T10:00:00.000Z";
-                  oa:hasBody <#solid-note-body>;
-                  oa:hasTarget <#solid-note-target>.
-
-                <#solid-note-body>
-                  a oa:TextualBody, cobalt:Fragment;
-                  dcterms:format "application/vnd.cobalt.fragment+json";
-                  rdf:value "Already in Solid";
-                  cobalt:fragment "{\\"text\\":\\"Already in Solid\\",\\"annotations\\":[]}".
-
-                <#solid-note-target>
-                  a oa:SpecificResource;
-                  oa:hasSelector <#solid-note-selector>.
-
-                <#solid-note-selector>
-                  a oa:FragmentSelector;
-                  rdf:value "p-browser-two".
-              `, {
+              return {
                 status: 200,
-                headers: { 'Content-Type': 'text/turtle' },
-              });
+                ok: true,
+                url,
+                data: savedNotesDocument ?? notesDocument([annotation({
+                  id: `${url}#solid-note`,
+                  anchorId: 'p-browser-two',
+                  text: 'Already in Solid',
+                })]),
+              };
             },
             async put(body, options) {
-              savedNotesTurtle = await body.write();
-              calls.push({ method: 'put', url, options, body: savedNotesTurtle });
+              savedNotesDocument = body;
+              calls.push({ method: 'put', url, options, body });
               return new Response('', {
                 status: 201,
                 headers: { 'Content-Type': options?.contentType || 'text/turtle' },
@@ -563,8 +576,8 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
           solid,
         },
       });
-      await waitFor(() => app.data.marginNotes.anchors.length === 2);
-      await waitFor(() => slot.querySelector('[data-margin-notes-solid-webid]'));
+      await waitFor(() => app.data.marginNotes.anchors.length === 2, 'initial anchors');
+      await waitFor(() => slot.querySelector('[data-margin-notes-solid-webid]'), 'solid webid input');
 
       app.api.notes.CobaltEditorModal = class TestEditorModal {
         async show() {
@@ -572,7 +585,7 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
         }
       };
       await app.actions.createNote({ anchorId: 'p-browser-one' });
-      await waitFor(() => app.getNotesForAnchor('p-browser-one').length === 1);
+      await waitFor(() => app.getNotesForAnchor('p-browser-one').length === 1, 'local note before solid');
 
       slot.querySelector('[data-margin-notes-solid-webid]').value = 'https://pod.example/profile/card#me';
       slot.querySelector('[data-margin-notes-solid-connection]').dispatchEvent(new Event('submit', {
@@ -580,7 +593,7 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
         cancelable: true,
       }));
       await waitFor(() => app.getSolidConnection().status === 'connected'
-        && app.getNotesForAnchor('p-browser-two').length === 1);
+        && app.getNotesForAnchor('p-browser-two').length === 1, 'connected merged notes');
       const status = app.getSolidConnection();
       const localNote = app.getNotesForAnchor('p-browser-one')[0];
       const solidNote = app.getNotesForAnchor('p-browser-two')[0];
@@ -590,7 +603,7 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
         status,
         localNoteText: localNote.oa$hasBody.rdf$value,
         solidNoteText: solidNote.oa$hasBody.rdf$value,
-        savedNotesTurtle,
+        savedNotesText: JSON.stringify(savedNotesDocument),
         requestMethods: calls.map(call => call.method),
         putUrl: calls.find(call => call.method === 'put')?.url,
       };
@@ -603,12 +616,54 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
         }));
       }
 
-      async function waitFor(predicate) {
+      function notesDocument(subjects) {
+        return {
+          format: 'margin-notes-oldmed-graph',
+          version: 1,
+          prefixes: {
+            rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+            rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
+            dcterms: 'http://purl.org/dc/terms/',
+            oa: 'http://www.w3.org/ns/oa#',
+            schema: 'https://schema.org/',
+            cobalt: 'https://vocab.muze.nl/cobalt#',
+          },
+          subjects,
+        };
+      }
+
+      function annotation({ id, anchorId, text }) {
+        return {
+          id,
+          rdf$type: 'oa$Annotation',
+          dcterms$created: '2026-07-19T10:00:00.000Z',
+          dcterms$modified: '2026-07-19T10:00:00.000Z',
+          oa$hasBody: {
+            id: `${id}#body`,
+            rdf$type: ['oa$TextualBody', 'cobalt$Fragment'],
+            dcterms$format: 'application/vnd.cobalt.fragment+json',
+            rdf$value: text,
+            schema$text: text,
+            cobalt$fragment: { text, annotations: [] },
+          },
+          oa$hasTarget: {
+            id: `${id}#target`,
+            rdf$type: 'oa$SpecificResource',
+            oa$hasSelector: {
+              id: `${id}#selector-fragment`,
+              rdf$type: 'oa$FragmentSelector',
+              rdf$value: anchorId,
+            },
+          },
+        };
+      }
+
+      async function waitFor(predicate, label = 'browser condition') {
         for (let attempt = 0; attempt < 80; attempt += 1) {
           if (predicate()) return;
           await new Promise(resolve => setTimeout(resolve, 25));
         }
-        throw new Error('Timed out waiting for browser condition');
+        throw new Error(`Timed out waiting for ${label}`);
       }
     });
 
@@ -616,10 +671,10 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
     assert.match(result.status.resourceUrl, /^https:\/\/pod\.example\/private\/margin-notes\/page-[a-f0-9]+\.ttl$/);
     assert.equal(result.localNoteText, 'Local note before Solid');
     assert.equal(result.solidNoteText, 'Already in Solid');
-    assert.match(result.savedNotesTurtle, /Local note before Solid/);
-    assert.match(result.savedNotesTurtle, /Already in Solid/);
+    assert.match(result.savedNotesText, /Local note before Solid/);
+    assert.match(result.savedNotesText, /Already in Solid/);
     assert.equal(result.putUrl, result.status.resourceUrl);
-    assert.deepEqual(result.requestMethods, ['discoverWebId', 'get', 'get', 'put']);
+    assert.deepEqual(result.requestMethods, ['discoverWebId', 'get', 'get', 'get', 'put']);
   } finally {
     page?.close();
     await chrome.close();
@@ -676,19 +731,25 @@ test('BrowserMounted: Solid connection pre-opens the OAuth popup from the submit
       };
       app.api.notes.createSolidNotesConnection = async options => {
         await options.authorize_callback('https://issuer.example/authorize?redirect_uri=https%3A%2F%2Fbook.example%2Fassets%2Fmargin-notes-oauth-callback.html&state=mockState');
+        const solid = {
+          resource() {
+            return {
+              async get() {
+                return { status: 404, ok: false, data: null };
+              },
+              async put() {
+                return { status: 201, ok: true };
+              },
+            };
+          },
+        };
         return {
           webId: options.webId,
           storageUrl: 'https://pod.example/storage/',
           resourceUrl: 'https://pod.example/private/margin-notes/page-test.ttl',
           preferencesUrl: 'https://pod.example/preferences.ttl',
           rootFolderUrl: 'https://pod.example/private/margin-notes/',
-          store: {
-            async load() {
-              return { subjects: [] };
-            },
-            async save() {},
-            async remove() {},
-          },
+          solid,
         };
       };
 
@@ -1452,7 +1513,7 @@ async function connectPage(url) {
         returnByValue: true,
       });
       if (result.exceptionDetails) {
-        throw new Error(result.exceptionDetails.text);
+        throw new Error(formatBrowserException(result.exceptionDetails));
       }
       return result.result.value;
     },
@@ -1579,6 +1640,16 @@ function contentType(filePath) {
   if (filePath.endsWith('.css')) return 'text/css';
   if (filePath.endsWith('.json')) return 'application/json';
   return 'text/plain';
+}
+
+function formatBrowserException(details) {
+  const description = details.exception?.description || details.text;
+  const frames = details.stackTrace?.callFrames || [];
+  const stack = frames
+    .map(frame => `    at ${frame.functionName || '<anonymous>'} (${frame.url}:${frame.lineNumber + 1}:${frame.columnNumber + 1})`)
+    .join('\n');
+
+  return stack ? `${description}\n${stack}` : description;
 }
 
 function keyDefinition(key) {

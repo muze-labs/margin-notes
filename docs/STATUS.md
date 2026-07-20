@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Milestone 0 is complete enough to support implementation. The active work item is slice M3.1 in `CURRENT_SLICE.md`: saving the existing note graph to one configured Solid resource.
+Milestone 0 is complete enough to support implementation. The active work item is slice M3.2 in `CURRENT_SLICE.md`: local-first notes that can later sync to a discovered Solid resource.
 
 ## Completed
 
@@ -31,15 +31,17 @@ Milestone 0 is complete enough to support implementation. The active work item i
 - quiet paragraph-side creation affordances and collapsed note stacks;
 - fixed-resource Solid store adapter behind the existing store boundary;
 - Turtle serialization/parsing for the fixed-resource Solid store through OLDM;
-- mounted browser coverage that creates and restores a note through the Turtle-backed Solid resource adapter with a fake Lading-style Solid client.
+- mounted browser coverage that creates and restores a note through the Turtle-backed Solid resource adapter with a fake Lading-style Solid client;
+- default local-first notes storage through SimplySolid and solid-workspace;
+- mounted browser coverage that creates/restores local notes through SimplySolid, connects to a discovered Solid notes resource, merges existing local and remote notes, and syncs the result.
 
-## Remaining M3.1 work
+## Remaining M3.2 work
 
-Slice M3.1: one configured Solid resource:
+Slice M3.2: local-first notes with a Solid replica:
 
 1. run a real Solid server smoke test or record why fake-client evidence is sufficient for this slice;
-2. decide how failed remote saves should become visible in the UI;
-3. decide whether the example page should expose a configured resource URL for manual testing.
+2. decide how offline sync-pending and failed remote saves should become visible in the UI;
+3. decide whether the example page should expose the Solid connection path for manual testing.
 
 ## Known unresolved choices
 
@@ -53,4 +55,4 @@ Slice M3.1: one configured Solid resource:
 
 ## SimplySolid status
 
-No SimplySolid capability is required by implemented application code yet. The first fixed-resource Solid path is resolved in the application as a store adapter. Features listed in `SIMPLYSOLID_FEATURES.md` remain **Designed** until an active slice produces evidence for them.
+SimplySolid is now required by the default storage path. Features used by the mounted local-first and Solid-connect browser flows are marked in `SIMPLYSOLID_FEATURES.md`; broader workspace capabilities remain **Designed** until an active slice produces evidence for them.

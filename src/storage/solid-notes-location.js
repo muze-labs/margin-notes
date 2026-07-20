@@ -2,7 +2,6 @@ import { error, issues, Required, Optional } from '@muze-nl/assert';
 import { lading } from '@muze-labs/lading';
 import { authorizePopup, createSolidMetroClient } from '@muze-labs/jsfs-solid';
 import oldm from '@muze-nl/oldm';
-import { createSolidResourceStore } from './solid-resource-store.js';
 
 const DEFAULT_ROOT_FOLDER_NAME = 'margin-notes';
 const DEFAULT_PREFERENCES_FILENAME = 'preferences.ttl';
@@ -55,14 +54,6 @@ export async function createSolidNotesConnection(options = {}) {
     rootFolderUrl,
     pageUrl,
   });
-  const store = createSolidResourceStore({
-    ...storageOptions({ options, pageUrl }),
-    resourceUrl: notesResourceUrl,
-    rootUrl: storageUrl,
-    issuer,
-    solid: options.solidForStore || options.solid || undefined,
-  });
-
   return {
     webId,
     profile,
@@ -73,7 +64,7 @@ export async function createSolidNotesConnection(options = {}) {
     rootFolderUrl,
     pageUrl,
     resourceUrl: notesResourceUrl,
-    store,
+    solid,
   };
 }
 

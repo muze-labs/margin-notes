@@ -22,14 +22,15 @@
   "dependencies": {
     "@muze-labs/jsfs-solid": "file:../solid-tools/packages/jsfs-solid",
     "@muze-labs/lading": "file:../solid-tools/packages/lading",
+    "@muze-labs/simplysolid": "file:../solid-tools/packages/simplysolid",
     "@muze-nl/assert": "^0.6.0",
     "@muze-nl/oldm": "^0.7.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "esbuild": "^0.25.0",
     "eslint": "^9.39.2",
-    "globals": "^16.5.0",
-    "esbuild": "^0.25.0"
+    "globals": "^16.5.0"
   },
   "keywords": [
     "solid",

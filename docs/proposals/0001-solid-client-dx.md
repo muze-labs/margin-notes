@@ -21,7 +21,7 @@ createSolidNotesConnection({
 })
 ```
 
-That returns a `createSolidResourceStore()` adapter over a computed notes resource. The adapter now contains defensive behavior that should move into the libraries once the correct owning layer is clear:
+That returns the discovered notes resource URL and the Lading-style Solid client used for storage. The older `createSolidResourceStore()` adapter and the connection/discovery path exposed defensive behavior that should move into the libraries once the correct owning layer is clear:
 
 - popup OAuth helper wiring;
 - write-only forced authorization to avoid retrying consumed request bodies;
@@ -99,8 +99,15 @@ The desired margin-notes code should be closer to:
 
 ```js
 const connection = await createSolidNotesConnection({ webId, pageUrl, callbackUrl })
-const document = await connection.store.load()
-await connection.store.save(document)
+await notesService.connect({
+  solid: connection.solid,
+  resources: {
+    notes: {
+      url: connection.resourceUrl
+    }
+  }
+})
+await notesService.sync('notes')
 ```
 
 No application option should be needed solely to avoid disturbed request streams.

@@ -23,8 +23,9 @@ A design pressure begins when an active application slice encounters a real boun
 | DP-001 | Resolved in application | M1.1 | Browser persistence should not leak its backing mechanism into note code. | Application | `src/storage/local-store.js`, `test/local-store.test.js` |
 | DP-002 | Resolved in application | M3.1 | A fixed Solid resource should save the same note graph without creating a second data model. | Application | `src/storage/solid-resource-store.js`, `test/solid-resource-store.test.js`, `test/browser-mounted.test.js` |
 | DP-003 | Proposed | M3.2 | Solid login and linked-data storage failures should be surfaced by the Muze libraries before application code writes damaged note graphs. | `solid-tools` packages | `docs/proposals/0001-solid-client-dx.md`, `test/solid-resource-store.test.js`, `test/browser-mounted.test.js` |
+| DP-004 | Validated | M3.2 | PWA-style local notes and later Solid sync should be one logical resource, not app-owned merge code. | SimplySolid / solid-workspace | `test/browser-mounted.test.js`, `@muze-labs/simplysolid` local-first resource tests |
 
-No SimplySolid capability is currently required by an implemented application slice. The first fixed-resource Solid path still fits the existing small store boundary.
+SimplySolid is now required by the default margin-notes storage path. The fixed-resource store adapter remains compatibility and evidence for the lower Solid stack, but local-first resource sync is owned by SimplySolid and solid-workspace.
 
 ## DP-001: Local Store Boundary
 
@@ -179,6 +180,58 @@ The application should later be able to remove the special OAuth/write guard and
 ### Book consequence
 
 The book can use this as a concrete example of boundaries becoming visible under pressure: the app can defend user data locally, but excellent libraries make the sharp edges impossible to miss.
+
+## DP-004: Local-First Workspace Resource
+
+**Status:** Validated
+**Active slice:** `docs/CURRENT_SLICE.md`
+**Opened:** 2026-07-20
+
+### User-visible need
+
+A reader should be able to write notes while offline or before choosing a Solid Pod, reopen the app later, and then sync those local notes to the discovered Solid resource when they connect.
+
+### Attempt with the current stack
+
+The app first loaded the local graph and remote Turtle graph as two application values and merged them in `paragraph-note-stacks.js`.
+
+### Observable problem
+
+The merge function made margin-notes responsible for open-world resource semantics: which graph wins, which resource receives the result, and how local-only work later becomes remote work. That is the same problem SimplySolid is meant to make reusable.
+
+### Why this is not merely application policy
+
+The application owns the note shape and reader workflow, but a local resource and a remote Solid resource are a general replicated-resource problem. Other PWA-style Solid apps will need the same ability to open locally, attach a remote replica later, and sync without rewriting merge logic.
+
+### Candidate owning layers
+
+- SimplySolid
+- solid-workspace
+- Margin-notes component as consumer
+
+### Smallest experiment
+
+Use a SimplySolid local-first `notes` resource as the default store. On Solid connect, add the discovered Turtle resource as the remote replica and call `sync('notes')`.
+
+### Evidence
+
+- `test/browser-mounted.test.js` covers local create/restore through the SimplySolid path.
+- `test/browser-mounted.test.js` covers connecting with existing local notes and existing remote notes, then syncing both into the discovered resource.
+- `test/browser-mounted.test.js` covers reconnecting to a remembered Solid resource and restoring the synced note.
+
+### Resolution
+
+Resolved in library and validated in application. SimplySolid provides local-first resource descriptors, late remote-resource connection, collection handles, and `sync('notes')`; solid-workspace provides the replicated-resource merge/sync behavior. Margin-notes now delegates persistence and sync to that service.
+
+The app keeps a small custom-store fallback so host-provided stores remain compatible, and it keeps the old local IndexedDB store as a migration source for existing notes. The SimplySolid local resource uses a separate `margin-notes-workspace` IndexedDB database so it does not need to upgrade the old store while that database may still be open.
+
+### Validation
+
+`npm test` passes the mounted browser paths for local create/restore/edit/delete, Solid connection reload, and local-to-remote sync.
+
+### Book consequence
+
+The book can show local-first as the point where a store adapter stops being the right abstraction. A local document and a Solid Turtle file are better explained as replicas of one logical workspace resource.
 
 ## Entry template
 

@@ -7,6 +7,7 @@
  */
 
 import { app } from '@muze-labs/simplyflow';
+import { simplySolid } from '@muze-labs/simplysolid';
 import { paragraphNoteStacks } from './features/paragraph-note-stacks.js';
 import { storeKeyFromConfig, validateHostConfig } from './host-contract.js';
 import { createLocalStore } from './storage/local-store.js';
@@ -59,6 +60,9 @@ export function mount(config) {
       solidConnectionConfig: config.solidConnection || null,
       solidConnectionElement: null,
       solidConnectionCleanup: null,
+      notesService: config.notesService || null,
+      customStore: Boolean(config.store),
+      simplySolid,
       themeRoot,
       hadThemeAttribute: themeRoot.hasAttribute('data-margin-notes-theme'),
       previousThemeAttribute: themeRoot.getAttribute('data-margin-notes-theme'),
