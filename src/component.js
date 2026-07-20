@@ -33,6 +33,7 @@ export function mount(config) {
     },
     data: {
       marginNotes: {
+        namespace: config.namespace || 'default',
         anchors: [],
         anchorViews: [],
         graph: [],

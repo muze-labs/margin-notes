@@ -28,12 +28,11 @@ export function createSolidResourceStore(options = {}) {
   const contentType = options.contentType || DEFAULT_CONTENT_TYPE;
   const providedSolid = options.solid || options.lading || null;
   const generatedClient = {
-    solid: null,
-    rootUrl: '',
+    clients: new Map(),
   };
 
-  function solidFor(resourceUrl) {
-    return solidClientFor({ options, providedSolid, resourceUrl, generatedClient });
+  function solidFor(resourceUrl, requestOptions = {}) {
+    return solidClientFor({ options, providedSolid, resourceUrl, generatedClient, requestOptions });
   }
 
   return {
@@ -65,16 +64,22 @@ export function createSolidResourceStore(options = {}) {
         });
       }
 
+      let parsed;
       try {
-        return JSON.parse(text);
+        parsed = JSON.parse(text);
       } catch (error) {
         throw new Error(`Solid resource load returned invalid linked data or JSON from ${resourceUrl}: ${error.message}`);
       }
+
+      if (!isStorageDocument(parsed) && !Array.isArray(parsed)) {
+        throw new Error(`Solid resource load returned JSON that is not a notes document from ${resourceUrl}`);
+      }
+      return parsed;
     },
 
     async save({ key, value } = {}) {
       const resourceUrl = resourceUrlFrom({ key, defaultResourceUrl });
-      const solid = solidFor(resourceUrl);
+      const solid = solidFor(resourceUrl, { writesBody: true });
       const graph = graphFromStorageDocument({ document: value, resourceUrl });
       const response = await callResource(() => solid.resource(resourceUrl).put(
         graph,
@@ -91,7 +96,7 @@ export function createSolidResourceStore(options = {}) {
 
     async remove({ key } = {}) {
       const resourceUrl = resourceUrlFrom({ key, defaultResourceUrl });
-      const solid = solidFor(resourceUrl);
+      const solid = solidFor(resourceUrl, { needsAuthorization: true });
       const response = await callResource(() => solid.resource(resourceUrl).delete());
 
       if (isMissing(response) || response.status === 410) {
@@ -119,6 +124,8 @@ function assertOptions(options) {
     storageUrl: Optional(String),
     accept: Optional(String),
     contentType: Optional(String),
+    force_authorization: Optional(Boolean),
+    forceAuthorizationForWrites: Optional(Boolean),
   });
 
   if (optionIssues) {
@@ -205,7 +212,10 @@ function graphValueFromStorageValue({ graph, predicate, value }) {
 function storageDocumentFromGraph({ graph, resourceUrl }) {
   const subjects = graphSubjects(graph)
     .filter(subject => values(subject.a).includes('oa$Annotation') || values(subject.rdf$type).includes('oa$Annotation'))
-    .map(subject => storageSubjectFromOldmSubject({ graph, subject }));
+    .map(subject => repairConventionalAnnotationParts({
+      graph,
+      annotation: storageSubjectFromOldmSubject({ graph, subject }),
+    }));
 
   return {
     format: DEFAULT_FORMAT,
@@ -214,6 +224,47 @@ function storageDocumentFromGraph({ graph, resourceUrl }) {
     resourceUrl,
     subjects,
   };
+}
+
+function repairConventionalAnnotationParts({ graph, annotation }) {
+  if (!annotation?.id) return annotation;
+
+  const body = annotation.oa$hasBody || conventionalSubject({
+    graph,
+    subjectId: annotation.id,
+    suffixes: ['#body', '-body'],
+    types: ['oa$TextualBody', 'cobalt$Fragment'],
+  });
+  if (body) {
+    annotation.oa$hasBody = body;
+  }
+
+  const target = annotation.oa$hasTarget || conventionalSubject({
+    graph,
+    subjectId: annotation.id,
+    suffixes: ['#target', '-target'],
+    types: ['oa$SpecificResource'],
+  });
+  if (target) {
+    target.oa$hasSelector = target.oa$hasSelector || conventionalSubject({
+      graph,
+      subjectId: annotation.id,
+      suffixes: ['#selector-fragment', '-selector', '#selector'],
+      types: ['oa$FragmentSelector'],
+    });
+    annotation.oa$hasTarget = target;
+  }
+
+  return annotation;
+}
+
+function conventionalSubject({ graph, subjectId, suffixes, types }) {
+  const subject = suffixes
+    .map(suffix => graph?.subjects?.[`${subjectId}${suffix}`])
+    .find(candidate => candidate && values(candidate.a).some(type => types.includes(type)));
+
+  if (!subject) return null;
+  return storageSubjectFromOldmSubject({ graph, subject });
 }
 
 function storageSubjectFromOldmSubject({ graph, subject, seen = new Set() }) {
@@ -291,27 +342,40 @@ function resourceUrlFrom({ key, defaultResourceUrl }) {
   return resourceUrl;
 }
 
-function solidClientFor({ options, providedSolid, resourceUrl, generatedClient }) {
+function solidClientFor({ options, providedSolid, resourceUrl, generatedClient, requestOptions = {} }) {
   if (providedSolid) {
     assertSolidClient(providedSolid);
     return providedSolid;
   }
 
   const rootUrl = options.rootUrl || options.storageUrl || resourceUrl;
-  if (generatedClient.solid && generatedClient.rootUrl === rootUrl) {
-    return generatedClient.solid;
+  const forceAuthorization = forceAuthorizationForRequest({ options, requestOptions });
+  const cacheKey = `${rootUrl}\nforce:${forceAuthorization}`;
+  if (generatedClient.clients.has(cacheKey)) {
+    return generatedClient.clients.get(cacheKey);
   }
 
   const metroClient = createSolidMetroClient(rootUrl, {
     ...options,
     oidc: options.oidc ?? Boolean(options.issuer),
+    force_authorization: forceAuthorization,
     configureMetro: options.configureMetro ?? true,
   });
-  generatedClient.rootUrl = rootUrl;
-  generatedClient.solid = lading(metroClient, {
+  const solid = lading(metroClient, {
     thrower: options.thrower ?? false,
   });
-  return generatedClient.solid;
+  generatedClient.clients.set(cacheKey, solid);
+  return solid;
+}
+
+function forceAuthorizationForRequest({ options, requestOptions }) {
+  if (options.force_authorization !== undefined) {
+    return options.force_authorization;
+  }
+  if (requestOptions.writesBody || requestOptions.needsAuthorization) {
+    return Boolean(options.forceAuthorizationForWrites);
+  }
+  return false;
 }
 
 function assertSolidClient(solid) {

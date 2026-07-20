@@ -9,6 +9,7 @@ import MARGIN_NOTES_DESIGN_SYSTEM_STYLES from '../design-system.css';
 import MARGIN_NOTES_UI_STYLES from './paragraph-note-stacks/ui.css';
 import SOLID_CONNECTION_STYLES from './solid-connection/ui.css';
 import { createSolidNotesConnection } from '../storage/solid-notes-location.js';
+import { authorizePopup } from '@muze-labs/jsfs-solid';
 
 export const paragraphNoteStacks = {
   templates: {
@@ -88,11 +89,14 @@ export const paragraphNoteStacks = {
       const input = container.querySelector('[data-margin-notes-solid-webid]');
       if (!element || !input) return;
 
-      input.value = config.webId || '';
+      const rememberedConnection = notesApi.loadRememberedSolidConnection({ app: this });
+      const initialWebId = config.webId || rememberedConnection?.webId || '';
+      input.value = initialWebId;
       notesApi.setSolidConnectionStatus({
         app: this,
         status: 'idle',
-        message: 'Not connected',
+        webId: initialWebId,
+        message: rememberedConnection ? 'Reconnecting...' : 'Not connected',
       });
       notesApi.renderSolidConnectionStatus({ app: this });
 
@@ -109,6 +113,12 @@ export const paragraphNoteStacks = {
         element.removeEventListener('submit', onSubmit);
         container.replaceChildren();
       };
+
+      if (rememberedConnection && config.autoConnect !== false) {
+        void this.actions.connectSolidStorage({
+          webId: initialWebId,
+        });
+      }
     },
 
     async destroySolidConnection() {
@@ -199,6 +209,7 @@ export const paragraphNoteStacks = {
     async connectSolidStorage({ webId }) {
       const notesApi = this.api.notes;
       const config = this.marginNotesRuntime.solidConnectionConfig || {};
+      const localGraph = this.data.marginNotes.graph || [];
 
       try {
         notesApi.setSolidConnectionStatus({
@@ -211,8 +222,36 @@ export const paragraphNoteStacks = {
 
         const connection = await notesApi.createSolidNotesConnection({
           ...config,
+          ...notesApi.prepareSolidAuthorization({ config }),
           webId,
         });
+
+        notesApi.setSolidConnectionStatus({
+          app: this,
+          status: 'connecting',
+          webId: connection.webId,
+          storageUrl: connection.storageUrl,
+          resourceUrl: connection.resourceUrl,
+          message: 'Syncing local notes...',
+        });
+        notesApi.renderSolidConnectionStatus({ app: this });
+        const solidGraph = await notesApi.loadGraphFromStore({
+          store: connection.store,
+          key: connection.resourceUrl,
+          throwOnError: true,
+        });
+        const merged = notesApi.mergeAnnotationGraphs({
+          storedNotes: solidGraph,
+          incomingNotes: localGraph,
+        });
+        if (merged.changed) {
+          await notesApi.saveGraphToStore({
+            store: connection.store,
+            key: connection.resourceUrl,
+            subjects: merged.graph,
+            throwOnError: true,
+          });
+        }
 
         this.marginNotesRuntime.store = connection.store;
         this.data.marginNotes.storeKey = connection.resourceUrl;
@@ -226,7 +265,11 @@ export const paragraphNoteStacks = {
           message: `Connected to ${connection.storageUrl}`,
         });
         notesApi.renderSolidConnectionStatus({ app: this });
-        await this.actions.reloadNotesFromStore({});
+        await this.actions.replaceNotesGraph({ graph: merged.graph });
+        notesApi.rememberSolidConnection({
+          app: this,
+          connection,
+        });
         notesApi.renderSolidConnectionStatus({ app: this });
         return connection;
       } catch (error) {
@@ -243,12 +286,19 @@ export const paragraphNoteStacks = {
 
     async reloadNotesFromStore() {
       const notesApi = this.api.notes;
-      this.data.marginNotes.graph = await notesApi.loadGraph({
+      const graph = await notesApi.loadGraph({
         app: this,
         key: this.data.marginNotes.storeKey,
+        throwOnError: true,
       });
+      await this.actions.replaceNotesGraph({ graph });
+    },
+
+    async replaceNotesGraph({ graph }) {
+      const notesApi = this.api.notes;
+      this.data.marginNotes.graph = graph;
       const notesByAnchor = notesApi.groupNotesByAnchor({
-        notes: this.data.marginNotes.graph,
+        notes: graph,
       });
 
       for (const anchor of this.data.marginNotes.anchors) {
@@ -613,6 +663,7 @@ export const paragraphNoteStacks = {
       ...annotationModel,
       CobaltEditorModal,
       createSolidNotesConnection,
+      authorizePopup,
       path,
       templates: {
         solidConnection: SOLID_CONNECTION_TEMPLATE,
@@ -660,6 +711,39 @@ export const paragraphNoteStacks = {
         return value?.element || value || null;
       },
 
+      prepareSolidAuthorization({ config }) {
+        if (
+          config.solid
+          || config.discoverySolid
+          || config.authorize_callback
+          || config.usePopupAuth === false
+        ) return {};
+
+        const popup = this.openSolidAuthPopup();
+        return {
+          authorize_callback: authorizationCodeURL => {
+            return this.authorizeSolidPopup({ authorizationCodeURL, popup });
+          },
+        };
+      },
+
+      openSolidAuthPopup() {
+        if (typeof globalThis.window?.open !== 'function') return null;
+
+        try {
+          return globalThis.window.open('', 'margin-notes-solid-oauth', 'popup,width=520,height=720');
+        } catch {
+          return null;
+        }
+      },
+
+      authorizeSolidPopup({ authorizationCodeURL, popup }) {
+        return this.authorizePopup(
+          authorizationCodeURL,
+          popup ? { popup } : {}
+        );
+      },
+
       setSolidConnectionStatus({ app, status, message, webId, storageUrl, resourceUrl }) {
         app.data.marginNotes.solidConnection = {
           ...app.data.marginNotes.solidConnection,
@@ -669,6 +753,47 @@ export const paragraphNoteStacks = {
           storageUrl: storageUrl ?? app.data.marginNotes.solidConnection.storageUrl,
           resourceUrl: resourceUrl ?? app.data.marginNotes.solidConnection.resourceUrl,
         };
+      },
+
+      solidConnectionMemoryKey({ app }) {
+        return `margin-notes.solidConnection.${app.data.marginNotes.namespace || 'default'}`;
+      },
+
+      loadRememberedSolidConnection({ app }) {
+        if (!globalThis.localStorage) return null;
+
+        try {
+          const value = globalThis.localStorage.getItem(this.solidConnectionMemoryKey({ app }));
+          if (!value) return null;
+
+          const connection = JSON.parse(value);
+          if (typeof connection?.webId !== 'string' || connection.webId.length === 0) return null;
+          return connection;
+        } catch {
+          return null;
+        }
+      },
+
+      rememberSolidConnection({ app, connection }) {
+        if (!globalThis.localStorage) return;
+
+        const value = {
+          webId: connection.webId,
+          storageUrl: connection.storageUrl,
+          resourceUrl: connection.resourceUrl,
+          preferencesUrl: connection.preferencesUrl,
+          rootFolderUrl: connection.rootFolderUrl,
+          issuer: connection.issuer,
+        };
+
+        try {
+          globalThis.localStorage.setItem(
+            this.solidConnectionMemoryKey({ app }),
+            JSON.stringify(value)
+          );
+        } catch {
+          // Remembering the WebID is a convenience; connecting still works without storage.
+        }
       },
 
       renderSolidConnectionStatus({ app }) {
@@ -695,29 +820,85 @@ export const paragraphNoteStacks = {
         }
       },
 
-      async loadGraph({ app, key }) {
+      async loadGraph({ app, key, throwOnError = false }) {
+        return this.loadGraphFromStore({
+          store: app.marginNotesRuntime.store,
+          key,
+          throwOnError,
+        });
+      },
+
+      async loadGraphFromStore({ store, key, throwOnError = false }) {
         try {
-          const value = await app.marginNotesRuntime.store.load({ key });
+          const value = await store.load({ key });
           if (!value) return [];
 
           return this.toStoredGraph({ value });
         } catch (error) {
+          if (throwOnError) {
+            throw error;
+          }
           console.error('Failed to load notes:', error);
           return [];
         }
       },
 
       async saveGraph({ app, key, subjects }) {
+        return this.saveGraphToStore({
+          store: app.marginNotesRuntime.store,
+          key,
+          subjects,
+        });
+      },
+
+      async saveGraphToStore({ store, key, subjects, throwOnError = false }) {
         try {
-          await app.marginNotesRuntime.store.save({
+          await store.save({
             key,
             value: this.toStorageDocument({ subjects }),
           });
           return true;
         } catch (error) {
+          if (throwOnError) {
+            throw error;
+          }
           console.error('Failed to save notes:', error);
           return false;
         }
+      },
+
+      mergeAnnotationGraphs({ storedNotes = [], incomingNotes = [] }) {
+        const graphById = new Map();
+        let changed = false;
+
+        for (const note of storedNotes) {
+          graphById.set(note.id, note);
+        }
+
+        for (const note of incomingNotes) {
+          const storedNote = graphById.get(note.id);
+          if (!storedNote) {
+            graphById.set(note.id, note);
+            changed = true;
+            continue;
+          }
+
+          if (this.annotationModifiedAt({ annotation: note }) > this.annotationModifiedAt({ annotation: storedNote })) {
+            graphById.set(note.id, note);
+            changed = true;
+          }
+        }
+
+        return {
+          graph: Array.from(graphById.values()),
+          changed,
+        };
+      },
+
+      annotationModifiedAt({ annotation }) {
+        const modified = annotation?.dcterms$modified || annotation?.modified || annotation?.updatedAt || '';
+        const timestamp = Date.parse(Array.isArray(modified) ? modified[0] : modified);
+        return Number.isFinite(timestamp) ? timestamp : 0;
       },
 
       groupNotesByAnchor({ notes }) {

@@ -1,6 +1,6 @@
-import { issues, Required, Optional } from '@muze-nl/assert';
+import { error, issues, Required, Optional } from '@muze-nl/assert';
 import { lading } from '@muze-labs/lading';
-import { createSolidMetroClient } from '@muze-labs/jsfs-solid';
+import { authorizePopup, createSolidMetroClient } from '@muze-labs/jsfs-solid';
 import oldm from '@muze-nl/oldm';
 import { createSolidResourceStore } from './solid-resource-store.js';
 
@@ -221,11 +221,28 @@ function createStorageSolid({ issuer, rootUrl, options }) {
 }
 
 function storageOptions({ options, pageUrl }) {
+  const redirectUri = options.callbackUrl || pageUrl;
+  const solidOptions = { ...(options.solidOptions || {}) };
+  if (solidOptions.authorize_callback === undefined && options.authorize_callback === undefined && options.usePopupAuth !== false) {
+    solidOptions.authorize_callback = authorizePopup;
+  }
+  const authorizeCallback = options.authorize_callback || solidOptions.authorize_callback;
+  if (
+    solidOptions.forceAuthorizationForWrites === undefined
+    && options.forceAuthorizationForWrites === undefined
+    && authorizeCallback
+  ) {
+    solidOptions.forceAuthorizationForWrites = true;
+  }
+
   return {
-    ...(options.solidOptions || {}),
+    ...solidOptions,
+    ...(options.authorize_callback ? { authorize_callback: options.authorize_callback } : {}),
+    ...(options.force_authorization !== undefined ? { force_authorization: options.force_authorization } : {}),
+    ...(options.forceAuthorizationForWrites !== undefined ? { forceAuthorizationForWrites: options.forceAuthorizationForWrites } : {}),
     client_info: {
       client_name: options.clientName || DEFAULT_CLIENT_NAME,
-      redirect_uris: [pageUrl],
+      redirect_uris: [redirectUri],
       ...(options.client_info || {}),
     },
   };
@@ -235,10 +252,15 @@ function assertConnectionOptions(options) {
   const optionIssues = issues(options, {
     webId: Required(String),
     pageUrl: Optional(String),
+    callbackUrl: Optional(String),
     preferencesUrl: Optional(String),
     preferencesFilename: Optional(String),
     rootFolderName: Optional(String),
     clientName: Optional(String),
+    usePopupAuth: Optional(Boolean),
+    authorize_callback: Optional(callable),
+    force_authorization: Optional(Boolean),
+    forceAuthorizationForWrites: Optional(Boolean),
     client_info: Optional(Object),
     solidOptions: Optional(Object),
   });
@@ -246,6 +268,13 @@ function assertConnectionOptions(options) {
   if (optionIssues) {
     throw new TypeError(`Invalid Solid notes connection options: ${optionIssues[0].pathString} ${optionIssues[0].message}`);
   }
+}
+
+function callable(value, _root, path) {
+  if (typeof value !== 'function') {
+    return error('data is not a function', value, 'function', path);
+  }
+  return false;
 }
 
 function normalizeUrl(value, name) {

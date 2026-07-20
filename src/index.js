@@ -16,6 +16,7 @@
 import { MarginNotes, mount } from './component.js';
 import { createSolidResourceStore } from './storage/solid-resource-store.js';
 import { createSolidNotesConnection, notesResourceUrlForPage } from './storage/solid-notes-location.js';
+import { popupHandleRedirect } from '@muze-labs/jsfs-solid';
 
 /**
  * Global API that the host page receives.
@@ -45,6 +46,10 @@ const MarginNotesAPI = {
   notesResourceUrlForPage(options) {
     return notesResourceUrlForPage(options);
   },
+
+  popupHandleRedirect(origin) {
+    return popupHandleRedirect(origin);
+  },
 };
 
 // Export for module systems
@@ -53,6 +58,7 @@ export { MarginNotes };
 export { mount };
 export { createSolidResourceStore };
 export { createSolidNotesConnection, notesResourceUrlForPage };
+export { popupHandleRedirect };
 export {};
 
 // Also attach to global for script-tag usage

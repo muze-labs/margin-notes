@@ -62,6 +62,8 @@
  * @property {string} [solidConnection.webId] - Optional initial WebID value.
  * @property {string} [solidConnection.pageUrl] - Optional page URI to hash into
  *   the notes filename. Defaults to the current URL without a fragment.
+ * @property {string} [solidConnection.callbackUrl] - Optional same-origin OAuth
+ *   popup callback page. Defaults are host-specific; pass this when using popup auth.
  * @property {string} [expandedStackBackground] - CSS color used behind an opened stack of notes.
  *   Defaults to `#fffefb`
  * @property {'system'|'light'|'dark'} [theme] - Color theme for margin notes.
