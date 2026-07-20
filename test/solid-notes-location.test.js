@@ -126,6 +126,74 @@ test('Solid notes location: accepts an explicit preferences URL override', async
   assert.equal(connection.preferencesUrlSource, 'configured');
 });
 
+test('Solid notes location: accepts a popup auth callback URL option', async () => {
+  const calls = [];
+  const solid = solidDouble({
+    calls,
+    profile: {
+      storage: ['https://pod.example/storage/'],
+      profile: {
+        pim$preferencesFile: { id: 'https://pod.example/settings/prefs.ttl' },
+      },
+    },
+    preferencesResponse: new Response(`
+      @prefix mn: <https://vocab.muze.nl/margin-notes#>.
+
+      <#margin-notes> a mn:Preferences;
+        mn:rootFolder <https://pod.example/private/book-notes/>.
+    `, {
+      status: 200,
+      headers: { 'Content-Type': 'text/turtle' },
+    }),
+  });
+
+  const connection = await createSolidNotesConnection({
+    webId: 'https://pod.example/profile/card#me',
+    pageUrl: 'https://book.example/chapters/one.html',
+    callbackUrl: 'https://book.example/assets/margin-notes-oauth-callback.html',
+    solid,
+  });
+
+  assert.equal(connection.pageUrl, 'https://book.example/chapters/one.html');
+  assert.equal(connection.preferencesUrlSource, 'profile');
+});
+
+test('Solid notes location: accepts an authorize callback option', async () => {
+  const calls = [];
+  let authorizedUrl = '';
+  const solid = solidDouble({
+    calls,
+    profile: {
+      storage: ['https://pod.example/storage/'],
+      profile: {
+        pim$preferencesFile: { id: 'https://pod.example/settings/prefs.ttl' },
+      },
+    },
+    preferencesResponse: new Response(`
+      @prefix mn: <https://vocab.muze.nl/margin-notes#>.
+
+      <#margin-notes> a mn:Preferences;
+        mn:rootFolder <https://pod.example/private/book-notes/>.
+    `, {
+      status: 200,
+      headers: { 'Content-Type': 'text/turtle' },
+    }),
+  });
+
+  const connection = await createSolidNotesConnection({
+    webId: 'https://pod.example/profile/card#me',
+    pageUrl: 'https://book.example/chapters/one.html',
+    authorize_callback(url) {
+      authorizedUrl = String(url);
+      return 'mockAuthorizationCode';
+    },
+    solid,
+  });
+
+  assert.equal(authorizedUrl, '');
+  assert.equal(connection.preferencesUrlSource, 'profile');
+});
+
 function solidDouble({ calls, profile, preferencesResponse, headResponse }) {
   return {
     async discoverWebId(webId) {

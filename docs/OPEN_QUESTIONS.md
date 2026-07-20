@@ -44,6 +44,8 @@ These questions should be answered through small experiments or working slices, 
 - Can OLDM Shape match the required Web Annotation structures without turning into a mapper?
 - Where should target-resolution algorithms live: this package, a generic annotation library, or the host integration layer?
 - Does Assert need additions to express linked-data invariants cleanly?
+- Should Assert treat `Function` as a built-in type pattern, so `Optional(Function)` validates callables instead of invoking the `Function` constructor as a custom predicate?
+- Should Metro-OAuth2 or Metro-OIDC make middleware-triggered retries safe for request bodies by cloning, buffering, or avoiding replay of disturbed streams? The margin-notes app currently sets `force_authorization` for popup-auth Solid clients to avoid `ReadableStream is disturbed`, but callers should not need to know this retry detail.
 
 ## Interoperability
 

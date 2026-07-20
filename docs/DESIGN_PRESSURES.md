@@ -22,6 +22,7 @@ A design pressure begins when an active application slice encounters a real boun
 | DP-000 | Closed | Repository setup | Establish a demand-driven process before SimplySolid implementation begins. | Project workflow | `docs/DEMAND_DRIVEN_SIMPLYSOLID.md` |
 | DP-001 | Resolved in application | M1.1 | Browser persistence should not leak its backing mechanism into note code. | Application | `src/storage/local-store.js`, `test/local-store.test.js` |
 | DP-002 | Resolved in application | M3.1 | A fixed Solid resource should save the same note graph without creating a second data model. | Application | `src/storage/solid-resource-store.js`, `test/solid-resource-store.test.js`, `test/browser-mounted.test.js` |
+| DP-003 | Proposed | M3.2 | Solid login and linked-data storage failures should be surfaced by the Muze libraries before application code writes damaged note graphs. | `solid-tools` packages | `docs/proposals/0001-solid-client-dx.md`, `test/solid-resource-store.test.js`, `test/browser-mounted.test.js` |
 
 No SimplySolid capability is currently required by an implemented application slice. The first fixed-resource Solid path still fits the existing small store boundary.
 
@@ -113,6 +114,71 @@ Unit tests cover Lading resource method calls, Turtle parse/write behaviour, mis
 ### Book consequence
 
 The book can show the first Solid step as a replaceable edge adapter over a stable application port. A broader workspace abstraction should wait until the app combines several resources or needs per-source provenance.
+
+## DP-003: Solid Client Developer Experience
+
+**Status:** Proposed  
+**Active slice:** `docs/CURRENT_SLICE.md`  
+**Opened:** 2026-07-19
+
+### User-visible need
+
+A reader should connect their WebID, let margin-notes discover a per-page Solid resource, save notes as Turtle, reload the book, and see those same notes restored without manually inspecting network traces or Turtle.
+
+### Attempt with the current stack
+
+The application composes `jsfs-solid`, Lading, Metro-OIDC, Metro-OAuth2, Metro-OLDM, OLDM, and an application-level `createSolidResourceStore()`.
+
+### Observable problem
+
+Several failures were only visible after real browser/Solid testing:
+
+- Popup OAuth helpers were available in Metro-OAuth2 but not exposed through the Solid-facing client package.
+- OAuth middleware retried body-bearing requests after a 401/403, which can disturb a `ReadableStream` and surface a browser-level `Request` construction error.
+- OAuth failure can appear as a successful `200` response with body `"false"`, which an application can accidentally treat as empty data.
+- Linked-data load/save code accepted incomplete `oa:Annotation` subjects and could write or preserve annotation shells with no body or target.
+- Turtle that contained conventional note parts without the linking triples (`oa:hasBody`, `oa:hasTarget`, `oa:hasSelector`) did not load as a note until application code added a recovery heuristic.
+
+### Why this is not merely application policy
+
+The app owns the note model and host UX. It should not need to know how OAuth middleware replays requests, how a login-cancel placeholder is encoded, or which low-level linked-data failure shapes are likely after using the stack. Shared libraries can make these failure modes explicit, typed, and testable before the application mutates user data.
+
+### Candidate owning layers
+
+- Metro-OAuth2 and Metro-OIDC
+- Metro-OLDM and OLDM
+- Lading
+- JSFS-Solid
+- SimplySolid or a future source-aware workspace
+- Margin-notes component as a temporary defensive layer
+
+### Smallest experiment
+
+Add focused contract tests in `solid-tools` for OAuth retry safety, popup helper exposure, failed authorization signalling, and linked-data shape validation/repair. Keep the current application guards until the library behaviours are proven and consumed.
+
+### Proposal
+
+See `docs/proposals/0001-solid-client-dx.md`.
+
+### Evidence
+
+Current application tests capture the observed failures and temporary protections:
+
+- `test/browser-mounted.test.js` covers connect, save Turtle, remount, reconnect, and reload.
+- `test/solid-resource-store.test.js` covers non-document JSON, failed writes, and recovery of conventional note parts with missing linking triples.
+- `test/annotation-model.test.js` drops incomplete annotation shells before app state and save.
+
+### Resolution
+
+Pending library investigation. The application currently contains defensive code so the book demo works, but the desired developer experience is for these failures to be prevented or signalled in the Muze Solid stack.
+
+### Validation
+
+The application should later be able to remove the special OAuth/write guard and most graph-repair heuristics while keeping the same browser tests passing against the shared-library behaviour.
+
+### Book consequence
+
+The book can use this as a concrete example of boundaries becoming visible under pressure: the app can defend user data locally, but excellent libraries make the sharp edges impossible to miss.
 
 ## Entry template
 

@@ -276,6 +276,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
       document.body.append(slot);
 
       const calls = [];
+      let savedNotesTurtle = '';
       const solid = {
         async discoverWebId(webId) {
           calls.push({ method: 'discoverWebId', webId });
@@ -299,6 +300,13 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
                   <#margin-notes> a mn:Preferences;
                     mn:rootFolder <https://pod.example/private/margin-notes/>.
                 `, {
+                  status: 200,
+                  headers: { 'Content-Type': 'text/turtle' },
+                });
+              }
+
+              if (savedNotesTurtle) {
+                return new Response(savedNotesTurtle, {
                   status: 200,
                   headers: { 'Content-Type': 'text/turtle' },
                 });
@@ -335,9 +343,13 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
                 headers: { 'Content-Type': 'text/turtle' },
               });
             },
-            async put() {
+            async put(body, options) {
+              savedNotesTurtle = await body.write();
               calls.push({ method: 'put', url });
-              return new Response('', { status: 201 });
+              return new Response('', {
+                status: 201,
+                headers: { 'Content-Type': options?.contentType || 'text/turtle' },
+              });
             },
             async delete() {
               calls.push({ method: 'delete', url });
@@ -370,13 +382,217 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
       const status = app.getSolidConnection();
       const statusText = slot.querySelector('[data-margin-notes-solid-status]').textContent;
       const [note] = app.getNotesForAnchor('p-browser-one');
+      app.api.notes.CobaltEditorModal = class TestEditorModal {
+        async show() {
+          return { text: 'Saved before reconnect', annotations: [] };
+        }
+      };
+      await app.actions.createNote({ anchorId: 'p-browser-two' });
+      await waitFor(() => savedNotesTurtle.includes('Saved before reconnect'));
       await app.destroy();
+
+      resetPage();
+      const restoredSlot = document.getElementById('solid-connection-slot');
+      const restoredApp = MarginNotesAPI.mount({
+        anchors: anchorsFromPage(),
+        container: { element: document.getElementById('margin-notes-container') },
+        storeKey: `browser-solid-connection-${crypto.randomUUID()}`,
+        solidConnection: {
+          container: { element: restoredSlot },
+          pageUrl: 'https://book.example/chapters/one.html#book-start',
+          solid,
+        },
+      });
+      await waitFor(() => restoredApp.getSolidConnection().status === 'connected'
+        && restoredApp.getNotesForAnchor('p-browser-two').length === 1);
+      const restoredStatus = restoredApp.getSolidConnection();
+      const [restoredNote] = restoredApp.getNotesForAnchor('p-browser-two');
+      await restoredApp.destroy();
 
       return {
         status,
         statusText,
         noteText: note.oa$hasBody.rdf$value,
+        restoredStatus,
+        restoredNoteText: restoredNote.oa$hasBody.rdf$value,
+        savedNotesTurtle,
+        popupHandleRedirectType: typeof MarginNotesAPI.popupHandleRedirect,
         requestMethods: calls.map(call => call.method),
+      };
+
+      function anchorsFromPage() {
+        return Array.from(document.querySelectorAll('[data-note-target]'), element => ({
+          id: element.id,
+          element,
+          label: element.textContent,
+        }));
+      }
+
+      function resetPage() {
+        document.body.innerHTML = `
+          <main>
+            <p id="p-browser-one" data-note-target>One</p>
+            <p id="p-browser-two" data-note-target>Two</p>
+          </main>
+          <aside id="margin-notes-container"></aside>
+          <aside id="solid-connection-slot"></aside>
+        `;
+      }
+
+      async function waitFor(predicate) {
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+          if (predicate()) return;
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        throw new Error('Timed out waiting for browser condition');
+      }
+    });
+
+    assert.equal(result.status.status, 'connected');
+    assert.equal(result.status.webId, 'https://pod.example/profile/card#me');
+    assert.equal(result.status.storageUrl, 'https://pod.example/storage/');
+    assert.match(result.status.resourceUrl, /^https:\/\/pod\.example\/private\/margin-notes\/page-[a-f0-9]+\.ttl$/);
+    assert.equal(result.statusText, 'Connected to https://pod.example/storage/');
+    assert.equal(result.noteText, 'Loaded after WebID connection');
+    assert.equal(result.restoredStatus.status, 'connected');
+    assert.equal(result.restoredStatus.webId, 'https://pod.example/profile/card#me');
+    assert.equal(result.restoredNoteText, 'Saved before reconnect');
+    assert.match(result.savedNotesTurtle, /Saved before reconnect/);
+    assert.equal(result.popupHandleRedirectType, 'function');
+    assert.deepEqual(result.requestMethods, ['discoverWebId', 'get', 'get', 'put', 'discoverWebId', 'get', 'get']);
+  } finally {
+    page?.close();
+    await chrome.close();
+    await server.close();
+  }
+});
+
+test('BrowserMounted: connecting to Solid syncs existing local notes into the discovered resource', async () => {
+  const server = await startServer();
+  const chrome = await startChrome(`${server.url}/test.html`);
+  let page;
+
+  try {
+    page = await chrome.page();
+    await page.ready();
+
+    const result = await page.evaluate(async () => {
+      const { MarginNotesAPI } = await import(`/dist/index.js?test=${Date.now()}`);
+      const slot = document.createElement('aside');
+      document.body.append(slot);
+
+      const calls = [];
+      let savedNotesTurtle = '';
+      const solid = {
+        async discoverWebId(webId) {
+          calls.push({ method: 'discoverWebId', webId });
+          return {
+            storage: ['https://pod.example/storage/'],
+            issuer: 'https://issuer.example/',
+            profile: {
+              pim$preferencesFile: { id: 'https://pod.example/settings/prefs.ttl' },
+            },
+          };
+        },
+        resource(url) {
+          return {
+            async get(options) {
+              calls.push({ method: 'get', url, options });
+              if (url === 'https://pod.example/settings/prefs.ttl') {
+                return new Response(`
+                  @prefix mn: <https://vocab.muze.nl/margin-notes#>.
+
+                  <#margin-notes> a mn:Preferences;
+                    mn:rootFolder <https://pod.example/private/margin-notes/>.
+                `, {
+                  status: 200,
+                  headers: { 'Content-Type': 'text/turtle' },
+                });
+              }
+
+              return new Response(`
+                @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+                @prefix dcterms: <http://purl.org/dc/terms/>.
+                @prefix oa: <http://www.w3.org/ns/oa#>.
+                @prefix cobalt: <https://vocab.muze.nl/cobalt#>.
+
+                <#solid-note>
+                  a oa:Annotation;
+                  dcterms:created "2026-07-19T10:00:00.000Z";
+                  dcterms:modified "2026-07-19T10:00:00.000Z";
+                  oa:hasBody <#solid-note-body>;
+                  oa:hasTarget <#solid-note-target>.
+
+                <#solid-note-body>
+                  a oa:TextualBody, cobalt:Fragment;
+                  dcterms:format "application/vnd.cobalt.fragment+json";
+                  rdf:value "Already in Solid";
+                  cobalt:fragment "{\\"text\\":\\"Already in Solid\\",\\"annotations\\":[]}".
+
+                <#solid-note-target>
+                  a oa:SpecificResource;
+                  oa:hasSelector <#solid-note-selector>.
+
+                <#solid-note-selector>
+                  a oa:FragmentSelector;
+                  rdf:value "p-browser-two".
+              `, {
+                status: 200,
+                headers: { 'Content-Type': 'text/turtle' },
+              });
+            },
+            async put(body, options) {
+              savedNotesTurtle = await body.write();
+              calls.push({ method: 'put', url, options, body: savedNotesTurtle });
+              return new Response('', {
+                status: 201,
+                headers: { 'Content-Type': options?.contentType || 'text/turtle' },
+              });
+            },
+          };
+        },
+      };
+
+      const app = MarginNotesAPI.mount({
+        anchors: anchorsFromPage(),
+        container: { element: document.getElementById('margin-notes-container') },
+        storeKey: `browser-local-before-solid-${crypto.randomUUID()}`,
+        solidConnection: {
+          container: { element: slot },
+          pageUrl: 'https://book.example/chapters/one.html#book-start',
+          solid,
+        },
+      });
+      await waitFor(() => app.data.marginNotes.anchors.length === 2);
+      await waitFor(() => slot.querySelector('[data-margin-notes-solid-webid]'));
+
+      app.api.notes.CobaltEditorModal = class TestEditorModal {
+        async show() {
+          return { text: 'Local note before Solid', annotations: [] };
+        }
+      };
+      await app.actions.createNote({ anchorId: 'p-browser-one' });
+      await waitFor(() => app.getNotesForAnchor('p-browser-one').length === 1);
+
+      slot.querySelector('[data-margin-notes-solid-webid]').value = 'https://pod.example/profile/card#me';
+      slot.querySelector('[data-margin-notes-solid-connection]').dispatchEvent(new Event('submit', {
+        bubbles: true,
+        cancelable: true,
+      }));
+      await waitFor(() => app.getSolidConnection().status === 'connected'
+        && app.getNotesForAnchor('p-browser-two').length === 1);
+      const status = app.getSolidConnection();
+      const localNote = app.getNotesForAnchor('p-browser-one')[0];
+      const solidNote = app.getNotesForAnchor('p-browser-two')[0];
+      await app.destroy();
+
+      return {
+        status,
+        localNoteText: localNote.oa$hasBody.rdf$value,
+        solidNoteText: solidNote.oa$hasBody.rdf$value,
+        savedNotesTurtle,
+        requestMethods: calls.map(call => call.method),
+        putUrl: calls.find(call => call.method === 'put')?.url,
       };
 
       function anchorsFromPage() {
@@ -397,12 +613,129 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
     });
 
     assert.equal(result.status.status, 'connected');
-    assert.equal(result.status.webId, 'https://pod.example/profile/card#me');
-    assert.equal(result.status.storageUrl, 'https://pod.example/storage/');
     assert.match(result.status.resourceUrl, /^https:\/\/pod\.example\/private\/margin-notes\/page-[a-f0-9]+\.ttl$/);
-    assert.equal(result.statusText, 'Connected to https://pod.example/storage/');
-    assert.equal(result.noteText, 'Loaded after WebID connection');
-    assert.deepEqual(result.requestMethods, ['discoverWebId', 'get', 'get']);
+    assert.equal(result.localNoteText, 'Local note before Solid');
+    assert.equal(result.solidNoteText, 'Already in Solid');
+    assert.match(result.savedNotesTurtle, /Local note before Solid/);
+    assert.match(result.savedNotesTurtle, /Already in Solid/);
+    assert.equal(result.putUrl, result.status.resourceUrl);
+    assert.deepEqual(result.requestMethods, ['discoverWebId', 'get', 'get', 'put']);
+  } finally {
+    page?.close();
+    await chrome.close();
+    await server.close();
+  }
+});
+
+test('BrowserMounted: Solid connection pre-opens the OAuth popup from the submit gesture', async () => {
+  const server = await startServer();
+  const chrome = await startChrome(`${server.url}/test.html`);
+  let page;
+
+  try {
+    page = await chrome.page();
+    await page.ready();
+
+    const result = await page.evaluate(async () => {
+      const { MarginNotesAPI } = await import(`/dist/index.js?test=${Date.now()}`);
+      const slot = document.createElement('aside');
+      document.body.append(slot);
+      const openedPopups = [];
+      const originalOpen = window.open;
+      window.open = (url, name, features) => {
+        const popup = {
+          closed: false,
+          location: { href: url || 'about:blank' },
+          name,
+          features,
+        };
+        openedPopups.push(popup);
+        return popup;
+      };
+
+      const app = MarginNotesAPI.mount({
+        anchors: anchorsFromPage(),
+        container: { element: document.getElementById('margin-notes-container') },
+        solidConnection: {
+          container: { element: slot },
+          pageUrl: 'https://book.example/chapters/one.html#book-start',
+          callbackUrl: 'https://book.example/assets/margin-notes-oauth-callback.html',
+        },
+      });
+      await waitFor(() => slot.querySelector('[data-margin-notes-solid-webid]'));
+
+      let callbackPopup;
+      let callbackUrl;
+      app.api.notes.authorizePopup = async (authorizationCodeURL, options) => {
+        callbackUrl = authorizationCodeURL;
+        callbackPopup = options?.popup;
+        if (callbackPopup) {
+          callbackPopup.location.href = authorizationCodeURL;
+        }
+        return 'mockAuthorizationCode';
+      };
+      app.api.notes.createSolidNotesConnection = async options => {
+        await options.authorize_callback('https://issuer.example/authorize?redirect_uri=https%3A%2F%2Fbook.example%2Fassets%2Fmargin-notes-oauth-callback.html&state=mockState');
+        return {
+          webId: options.webId,
+          storageUrl: 'https://pod.example/storage/',
+          resourceUrl: 'https://pod.example/private/margin-notes/page-test.ttl',
+          preferencesUrl: 'https://pod.example/preferences.ttl',
+          rootFolderUrl: 'https://pod.example/private/margin-notes/',
+          store: {
+            async load() {
+              return { subjects: [] };
+            },
+            async save() {},
+            async remove() {},
+          },
+        };
+      };
+
+      slot.querySelector('[data-margin-notes-solid-webid]').value = 'https://pod.example/profile/card#me';
+      slot.querySelector('[data-margin-notes-solid-connection]').dispatchEvent(new Event('submit', {
+        bubbles: true,
+        cancelable: true,
+      }));
+      await waitFor(() => app.getSolidConnection().status === 'connected');
+      const [popup] = openedPopups;
+      const status = app.getSolidConnection();
+      await app.destroy();
+      window.open = originalOpen;
+
+      return {
+        openedCount: openedPopups.length,
+        popupName: popup?.name,
+        popupFeatures: popup?.features,
+        callbackUrl,
+        callbackReceivedOpenedPopup: callbackPopup === popup,
+        popupHref: popup?.location.href,
+        status,
+      };
+
+      function anchorsFromPage() {
+        return Array.from(document.querySelectorAll('[data-note-target]'), element => ({
+          id: element.id,
+          element,
+          label: element.textContent,
+        }));
+      }
+
+      async function waitFor(predicate) {
+        for (let attempt = 0; attempt < 80; attempt += 1) {
+          if (predicate()) return;
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+        throw new Error('Timed out waiting for browser condition');
+      }
+    });
+
+    assert.equal(result.openedCount, 1);
+    assert.equal(result.popupName, 'margin-notes-solid-oauth');
+    assert.match(result.popupFeatures, /popup/);
+    assert.equal(result.callbackReceivedOpenedPopup, true);
+    assert.equal(result.popupHref, result.callbackUrl);
+    assert.equal(result.status.status, 'connected');
   } finally {
     page?.close();
     await chrome.close();

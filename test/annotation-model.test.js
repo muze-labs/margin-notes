@@ -97,6 +97,33 @@ test('AnnotationModel: stores a graph document with prefixes and cloned subjects
   assert.notEqual(document.subjects[0], annotation);
 });
 
+test('AnnotationModel: ignores incomplete annotation shells when loading and saving notes', () => {
+  const model = createModel();
+  const annotation = model.createAnnotationNote({
+    anchorId: 'p-chapter-boundaries',
+    fragment: { text: 'Complete note', annotations: [] },
+    now: '2026-07-19T10:00:00.000Z',
+  });
+  const shell = {
+    id: 'urn:uuid:annotation-shell',
+    rdf$type: 'oa$Annotation',
+    dcterms$created: '2026-07-19T20:40:29.378Z',
+    dcterms$modified: '2026-07-19T20:40:29.378Z',
+  };
+
+  const loaded = model.toStoredGraph({
+    value: {
+      subjects: [shell, annotation],
+    },
+  });
+  const saved = model.toStorageDocument({
+    subjects: [shell, annotation],
+  });
+
+  assert.deepEqual(loaded, [annotation]);
+  assert.deepEqual(saved.subjects, [annotation]);
+});
+
 test('AnnotationModel: migrates old flat note records into OLDMed subjects', () => {
   const model = createModel();
 
