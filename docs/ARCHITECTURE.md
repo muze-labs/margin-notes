@@ -81,8 +81,8 @@ Expected responsibilities:
 
 - Metro and Metro-OIDC: HTTP transport, authentication, and session middleware;
 - Metro-OLDM and OLDM: linked-data parsing and object representation;
-- Lading: Solid resource and container operations over a configured Metro client;
-- jsfs-solid: file-shaped adapter over Lading when the application needs file semantics;
+- Metro-Solid: Solid resource and container operations over a configured Metro client;
+- jsfs-solid: file-shaped adapter over Metro-Solid when the application needs file semantics;
 - SimplySolid: source-aware workspace, shaped collections, pending changes, save routing.
 
 The exact split must be confirmed during implementation.

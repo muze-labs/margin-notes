@@ -1,7 +1,8 @@
 import { error, issues, Required, Optional } from '@muze-nl/assert';
-import { lading } from '@muze-labs/lading';
+import { solidApi } from '@muze-labs/metro-solid';
 import { authorizePopup, createSolidMetroClient } from '@muze-labs/jsfs-solid';
 import oldm from '@muze-nl/oldm';
+import { from } from '@muze-nl/jaqt';
 
 const DEFAULT_ROOT_FOLDER_NAME = 'margin-notes';
 const DEFAULT_PREFERENCES_FILENAME = 'preferences.ttl';
@@ -26,7 +27,7 @@ export async function createSolidNotesConnection(options = {}) {
   const pageUrl = currentPageUrl(options.pageUrl);
   const discoverySolid = options.discoverySolid || options.solid || createDiscoverySolid({ webId, options });
   const profile = await discoverySolid.discoverWebId(webId);
-  const storageUrl = firstValue(profile?.storage);
+  const storageUrl = oldm.one(profile?.storage, 'first');
 
   if (!storageUrl) {
     throw new Error(`No Solid storage root found in WebID profile: ${webId}`);
@@ -107,12 +108,15 @@ async function marginNotesRootFolder({ solid, preferencesUrl, storageUrl, rootFo
 }
 
 async function loadMarginNotesRootFolder({ solid, preferencesUrl }) {
-  const response = await solid.resource(preferencesUrl).get({ accept: LINKED_DATA_ACCEPT });
+  const response = await solid.get(preferencesUrl, {
+    headers: { Accept: LINKED_DATA_ACCEPT },
+  });
   if (response?.status === 404) return '';
   await ensureOk({ response, operation: 'read preferences' });
 
   const graph = await graphFromResponse({ response, resourceUrl: preferencesUrl });
-  const subject = graphSubjects(graph).find(subject => firstId(subject.mn$rootFolder));
+  const subject = from(graphSubjects(graph))
+    .where(subject => firstId(subject.mn$rootFolder))[0];
   return firstId(subject?.mn$rootFolder);
 }
 
@@ -120,31 +124,38 @@ async function saveDefaultMarginNotesRootFolder({ solid, preferencesUrl, rootFol
   const exists = await resourceExists({ solid, resourceUrl: preferencesUrl });
 
   if (!exists) {
-    const response = await solid.resource(preferencesUrl).put(preferencesTurtle({ preferencesUrl, rootFolderUrl }), {
-      contentType: TURTLE,
+    const response = await solid.put(preferencesUrl, {
+      body: preferencesTurtle({ preferencesUrl, rootFolderUrl }),
+      headers: { 'Content-Type': TURTLE },
     });
     await ensureOk({ response, operation: 'create preferences' });
     return;
   }
 
-  const response = await solid.resource(preferencesUrl).patch(preferencesPatch({ preferencesUrl, rootFolderUrl }), {
-    contentType: SPARQL_UPDATE,
+  const response = await solid.patch(preferencesUrl, {
+    body: preferencesPatch({ preferencesUrl, rootFolderUrl }),
+    headers: { 'Content-Type': SPARQL_UPDATE },
   });
   await ensureOk({ response, operation: 'update preferences' });
 }
 
 async function ensureRootFolder({ solid, rootFolderUrl }) {
-  if (typeof solid.container !== 'function') return;
+  if (typeof solid.createContainer !== 'function') return;
 
-  const response = await solid.container(rootFolderUrl).create();
+  const response = await solid.createContainer(rootFolderUrl);
   if (response?.ok || [200, 201, 204, 205, 409, 412].includes(response?.status)) return;
   await ensureOk({ response, operation: 'create margin-notes folder' });
 }
 
 async function resourceExists({ solid, resourceUrl }) {
-  const response = typeof solid.resource(resourceUrl).head === 'function'
-    ? await solid.resource(resourceUrl).head()
-    : await solid.resource(resourceUrl).get({ accept: LINKED_DATA_ACCEPT });
+  let response;
+  if (typeof solid.head === 'function') {
+    response = await solid.head(resourceUrl);
+  } else {
+    response = await solid.get(resourceUrl, {
+      headers: { Accept: LINKED_DATA_ACCEPT },
+    });
+  }
 
   if (response?.status === 404) return false;
   await ensureOk({ response, operation: 'check preferences' });
@@ -152,8 +163,9 @@ async function resourceExists({ solid, resourceUrl }) {
 }
 
 async function graphFromResponse({ response, resourceUrl }) {
-  if (response?.data?.subjects || response?.data?.primary) {
-    return response.data;
+  const data = response?.data ?? response;
+  if (data?.subjects || data?.primary) {
+    return data;
   }
 
   return oldm.context({
@@ -163,11 +175,7 @@ async function graphFromResponse({ response, resourceUrl }) {
 }
 
 function graphSubjects(graph) {
-  if (Array.isArray(graph?.data)) return graph.data;
-  if (Array.isArray(graph?.subjects)) return graph.subjects;
-  if (graph?.subjects && typeof graph.subjects === 'object') return Object.values(graph.subjects);
-  if (graph?.primary) return [graph.primary];
-  return [];
+  return oldm.subjects(graph);
 }
 
 async function responseText(response) {
@@ -198,7 +206,7 @@ function createDiscoverySolid({ webId, options }) {
     oidc: false,
     configureMetro: true,
   });
-  return lading(metroClient, { thrower: false });
+  return solidApi(metroClient);
 }
 
 function createStorageSolid({ issuer, rootUrl, options }) {
@@ -208,7 +216,7 @@ function createStorageSolid({ issuer, rootUrl, options }) {
     oidc: Boolean(issuer),
     configureMetro: true,
   });
-  return lading(metroClient, { thrower: false });
+  return solidApi(metroClient);
 }
 
 function storageOptions({ options, pageUrl }) {
@@ -287,12 +295,8 @@ function ensureSlash(url) {
   return String(url).endsWith('/') ? String(url) : `${url}/`;
 }
 
-function firstValue(value) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
 function firstId(value) {
-  const item = firstValue(value);
+  const item = oldm.one(value, 'first');
   return typeof item === 'string' ? item : item?.id || '';
 }
 

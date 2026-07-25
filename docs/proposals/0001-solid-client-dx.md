@@ -21,7 +21,7 @@ createSolidNotesConnection({
 })
 ```
 
-That returns the discovered notes resource URL and the Lading-style Solid client used for storage. The older `createSolidResourceStore()` adapter and the connection/discovery path exposed defensive behavior that should move into the libraries once the correct owning layer is clear:
+That returns the discovered notes resource URL and the Solid API client used for storage. The older `createSolidResourceStore()` adapter and the connection/discovery path exposed defensive behavior that should move into the libraries once the correct owning layer is clear:
 
 - popup OAuth helper wiring;
 - write-only forced authorization to avoid retrying consumed request bodies;
@@ -62,7 +62,7 @@ Possible acceptable behaviors:
 
 OAuth failure or cancellation should reject or return a non-OK response. It should not look like a valid `200` resource response with body `"false"`.
 
-### Lading or JSFS-Solid
+### Metro-Solid or JSFS-Solid
 
 Surface Solid fetch/load failures as typed errors or typed results that preserve the operation, resource URL, status, and underlying response:
 
@@ -144,7 +144,7 @@ JSFS-Solid:
 
 - `authorizePopup` and `popupHandleRedirect` are exported from the Solid client package and browser bundle.
 
-Lading or JSFS-Solid:
+Metro-Solid or JSFS-Solid:
 
 - Missing resource, unauthorized resource, failed authorization, and invalid resource data are distinguishable by callers.
 
@@ -171,7 +171,7 @@ Transport-layer fixes should preserve existing successful OAuth flows. Any chang
 
 - Document popup OAuth helpers in `jsfs-solid`.
 - Document retry safety expectations in Metro-OAuth2 and Metro-OIDC.
-- Document Lading/JSFS-Solid error result conventions.
+- Document Metro-Solid/JSFS-Solid error result conventions.
 - Document any OLDM shape diagnostic helpers.
 - Add a book note about library boundaries discovered by real Solid storage pressure.
 

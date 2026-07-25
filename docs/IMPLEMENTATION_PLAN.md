@@ -68,7 +68,7 @@ A milestone mentioning SimplySolid describes expected application pressure, not 
 
 **Outcome:** a user can connect to Solid, select a storage target, and save private notes there.
 
-- authenticate through Lading;
+- authenticate through Metro-OIDC and use Metro-Solid for resource access;
 - load resources through jsfs-solid and/or SimplySolid;
 - model browser and Solid notes without two application data models;
 - expose source and write capability;

@@ -47,7 +47,7 @@ Expected role:
 
 It must not become a closed mapper. Extra predicates remain present and saveable.
 
-## Lading
+## Metro-Solid
 
 Expected role:
 

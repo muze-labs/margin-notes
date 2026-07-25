@@ -31,7 +31,7 @@ Milestone 0 is complete enough to support implementation. The active work item i
 - quiet paragraph-side creation affordances and collapsed note stacks;
 - fixed-resource Solid store adapter behind the existing store boundary;
 - Turtle serialization/parsing for the fixed-resource Solid store through OLDM;
-- mounted browser coverage that creates and restores a note through the Turtle-backed Solid resource adapter with a fake Lading-style Solid client;
+- mounted browser coverage that creates and restores a note through the Turtle-backed Solid resource adapter with a fake Solid API client;
 - default local-first notes storage through SimplySolid and solid-workspace;
 - mounted browser coverage that creates/restores local notes through SimplySolid, connects to a discovered Solid notes resource, merges existing local and remote notes, and syncs the result;
 - manual validation in the programming-for-wizards book that margin notes work through the new path and previously stored notes are still available.

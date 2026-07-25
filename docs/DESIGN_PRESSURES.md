@@ -91,7 +91,7 @@ Moving the graph to Solid needs Solid resource operations and linked-data serial
 
 ### Why this is not merely application policy
 
-The choice of one fixed resource is application policy for the first Solid slice. The underlying operations are still ordinary Web resource operations, but application code should reach them through the Muze Solid stack: Metro, Metro-OLDM, and Lading.
+The choice of one fixed resource is application policy for the first Solid slice. The underlying operations are still ordinary Web resource operations, but application code should reach them through the Muze Solid stack: Metro, Metro-OLDM, and Metro-Solid.
 
 ### Candidate owning layers
 
@@ -102,7 +102,7 @@ The choice of one fixed resource is application policy for the first Solid slice
 
 ### Smallest experiment
 
-Add a `createSolidResourceStore()` adapter that satisfies the existing store contract against one configured resource URL, using an injected Lading-style Solid client when the host already has one and otherwise composing the `jsfs-solid` Metro client stack.
+Add a `createSolidResourceStore()` adapter that satisfies the existing store contract against one configured resource URL, using an injected Solid API client when the host already has one and otherwise composing the `jsfs-solid` Metro client stack.
 
 ### Resolution
 
@@ -110,7 +110,7 @@ Resolved in application for the first Solid resource slice. The adapter translat
 
 ### Validation
 
-Unit tests cover Lading resource method calls, Turtle parse/write behaviour, missing-resource load, failed save, and delete behaviour. A mounted browser test creates a note through the public API, saves Turtle through the Solid resource adapter, remounts, and restores the note from the same fake resource.
+Unit tests cover Metro-Solid resource method calls, Turtle parse/write behaviour, missing-resource load, failed save, and delete behaviour. A mounted browser test creates a note through the public API, saves Turtle through the Solid resource adapter, remounts, and restores the note from the same fake resource.
 
 ### Book consequence
 
@@ -128,7 +128,7 @@ A reader should connect their WebID, let margin-notes discover a per-page Solid 
 
 ### Attempt with the current stack
 
-The application composes `jsfs-solid`, Lading, Metro-OIDC, Metro-OAuth2, Metro-OLDM, OLDM, and an application-level `createSolidResourceStore()`.
+The application composes `jsfs-solid`, Metro-Solid, Metro-OIDC, Metro-OAuth2, Metro-OLDM, OLDM, and an application-level `createSolidResourceStore()`.
 
 ### Observable problem
 
@@ -148,7 +148,7 @@ The app owns the note model and host UX. It should not need to know how OAuth mi
 
 - Metro-OAuth2 and Metro-OIDC
 - Metro-OLDM and OLDM
-- Lading
+- Metro-Solid
 - JSFS-Solid
 - SimplySolid or a future source-aware workspace
 - Margin-notes component as a temporary defensive layer

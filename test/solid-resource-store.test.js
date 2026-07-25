@@ -32,7 +32,11 @@ test('SolidResourceStore: loads a Turtle resource into an OLDMed graph document'
   assert.deepEqual(solid.calls[0], {
     url: 'https://pod.example/private/notes.ttl',
     method: 'get',
-    options: { accept: 'text/turtle, application/ld+json;q=0.9, application/json;q=0.2' },
+    options: {
+      headers: {
+        Accept: 'text/turtle, application/ld+json;q=0.9, application/json;q=0.2',
+      },
+    },
     body: undefined,
   });
 });
@@ -115,7 +119,10 @@ test('SolidResourceStore: saves an OLDMed graph document as Turtle with PUT', as
   });
   assert.equal(solid.calls[0].url, 'https://pod.example/private/notes.ttl');
   assert.equal(solid.calls[0].method, 'put');
-  assert.deepEqual(solid.calls[0].options, { contentType: 'text/turtle' });
+  assert.deepEqual(solid.calls[0].options, {
+    body: solid.calls[0].body,
+    headers: { 'Content-Type': 'text/turtle' },
+  });
   assert.match(turtle, /oa:Annotation/);
   assert.match(turtle, /oa:hasBody <https:\/\/pod\.example\/private\/notes\.ttl#note-1-body>/);
   assert.match(turtle, /cobalt:fragment/);
@@ -174,13 +181,11 @@ test('SolidResourceStore: requires either a configured resourceUrl or a key', as
 test('SolidResourceStore: accepts a Metro thrower error for a missing resource', async () => {
   const missing = response('', { status: 404, statusText: 'Not Found' });
   const solid = {
-    resource() {
-      return {
-        async get() {
-          throw new Error('404: Not Found', { cause: missing });
-        },
-      };
+    async get() {
+      throw new Error('404: Not Found', { cause: missing });
     },
+    async put() {},
+    async delete() {},
   };
   const store = createSolidResourceStore({
     resourceUrl: 'https://pod.example/private/missing-notes.ttl',
@@ -195,21 +200,17 @@ function solidDouble(responses) {
 
   return {
     calls,
-    resource(url) {
-      return {
-        async get(options) {
-          calls.push({ url, method: 'get', options, body: undefined });
-          return nextResponse({ responses, url });
-        },
-        async put(body, options) {
-          calls.push({ url, method: 'put', options, body });
-          return nextResponse({ responses, url });
-        },
-        async delete(options) {
-          calls.push({ url, method: 'delete', options, body: undefined });
-          return nextResponse({ responses, url });
-        },
-      };
+    async get(url, options) {
+      calls.push({ url, method: 'get', options, body: undefined });
+      return nextResponse({ responses, url });
+    },
+    async put(url, options) {
+      calls.push({ url, method: 'put', options, body: options?.body });
+      return nextResponse({ responses, url });
+    },
+    async delete(url, options) {
+      calls.push({ url, method: 'delete', options, body: undefined });
+      return nextResponse({ responses, url });
     },
   };
 }

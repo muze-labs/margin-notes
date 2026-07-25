@@ -162,24 +162,25 @@ test('BrowserMounted: public API can persist through a Solid resource store adap
       let resourceBody = '';
       const resourceCalls = [];
       const solid = {
-        resource(url) {
-          return {
-            async get(options) {
-              resourceCalls.push({ url, method: 'get', options });
-              if (!resourceBody) {
-                return new Response('', { status: 404, statusText: 'Not Found' });
-              }
-              return new Response(resourceBody, {
-                status: 200,
-                headers: { 'Content-Type': 'text/turtle' },
-              });
-            },
-            async put(body, options) {
-              resourceBody = typeof body?.write === 'function' ? await body.write() : String(body);
-              resourceCalls.push({ url, method: 'put', options, body: resourceBody });
-              return new Response('', { status: 201, statusText: 'Created' });
-            },
-          };
+        async get(url, options) {
+          resourceCalls.push({ url, method: 'get', options });
+          if (!resourceBody) {
+            return new Response('', { status: 404, statusText: 'Not Found' });
+          }
+          return new Response(resourceBody, {
+            status: 200,
+            headers: { 'Content-Type': 'text/turtle' },
+          });
+        },
+        async put(url, options) {
+          const body = options?.body;
+          resourceBody = typeof body?.write === 'function' ? await body.write() : String(body);
+          resourceCalls.push({ url, method: 'put', options, body: resourceBody });
+          return new Response('', { status: 201, statusText: 'Created' });
+        },
+        async delete(url, options) {
+          resourceCalls.push({ url, method: 'delete', options });
+          return new Response('', { status: 205, statusText: 'Reset Content' });
         },
       };
       const store = MarginNotesAPI.createSolidResourceStore({
@@ -224,7 +225,7 @@ test('BrowserMounted: public API can persist through a Solid resource store adap
         restoredText: restored.oa$hasBody.rdf$value,
         requestMethods: resourceCalls.map(call => call.method),
         putBody: resourceCalls.find(call => call.method === 'put')?.body,
-        getAccept: resourceCalls.find(call => call.method === 'get')?.options?.accept,
+        getAccept: resourceCalls.find(call => call.method === 'get')?.options?.headers?.Accept,
       };
 
       function anchorsFromPage() {
@@ -296,55 +297,51 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
             },
           };
         },
-        resource(url) {
-          return {
-            async get(options) {
-              calls.push({ method: 'get', url, options });
-              if (url === 'https://pod.example/settings/prefs.ttl') {
-                return new Response(`
+        async get(url, options) {
+          calls.push({ method: 'get', url, options });
+          if (url === 'https://pod.example/settings/prefs.ttl') {
+            return new Response(`
                   @prefix mn: <https://vocab.muze.nl/margin-notes#>.
 
                   <#margin-notes> a mn:Preferences;
                     mn:rootFolder <https://pod.example/private/margin-notes/>.
                 `, {
-                  status: 200,
-                  headers: { 'Content-Type': 'text/turtle' },
-                });
-              }
+              status: 200,
+              headers: { 'Content-Type': 'text/turtle' },
+            });
+          }
 
-              if (savedNotesDocument) {
-                return {
-                  status: 200,
-                  ok: true,
-                  url,
-                  data: savedNotesDocument,
-                };
-              }
+          if (savedNotesDocument) {
+            return {
+              status: 200,
+              ok: true,
+              url,
+              data: savedNotesDocument,
+            };
+          }
 
-              return {
-                status: 200,
-                ok: true,
-                url,
-                data: notesDocument([annotation({
-                  id: `${url}#note-1`,
-                  anchorId: 'p-browser-one',
-                  text: 'Loaded after WebID connection',
-                })]),
-              };
-            },
-            async put(body, options) {
-              savedNotesDocument = body;
-              calls.push({ method: 'put', url });
-              return new Response('', {
-                status: 201,
-                headers: { 'Content-Type': options?.contentType || 'text/turtle' },
-              });
-            },
-            async delete() {
-              calls.push({ method: 'delete', url });
-              return new Response('', { status: 205 });
-            },
+          return {
+            status: 200,
+            ok: true,
+            url,
+            data: notesDocument([annotation({
+              id: `${url}#note-1`,
+              anchorId: 'p-browser-one',
+              text: 'Loaded after WebID connection',
+            })]),
           };
+        },
+        async put(url, options) {
+          savedNotesDocument = options?.body;
+          calls.push({ method: 'put', url });
+          return new Response('', {
+            status: 201,
+            headers: { 'Content-Type': options?.headers?.['Content-Type'] || 'text/turtle' },
+          });
+        },
+        async delete(url) {
+          calls.push({ method: 'delete', url });
+          return new Response('', { status: 205 });
         },
       };
 
@@ -527,42 +524,38 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
             },
           };
         },
-        resource(url) {
-          return {
-            async get(options) {
-              calls.push({ method: 'get', url, options });
-              if (url === 'https://pod.example/settings/prefs.ttl') {
-                return new Response(`
+        async get(url, options) {
+          calls.push({ method: 'get', url, options });
+          if (url === 'https://pod.example/settings/prefs.ttl') {
+            return new Response(`
                   @prefix mn: <https://vocab.muze.nl/margin-notes#>.
 
                   <#margin-notes> a mn:Preferences;
                     mn:rootFolder <https://pod.example/private/margin-notes/>.
                 `, {
-                  status: 200,
-                  headers: { 'Content-Type': 'text/turtle' },
-                });
-              }
+              status: 200,
+              headers: { 'Content-Type': 'text/turtle' },
+            });
+          }
 
-              return {
-                status: 200,
-                ok: true,
-                url,
-                data: savedNotesDocument ?? notesDocument([annotation({
-                  id: `${url}#solid-note`,
-                  anchorId: 'p-browser-two',
-                  text: 'Already in Solid',
-                })]),
-              };
-            },
-            async put(body, options) {
-              savedNotesDocument = body;
-              calls.push({ method: 'put', url, options, body });
-              return new Response('', {
-                status: 201,
-                headers: { 'Content-Type': options?.contentType || 'text/turtle' },
-              });
-            },
+          return {
+            status: 200,
+            ok: true,
+            url,
+            data: savedNotesDocument ?? notesDocument([annotation({
+              id: `${url}#solid-note`,
+              anchorId: 'p-browser-two',
+              text: 'Already in Solid',
+            })]),
           };
+        },
+        async put(url, options) {
+          savedNotesDocument = options?.body;
+          calls.push({ method: 'put', url, options, body: options?.body });
+          return new Response('', {
+            status: 201,
+            headers: { 'Content-Type': options?.headers?.['Content-Type'] || 'text/turtle' },
+          });
         },
       };
 
@@ -732,15 +725,11 @@ test('BrowserMounted: Solid connection pre-opens the OAuth popup from the submit
       app.api.notes.createSolidNotesConnection = async options => {
         await options.authorize_callback('https://issuer.example/authorize?redirect_uri=https%3A%2F%2Fbook.example%2Fassets%2Fmargin-notes-oauth-callback.html&state=mockState');
         const solid = {
-          resource() {
-            return {
-              async get() {
-                return { status: 404, ok: false, data: null };
-              },
-              async put() {
-                return { status: 201, ok: true };
-              },
-            };
+          async get() {
+            return { status: 404, ok: false, data: null };
+          },
+          async put() {
+            return { status: 201, ok: true };
           },
         };
         return {

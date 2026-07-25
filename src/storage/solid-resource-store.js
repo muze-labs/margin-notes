@@ -1,7 +1,8 @@
 import { error, issues, Optional } from '@muze-nl/assert';
-import { lading } from '@muze-labs/lading';
+import { solidApi } from '@muze-labs/metro-solid';
 import { createSolidMetroClient } from '@muze-labs/jsfs-solid';
 import oldm from '@muze-nl/oldm';
+import { from } from '@muze-nl/jaqt';
 
 const DEFAULT_ACCEPT = 'text/turtle, application/ld+json;q=0.9, application/json;q=0.2';
 const DEFAULT_CONTENT_TYPE = 'text/turtle';
@@ -26,7 +27,7 @@ export function createSolidResourceStore(options = {}) {
   const defaultResourceUrl = options.resourceUrl || '';
   const accept = options.accept || DEFAULT_ACCEPT;
   const contentType = options.contentType || DEFAULT_CONTENT_TYPE;
-  const providedSolid = options.solid || options.lading || null;
+  const providedSolid = options.solid || options.solidApi || null;
   const generatedClient = {
     clients: new Map(),
   };
@@ -41,17 +42,20 @@ export function createSolidResourceStore(options = {}) {
     async load({ key } = {}) {
       const resourceUrl = resourceUrlFrom({ key, defaultResourceUrl });
       const solid = solidFor(resourceUrl);
-      const response = await callResource(() => solid.resource(resourceUrl).get({ accept }));
+      const response = await callResource(() => solid.get(resourceUrl, {
+        headers: { Accept: accept },
+      }));
 
       if (isMissing(response)) return null;
       await ensureOk({ response, operation: 'load' });
 
-      if (isOldmGraph(response?.data)) {
-        return storageDocumentFromGraph({ graph: response.data, resourceUrl });
+      const data = response?.data ?? response;
+      if (isOldmGraph(data)) {
+        return storageDocumentFromGraph({ graph: data, resourceUrl });
       }
 
-      if (isStorageDocument(response?.data)) {
-        return response.data;
+      if (isStorageDocument(data)) {
+        return data;
       }
 
       const text = await responseText(response);
@@ -81,10 +85,10 @@ export function createSolidResourceStore(options = {}) {
       const resourceUrl = resourceUrlFrom({ key, defaultResourceUrl });
       const solid = solidFor(resourceUrl, { writesBody: true });
       const graph = graphFromStorageDocument({ document: value, resourceUrl });
-      const response = await callResource(() => solid.resource(resourceUrl).put(
-        graph,
-        { contentType }
-      ));
+      const response = await callResource(() => solid.put(resourceUrl, {
+        body: graph,
+        headers: { 'Content-Type': contentType },
+      }));
 
       await ensureOk({ response, operation: 'save' });
       return {
@@ -97,7 +101,7 @@ export function createSolidResourceStore(options = {}) {
     async remove({ key } = {}) {
       const resourceUrl = resourceUrlFrom({ key, defaultResourceUrl });
       const solid = solidFor(resourceUrl, { needsAuthorization: true });
-      const response = await callResource(() => solid.resource(resourceUrl).delete());
+      const response = await callResource(() => solid.delete(resourceUrl));
 
       if (isMissing(response) || response.status === 410) {
         return {
@@ -153,9 +157,11 @@ function annotationPrefixes(prefixes = {}) {
 }
 
 function graphFromStorageDocument({ document, resourceUrl }) {
-  const storageDocument = isStorageDocument(document)
-    ? document
-    : { subjects: [] };
+  let storageDocument = { subjects: [] };
+  if (isStorageDocument(document)) {
+    storageDocument = document;
+  }
+
   const context = oldmContext({
     resourceUrl,
     prefixes: storageDocument.prefixes,
@@ -210,12 +216,12 @@ function graphValueFromStorageValue({ graph, predicate, value }) {
 }
 
 function storageDocumentFromGraph({ graph, resourceUrl }) {
-  const subjects = graphSubjects(graph)
-    .filter(subject => values(subject.a).includes('oa$Annotation') || values(subject.rdf$type).includes('oa$Annotation'))
-    .map(subject => repairConventionalAnnotationParts({
+  const subjects = Array.from(from(graphSubjects(graph))
+    .where(subject => oldm.many(subject.a).includes('oa$Annotation') || oldm.many(subject.rdf$type).includes('oa$Annotation'))
+    .select(subject => repairConventionalAnnotationParts({
       graph,
       annotation: storageSubjectFromOldmSubject({ graph, subject }),
-    }));
+    })));
 
   return {
     format: DEFAULT_FORMAT,
@@ -259,9 +265,9 @@ function repairConventionalAnnotationParts({ graph, annotation }) {
 }
 
 function conventionalSubject({ graph, subjectId, suffixes, types }) {
-  const subject = suffixes
-    .map(suffix => graph?.subjects?.[`${subjectId}${suffix}`])
-    .find(candidate => candidate && values(candidate.a).some(type => types.includes(type)));
+  const subject = from(suffixes)
+    .select(suffix => graph?.subjects?.[`${subjectId}${suffix}`])
+    .where(candidate => candidate && oldm.many(candidate.a).some(type => types.includes(type)))[0];
 
   if (!subject) return null;
   return storageSubjectFromOldmSubject({ graph, subject });
@@ -322,16 +328,7 @@ function storageLiteralValue({ predicate, value }) {
 }
 
 function graphSubjects(graph) {
-  if (Array.isArray(graph?.data)) {
-    return graph.data;
-  }
-  if (Array.isArray(graph?.subjects)) {
-    return graph.subjects;
-  }
-  if (graph?.subjects && typeof graph.subjects === 'object') {
-    return Object.values(graph.subjects);
-  }
-  return [];
+  return oldm.subjects(graph);
 }
 
 function resourceUrlFrom({ key, defaultResourceUrl }) {
@@ -361,9 +358,7 @@ function solidClientFor({ options, providedSolid, resourceUrl, generatedClient, 
     force_authorization: forceAuthorization,
     configureMetro: options.configureMetro ?? true,
   });
-  const solid = lading(metroClient, {
-    thrower: options.thrower ?? false,
-  });
+  const solid = solidApi(metroClient);
   generatedClient.clients.set(cacheKey, solid);
   return solid;
 }
@@ -380,11 +375,13 @@ function forceAuthorizationForRequest({ options, requestOptions }) {
 
 function assertSolidClient(solid) {
   const clientIssues = issues(solid, {
-    resource: callable,
+    get: callable,
+    put: callable,
+    delete: callable,
   });
 
   if (clientIssues) {
-    throw new TypeError('Solid resource store requires a Lading-style client with resource(url)');
+    throw new TypeError('Solid resource store requires a Solid API client with get/put/delete');
   }
 }
 
@@ -420,11 +417,6 @@ function isOldmGraph(value) {
 
 function isOldmNamedNode(value) {
   return Boolean(value && typeof value === 'object' && typeof value.id === 'string' && value.graph);
-}
-
-function values(value) {
-  if (value === undefined || value === null) return [];
-  return Array.isArray(value) ? value : [value];
 }
 
 function isLinkedDataResponse(response) {

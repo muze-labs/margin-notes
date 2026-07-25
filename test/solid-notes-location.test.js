@@ -200,33 +200,25 @@ function solidDouble({ calls, profile, preferencesResponse, headResponse }) {
       calls.push({ method: 'discoverWebId', webId });
       return profile;
     },
-    resource(url) {
-      return {
-        async get(options) {
-          calls.push({ method: 'get', url, options });
-          return preferencesResponse;
-        },
-        async head(options) {
-          calls.push({ method: 'head', url, options });
-          return headResponse || new Response('', { status: 200 });
-        },
-        async put(body, options) {
-          calls.push({ method: 'put', url, body, options });
-          return new Response('', { status: 201 });
-        },
-        async patch(body, options) {
-          calls.push({ method: 'patch', url, body, options });
-          return new Response('', { status: 205 });
-        },
-      };
+    async get(url, options) {
+      calls.push({ method: 'get', url, options });
+      return preferencesResponse;
     },
-    container(url) {
-      return {
-        async create(options) {
-          calls.push({ method: 'createContainer', url, options });
-          return new Response('', { status: 201 });
-        },
-      };
+    async head(url, options) {
+      calls.push({ method: 'head', url, options });
+      return headResponse || new Response('', { status: 200 });
+    },
+    async put(url, options) {
+      calls.push({ method: 'put', url, body: options?.body, options });
+      return new Response('', { status: 201 });
+    },
+    async patch(url, options) {
+      calls.push({ method: 'patch', url, body: options?.body, options });
+      return new Response('', { status: 205 });
+    },
+    async createContainer(url, options) {
+      calls.push({ method: 'createContainer', url, options });
+      return new Response('', { status: 201 });
     },
   };
 }

@@ -56,7 +56,7 @@ Prefer the narrowest layer that can own the behaviour without leaking policy.
 
 ### Put it elsewhere in the stack when
 
-- the need is authentication or session lifecycle: Lading;
+- the need is authentication or session lifecycle: Metro-Solid;
 - the need is resource transport or container access: jsfs-solid;
 - the need is linked-data representation: OLDM;
 - the need is shape matching or validation: OLDM Shape;

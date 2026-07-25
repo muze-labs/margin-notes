@@ -1,3 +1,6 @@
+import oldm from '@muze-nl/oldm';
+import { from } from '@muze-nl/jaqt';
+
 export const annotationModel = {
   vocabulary: {
     prefixes: {
@@ -86,17 +89,15 @@ export const annotationModel = {
   },
 
   annotationAnchorId({ annotation }) {
-    const target = this.firstValue({ value: annotation?.oa$hasTarget });
-    const selectors = this.values({ value: target?.oa$hasSelector });
-    const fragment = selectors.find(selector => {
-      return this.values({ value: selector?.rdf$type }).includes(this.vocabulary.classes.fragmentSelector);
-    });
+    const target = oldm.one(annotation?.oa$hasTarget, 'first');
+    const fragment = from(oldm.many(target?.oa$hasSelector))
+      .where(selector => oldm.many(selector?.rdf$type).includes(this.vocabulary.classes.fragmentSelector))[0];
 
     return fragment?.rdf$value;
   },
 
   annotationBody({ annotation }) {
-    return this.firstValue({ value: annotation?.oa$hasBody });
+    return oldm.one(annotation?.oa$hasBody, 'first');
   },
 
   annotationBodyFragment({ annotation }) {
@@ -155,30 +156,35 @@ export const annotationModel = {
       format: 'margin-notes-oldmed-graph',
       version: 1,
       prefixes: this.vocabulary.prefixes,
-      subjects: Array.from(subjects)
-        .filter(annotation => this.isMarginNoteAnnotation({ value: annotation }))
-        .map(annotation => this.toStoredAnnotation({ annotation })),
+      subjects: Array.from(from(subjects)
+        .where(annotation => this.isMarginNoteAnnotation({ value: annotation }))
+        .select(annotation => this.toStoredAnnotation({ annotation }))),
     };
   },
 
   toStoredGraph({ value }) {
     if (Array.isArray(value)) {
-      return Array.from(value, note => {
-        return this.isMarginNoteAnnotation({ value: note })
-          ? note
-          : this.annotationFromLegacyNote({ note });
-      }).filter(annotation => this.isMarginNoteAnnotation({ value: annotation }));
+      return Array.from(from(value)
+        .select(note => {
+          if (this.isMarginNoteAnnotation({ value: note })) {
+            return note;
+          }
+
+          return this.annotationFromLegacyNote({ note });
+        })
+        .where(annotation => this.isMarginNoteAnnotation({ value: annotation })));
     }
 
     if (Array.isArray(value?.subjects)) {
-      return value.subjects.filter(subject => this.isMarginNoteAnnotation({ value: subject }));
+      return Array.from(from(value.subjects)
+        .where(subject => this.isMarginNoteAnnotation({ value: subject })));
     }
 
     return [];
   },
 
   isOldmedAnnotation({ value }) {
-    return this.values({ value: value?.rdf$type }).includes(this.vocabulary.classes.annotation);
+    return oldm.many(value?.rdf$type).includes(this.vocabulary.classes.annotation);
   },
 
   isMarginNoteAnnotation({ value }) {
@@ -211,15 +217,6 @@ export const annotationModel = {
     }
 
     return `urn:muze:margin-notes:${encodeURIComponent(id || this.createLocalSubjectId({}))}`;
-  },
-
-  firstValue({ value }) {
-    return Array.isArray(value) ? value[0] : value;
-  },
-
-  values({ value }) {
-    if (value === undefined || value === null) return [];
-    return Array.isArray(value) ? value : [value];
   },
 
   cloneValue({ value }) {

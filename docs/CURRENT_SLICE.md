@@ -15,7 +15,7 @@ A reader can create, edit, delete, reload, and keep notes locally before connect
 
 The default storage path now creates a SimplySolid service with one local-first `notes` resource. Its local replica is an IndexedDB graph resource in the `margin-notes-workspace` database. The old app-owned IndexedDB store remains as a compatibility and migration source; custom host stores still use the previous `load`, `save`, and `remove` boundary.
 
-The Solid connection flow still lives in the margin-notes app because it owns the reader-facing WebID control and per-page resource discovery. Once a resource URL is discovered, margin-notes passes the Lading client and URL to `notesService.connect({ resources: { notes: { url }}})` and calls `notesService.sync('notes')`. The app no longer merges local and remote graphs itself.
+The Solid connection flow still lives in the margin-notes app because it owns the reader-facing WebID control and per-page resource discovery. Once a resource URL is discovered, margin-notes passes the Solid API client and URL to `notesService.connect({ resources: { notes: { url }}})` and calls `notesService.sync('notes')`. The app no longer merges local and remote graphs itself.
 
 ## Why this slice comes next
 

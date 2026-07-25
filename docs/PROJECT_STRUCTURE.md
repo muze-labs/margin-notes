@@ -132,7 +132,7 @@ Templates and styles live in `.html` and `.css` files and are imported as text b
 
 - **Store**: small app-facing store API with async `load`, `save`, and `remove` methods over opaque values. It remains available for custom host stores and legacy local-note migration.
 - **SimplySolid notes service**: the default storage path creates a local-first `notes` resource and collection through `@muze-labs/simplysolid`. The local replica is persisted in the `margin-notes-workspace` IndexedDB database, and the Solid replica is attached after WebID/resource discovery.
-- **Solid resource store**: `createSolidResourceStore({ resourceUrl, solid })` implements the same store API against one configured Solid resource through Lading resource methods and Turtle serialization. Without an injected client it composes the `jsfs-solid` Metro client stack with Metro-OLDM enabled by default.
+- **Solid resource store**: `createSolidResourceStore({ resourceUrl, solid })` implements the same store API against one configured Solid resource through Metro-Solid resource methods and Turtle serialization. Without an injected client it composes the `jsfs-solid` Metro client stack with Metro-OLDM enabled by default.
 - **Stored value**: app-facing graph document containing OLDMed annotation subjects with `prefix$predicate` names; the Solid adapter stores this graph as Turtle.
 - **Note structure**: `oa$Annotation` subjects with `oa$hasBody`, `oa$hasTarget`, `dcterms$created`, and `dcterms$modified`.
 - **Operations**: `createNote()`, `updateNote()`, `deleteNote()`, `getNotesForAnchor()`.

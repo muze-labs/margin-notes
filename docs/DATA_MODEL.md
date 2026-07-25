@@ -73,7 +73,7 @@ The local store itself stores opaque values by key. It does not know about annot
 
 The default margin-notes path now stores the annotation graph through a SimplySolid local-first resource. The local replica uses IndexedDB and the remote replica is added later when the Solid connection flow discovers the per-page notes resource. The object shape stays the same across both replicas.
 
-The earlier fixed-resource Solid storage slice still exists as `createSolidResourceStore()`. It writes the same annotation graph to one configured Solid resource and translates between the app-facing graph document and Turtle through a Lading-style client and OLDM. That adapter remains useful as compatibility evidence for the Solid stack, while the default path treats local and remote note data as replicas of one logical workspace resource.
+The earlier fixed-resource Solid storage slice still exists as `createSolidResourceStore()`. It writes the same annotation graph to one configured Solid resource and translates between the app-facing graph document and Turtle through a Solid API client and OLDM. That adapter remains useful as compatibility evidence for the Solid stack, while the default path treats local and remote note data as replicas of one logical workspace resource.
 
 ## Prefer existing annotation terms
 

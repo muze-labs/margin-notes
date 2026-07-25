@@ -34,7 +34,7 @@ It should become a complete example of a small Solid application built with Muze
 
 ### 2. Stack integration test
 
-The application should reveal where SimplyFlow, OLDM, JAQT, Lading, jsfs-solid, SimplySolid, Assert, Cobalt, Metro, and later residential-programming tools fit together—or fail to fit together.
+The application should reveal where SimplyFlow, OLDM, JAQT, Metro-Solid, jsfs-solid, SimplySolid, Assert, Cobalt, Metro, and later residential-programming tools fit together—or fail to fit together.
 
 ### 3. Design laboratory
 

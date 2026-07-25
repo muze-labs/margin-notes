@@ -263,7 +263,7 @@ export const paragraphNoteStacks = {
         });
         const solidClient = connection.solid || config.solid || config.solidForStore;
         if (!solidClient) {
-          throw new Error('Solid connection did not provide a Lading client for note sync');
+          throw new Error('Solid connection did not provide a Solid API client for note sync');
         }
         await notesService.connect({
           solid: solidClient,
