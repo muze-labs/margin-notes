@@ -108,13 +108,16 @@ async function marginNotesRootFolder({ solid, preferencesUrl, storageUrl, rootFo
 }
 
 async function loadMarginNotesRootFolder({ solid, preferencesUrl }) {
-  const response = await solid.get(preferencesUrl, {
-    headers: { Accept: LINKED_DATA_ACCEPT },
-  });
-  if (response?.status === 404) return '';
-  await ensureOk({ response, operation: 'read preferences' });
+  let graph;
+  try {
+    graph = await solid.get(preferencesUrl, {
+      headers: { Accept: LINKED_DATA_ACCEPT },
+    });
+  } catch (error) {
+    if (isMissing(error.cause)) return '';
+    throw error;
+  }
 
-  const graph = await graphFromResponse({ response, resourceUrl: preferencesUrl });
   const subject = from(graphSubjects(graph))
     .where(subject => firstId(subject.mn$rootFolder))[0];
   return firstId(subject?.mn$rootFolder);
@@ -140,52 +143,29 @@ async function saveDefaultMarginNotesRootFolder({ solid, preferencesUrl, rootFol
 }
 
 async function ensureRootFolder({ solid, rootFolderUrl }) {
-  if (typeof solid.createContainer !== 'function') return;
-
   const response = await solid.createContainer(rootFolderUrl);
   if (response?.ok || [200, 201, 204, 205, 409, 412].includes(response?.status)) return;
   await ensureOk({ response, operation: 'create margin-notes folder' });
 }
 
 async function resourceExists({ solid, resourceUrl }) {
-  let response;
-  if (typeof solid.head === 'function') {
-    response = await solid.head(resourceUrl);
-  } else {
-    response = await solid.get(resourceUrl, {
-      headers: { Accept: LINKED_DATA_ACCEPT },
-    });
-  }
+  const response = await solid.head(resourceUrl);
 
   if (response?.status === 404) return false;
   await ensureOk({ response, operation: 'check preferences' });
   return true;
 }
 
-async function graphFromResponse({ response, resourceUrl }) {
-  const data = response?.data ?? response;
-  if (data?.subjects || data?.primary) {
-    return data;
-  }
-
-  return oldm.context({
-    defaultGraph: resourceUrl,
-    prefixes,
-  }).parse(await responseText(response), resourceUrl, responseContentType(response) || TURTLE);
-}
-
 function graphSubjects(graph) {
   return oldm.subjects(graph);
 }
 
-async function responseText(response) {
-  if (typeof response?.text === 'function') return response.text();
-  if (typeof response?.data === 'string') return response.data;
-  return '';
+function isMissing(response) {
+  return response?.status === 404;
 }
 
-function responseContentType(response) {
-  return response?.headers?.get?.('Content-Type') || response?.headers?.get?.('content-type') || '';
+async function responseText(response) {
+  return response.text();
 }
 
 function preferencesTurtle({ preferencesUrl, rootFolderUrl }) {

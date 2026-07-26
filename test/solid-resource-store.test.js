@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createSolidResourceStore } from '../src/storage/solid-resource-store.js';
+import oldm from '@muze-nl/oldm';
 
 test('SolidResourceStore: loads a Turtle resource into an OLDMed graph document', async () => {
   const turtle = turtleFixture({ text: 'A linked-data note' });
@@ -202,7 +203,7 @@ function solidDouble(responses) {
     calls,
     async get(url, options) {
       calls.push({ url, method: 'get', options, body: undefined });
-      return nextResponse({ responses, url });
+      return solidGetResult({ response: nextResponse({ responses, url }), url });
     },
     async put(url, options) {
       calls.push({ url, method: 'put', options, body: options?.body });
@@ -213,6 +214,20 @@ function solidDouble(responses) {
       return nextResponse({ responses, url });
     },
   };
+}
+
+async function solidGetResult({ response, url }) {
+  if (!response.ok) {
+    throw new Error(`${response.status}: ${response.statusText}`, {
+      cause: response,
+    });
+  }
+
+  if (/^text\/turtle\b/.test(response.headers.get('Content-Type'))) {
+    return oldm.context().parse(await response.text(), url, response.headers.get('Content-Type'));
+  }
+
+  return response;
 }
 
 function nextResponse({ responses, url }) {

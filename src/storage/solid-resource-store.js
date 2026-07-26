@@ -47,9 +47,8 @@ export function createSolidResourceStore(options = {}) {
       }));
 
       if (isMissing(response)) return null;
-      await ensureOk({ response, operation: 'load' });
 
-      const data = response?.data ?? response;
+      const data = response;
       if (isOldmGraph(data)) {
         return storageDocumentFromGraph({ graph: data, resourceUrl });
       }
@@ -58,6 +57,7 @@ export function createSolidResourceStore(options = {}) {
         return data;
       }
 
+      await ensureOk({ response, operation: 'load' });
       const text = await responseText(response);
       if (!text.trim()) return null;
 
@@ -424,7 +424,7 @@ function isLinkedDataResponse(response) {
 }
 
 function responseContentType(response) {
-  return response?.headers?.get?.('Content-Type') || response?.headers?.get?.('content-type') || '';
+  return response.headers.get('Content-Type') || '';
 }
 
 async function ensureOk({ response, operation }) {
@@ -436,11 +436,5 @@ async function ensureOk({ response, operation }) {
 }
 
 async function responseText(response) {
-  if (typeof response?.text === 'function') {
-    return response.text();
-  }
-  if (typeof response?.data === 'string') {
-    return response.data;
-  }
-  return '';
+  return response.text();
 }

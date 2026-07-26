@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createSolidNotesConnection, notesResourceUrlForPage } from '../src/storage/solid-notes-location.js';
+import oldm from '@muze-nl/oldm';
 
 test('Solid notes location: writes default root preference and hashes the page URI', async () => {
   const calls = [];
@@ -202,7 +203,7 @@ function solidDouble({ calls, profile, preferencesResponse, headResponse }) {
     },
     async get(url, options) {
       calls.push({ method: 'get', url, options });
-      return preferencesResponse;
+      return solidGetResult({ response: preferencesResponse, url });
     },
     async head(url, options) {
       calls.push({ method: 'head', url, options });
@@ -221,4 +222,18 @@ function solidDouble({ calls, profile, preferencesResponse, headResponse }) {
       return new Response('', { status: 201 });
     },
   };
+}
+
+async function solidGetResult({ response, url }) {
+  if (!response.ok) {
+    throw new Error(`${response.status}: ${response.statusText}`, {
+      cause: response,
+    });
+  }
+
+  if (/^text\/turtle\b/.test(response.headers.get('Content-Type'))) {
+    return oldm.context().parse(await response.text(), url, response.headers.get('Content-Type'));
+  }
+
+  return response;
 }

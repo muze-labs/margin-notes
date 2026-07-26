@@ -300,36 +300,23 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         async get(url, options) {
           calls.push({ method: 'get', url, options });
           if (url === 'https://pod.example/settings/prefs.ttl') {
-            return new Response(`
-                  @prefix mn: <https://vocab.muze.nl/margin-notes#>.
-
-                  <#margin-notes> a mn:Preferences;
-                    mn:rootFolder <https://pod.example/private/margin-notes/>.
-                `, {
-              status: 200,
-              headers: { 'Content-Type': 'text/turtle' },
-            });
-          }
-
-          if (savedNotesDocument) {
             return {
-              status: 200,
-              ok: true,
-              url,
-              data: savedNotesDocument,
+              subjects: [{
+                id: 'https://pod.example/settings/prefs.ttl#margin-notes',
+                mn$rootFolder: { id: 'https://pod.example/private/margin-notes/' },
+              }],
             };
           }
 
-          return {
-            status: 200,
-            ok: true,
-            url,
-            data: notesDocument([annotation({
+          if (savedNotesDocument) {
+            return savedNotesDocument;
+          }
+
+          return notesDocument([annotation({
               id: `${url}#note-1`,
               anchorId: 'p-browser-one',
               text: 'Loaded after WebID connection',
-            })]),
-          };
+            })]);
         },
         async put(url, options) {
           savedNotesDocument = options?.body;
@@ -527,27 +514,19 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
         async get(url, options) {
           calls.push({ method: 'get', url, options });
           if (url === 'https://pod.example/settings/prefs.ttl') {
-            return new Response(`
-                  @prefix mn: <https://vocab.muze.nl/margin-notes#>.
-
-                  <#margin-notes> a mn:Preferences;
-                    mn:rootFolder <https://pod.example/private/margin-notes/>.
-                `, {
-              status: 200,
-              headers: { 'Content-Type': 'text/turtle' },
-            });
+            return {
+              subjects: [{
+                id: 'https://pod.example/settings/prefs.ttl#margin-notes',
+                mn$rootFolder: { id: 'https://pod.example/private/margin-notes/' },
+              }],
+            };
           }
 
-          return {
-            status: 200,
-            ok: true,
-            url,
-            data: savedNotesDocument ?? notesDocument([annotation({
+          return savedNotesDocument ?? notesDocument([annotation({
               id: `${url}#solid-note`,
               anchorId: 'p-browser-two',
               text: 'Already in Solid',
-            })]),
-          };
+            })]);
         },
         async put(url, options) {
           savedNotesDocument = options?.body;
