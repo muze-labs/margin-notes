@@ -328,7 +328,7 @@ function storageLiteralValue({ predicate, value }) {
 }
 
 function graphSubjects(graph) {
-  return oldm.subjects(graph);
+  return Object.values(graph.subjects);
 }
 
 function resourceUrlFrom({ key, defaultResourceUrl }) {

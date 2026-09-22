@@ -157,7 +157,7 @@ async function resourceExists({ solid, resourceUrl }) {
 }
 
 function graphSubjects(graph) {
-  return oldm.subjects(graph);
+  return Object.values(graph.subjects);
 }
 
 function isMissing(response) {

@@ -91,8 +91,14 @@ export const annotationModel = {
   annotationAnchorId({ annotation }) {
     const target = oldm.one(annotation?.oa$hasTarget, 'first');
     const fragment = from(oldm.many(target?.oa$hasSelector))
-      .where(selector => oldm.many(selector?.rdf$type).includes(this.vocabulary.classes.fragmentSelector))[0];
+      .where(selector => (
+        oldm.many(selector?.rdf$type).includes(this.vocabulary.classes.fragmentSelector)
+        || oldm.many(selector?.a).includes(this.vocabulary.classes.fragmentSelector)
+      ))[0];
 
+    if (fragment?.rdf$value != null) {
+      return String(fragment.rdf$value);
+    }
     return fragment?.rdf$value;
   },
 
@@ -148,7 +154,26 @@ export const annotationModel = {
   },
 
   toStoredAnnotation({ annotation }) {
-    return this.cloneValue({ value: annotation });
+    const stored = this.cloneValue({ value: annotation });
+    const body = this.annotationBody({ annotation: stored });
+    if (body?.rdf$value != null) {
+      body.rdf$value = String(body.rdf$value);
+    }
+    if (body?.schema$text != null) {
+      body.schema$text = String(body.schema$text);
+    }
+    if (body?.cobalt$fragment?.text != null) {
+      body.cobalt$fragment.text = String(body.cobalt$fragment.text);
+    }
+
+    const target = oldm.one(stored?.oa$hasTarget, 'first');
+    for (const selector of oldm.many(target?.oa$hasSelector)) {
+      if (selector?.rdf$value != null) {
+        selector.rdf$value = String(selector.rdf$value);
+      }
+    }
+
+    return stored;
   },
 
   toStorageDocument({ subjects }) {
@@ -184,7 +209,10 @@ export const annotationModel = {
   },
 
   isOldmedAnnotation({ value }) {
-    return oldm.many(value?.rdf$type).includes(this.vocabulary.classes.annotation);
+    return (
+      oldm.many(value?.rdf$type).includes(this.vocabulary.classes.annotation)
+      || oldm.many(value?.a).includes(this.vocabulary.classes.annotation)
+    );
   },
 
   isMarginNoteAnnotation({ value }) {
@@ -220,10 +248,32 @@ export const annotationModel = {
   },
 
   cloneValue({ value }) {
-    return JSON.parse(JSON.stringify(value));
+    if (Array.isArray(value)) {
+      return value.map(item => this.cloneValue({ value: item }));
+    }
+
+    if (value instanceof String || value instanceof Number || value instanceof Boolean) {
+      return value.valueOf();
+    }
+
+    if (value && typeof value === 'object') {
+      const entries = Object.entries(value);
+      if (entries.length === 1 && value.id) {
+        return value.id;
+      }
+      return Object.fromEntries(
+        entries
+          .map(([key, item]) => [key, this.cloneValue({ value: item })])
+      );
+    }
+
+    return value;
   },
 
   noteText({ fragment }) {
-    return fragment?.text || '(empty note)';
+    if (fragment?.text != null) {
+      return String(fragment.text);
+    }
+    return '(empty note)';
   },
 };

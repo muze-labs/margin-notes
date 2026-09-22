@@ -9,6 +9,7 @@ import MARGIN_NOTES_DESIGN_SYSTEM_STYLES from '../design-system.css';
 import MARGIN_NOTES_UI_STYLES from './paragraph-note-stacks/ui.css';
 import SOLID_CONNECTION_STYLES from './solid-connection/ui.css';
 import { createSolidNotesConnection } from '../storage/solid-notes-location.js';
+import { createSolidResourceStore } from '../storage/solid-resource-store.js';
 import { authorizePopup } from '@muze-labs/jsfs-solid';
 
 export const paragraphNoteStacks = {
@@ -265,11 +266,35 @@ export const paragraphNoteStacks = {
         if (!solidClient) {
           throw new Error('Solid connection did not provide a Solid API client for note sync');
         }
+        const solidStore = notesApi.createSolidResourceStore({
+          resourceUrl: connection.resourceUrl,
+          solid: solidClient,
+        });
         await notesService.connect({
           solid: solidClient,
           resources: {
             notes: {
               url: connection.resourceUrl,
+              async load() {
+                const document = await solidStore.load({ key: connection.resourceUrl });
+                if (!document) {
+                  return { subjects: {} };
+                }
+
+                return {
+                  ...document,
+                  subjects: Object.fromEntries(document.subjects.map(subject => [subject.id, subject])),
+                };
+              },
+              async save(document) {
+                return solidStore.save({
+                  key: connection.resourceUrl,
+                  value: {
+                    ...document,
+                    subjects: Object.values(document.subjects),
+                  },
+                });
+              },
             },
           },
         });
@@ -689,6 +714,7 @@ export const paragraphNoteStacks = {
       ...annotationModel,
       CobaltEditorModal,
       createSolidNotesConnection,
+      createSolidResourceStore,
       authorizePopup,
       path,
       templates: {
@@ -869,6 +895,7 @@ export const paragraphNoteStacks = {
           store: app.marginNotesRuntime.store,
           key: storeKey,
         });
+        const localDocument = this.toStorageDocument({ subjects: legacyGraph });
         const service = app.marginNotesRuntime.simplySolid({
           localFirst: true,
           app: {
@@ -882,7 +909,10 @@ export const paragraphNoteStacks = {
                 store: 'resources',
                 key: storeKey,
                 prefixes: this.vocabulary.prefixes,
-                document: this.toStorageDocument({ subjects: legacyGraph }),
+                document: {
+                  ...localDocument,
+                  subjects: Object.fromEntries(localDocument.subjects.map(subject => [subject.id, subject])),
+                },
               },
             },
           },

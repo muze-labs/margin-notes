@@ -361,8 +361,9 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         }
       };
       await app.actions.createNote({ anchorId: 'p-browser-two' });
-      await waitFor(() => savedNotesDocument?.subjects?.some(subject => {
-        return subject.oa$hasBody?.rdf$value === 'Saved before reconnect';
+      await waitFor(() => Object.values(savedNotesDocument?.subjects ?? {}).some(subject => {
+        return String(subject.oa$hasBody?.rdf$value ?? '') === 'Saved before reconnect'
+          || String(subject.rdf$value ?? '') === 'Saved before reconnect';
       }), 'saved new note document');
       await app.destroy();
 
@@ -390,7 +391,9 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         noteText: note.oa$hasBody.rdf$value,
         restoredStatus,
         restoredNoteText: restoredNote.oa$hasBody.rdf$value,
-        savedNotesText: JSON.stringify(savedNotesDocument),
+        savedNotesText: typeof savedNotesDocument?.write === 'function'
+          ? await savedNotesDocument.write()
+          : JSON.stringify(savedNotesDocument),
         popupHandleRedirectType: typeof MarginNotesAPI.popupHandleRedirect,
         requestMethods: calls.map(call => call.method),
       };
@@ -536,6 +539,10 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
             headers: { 'Content-Type': options?.headers?.['Content-Type'] || 'text/turtle' },
           });
         },
+        async delete(url) {
+          calls.push({ method: 'delete', url });
+          return new Response('', { status: 205 });
+        },
       };
 
       const app = MarginNotesAPI.mount({
@@ -575,7 +582,9 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
         status,
         localNoteText: localNote.oa$hasBody.rdf$value,
         solidNoteText: solidNote.oa$hasBody.rdf$value,
-        savedNotesText: JSON.stringify(savedNotesDocument),
+        savedNotesText: typeof savedNotesDocument?.write === 'function'
+          ? await savedNotesDocument.write()
+          : JSON.stringify(savedNotesDocument),
         requestMethods: calls.map(call => call.method),
         putUrl: calls.find(call => call.method === 'put')?.url,
       };
@@ -709,6 +718,9 @@ test('BrowserMounted: Solid connection pre-opens the OAuth popup from the submit
           },
           async put() {
             return { status: 201, ok: true };
+          },
+          async delete() {
+            return { status: 205, ok: true };
           },
         };
         return {
