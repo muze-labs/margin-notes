@@ -23,6 +23,7 @@ A design pressure begins when an active application slice encounters a real boun
 | DP-001 | Resolved in application | M1.1 | Browser persistence should not leak its backing mechanism into note code. | Application | `src/storage/local-store.js`, `test/local-store.test.js` |
 | DP-002 | Resolved in application | M3.1 | A fixed Solid resource should save the same note graph without creating a second data model. | Application | `src/storage/solid-resource-store.js`, `test/solid-resource-store.test.js`, `test/browser-mounted.test.js` |
 | DP-003 | Proposed | M3.2 | Solid login and linked-data storage failures should be surfaced by the Muze libraries before application code writes damaged note graphs. | `solid-tools` packages | `docs/proposals/0001-solid-client-dx.md`, `test/solid-resource-store.test.js`, `test/browser-mounted.test.js` |
+| DP-005 | Validated | M3.2 | Full-IRI class/datatype values must survive local/Solid round trips and remain discoverable. | OLDM consumers | `docs/proposals/0002-full-iri-values.md` |
 | DP-004 | Validated | M3.2 | PWA-style local notes and later Solid sync should be one logical resource, not app-owned merge code. | SimplySolid / solid-workspace | `test/browser-mounted.test.js`, `@muze-labs/simplysolid` local-first resource tests |
 
 SimplySolid is now required by the default margin-notes storage path. The fixed-resource store adapter remains compatibility and evidence for the lower Solid stack, but local-first resource sync is owned by SimplySolid and solid-workspace.
@@ -233,6 +234,31 @@ The app keeps a small custom-store fallback so host-provided stores remain compa
 ### Book consequence
 
 The book can show local-first as the point where a store adapter stops being the right abstraction. A local document and a Solid Turtle file are better explained as replicas of one logical workspace resource.
+
+## DP-005: Full-IRI values across storage boundaries
+
+**Status:** Validated for the mounted local/fake-Solid workflow
+**Active slice:** M3.2
+**Proposal:** `docs/proposals/0002-full-iri-values.md`
+
+OLDM `341530e` exposed shorthand class filters in consumers. Solid-tools had
+nine failing tests; margin-notes had six, including four mounted-browser paths.
+The migration also exposed invalid fixture IDs with two fragments and metadata
+loss at the app's literal conversion boundary.
+
+Solid-tools `003c62c` updates full-IRI container detection and literal comparison,
+and resolves discovery predicates against their source graph. Application
+vocabulary/filtering now uses full IRIs, legacy saved type values expand on load,
+and unknown class IRIs, linked values, and literal metadata survive save/reload.
+Both `a` and `rdf$type` contribute classes when the fixed-resource adapter writes.
+
+Evidence: all 66 solid-tools tests and 53 application tests pass, including
+mounted local create/restore/edit/delete, Solid create/restore/edit/delete/remount,
+connection reload, and local-to-remote sync. These browser tests use a fake Solid
+client with Turtle persistence. They do not validate a real Pod or authentication.
+
+The lesson is to keep vocabulary identity independent of presentation shorthand.
+No new SimplySolid API was needed.
 
 ## Entry template
 

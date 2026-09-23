@@ -41,3 +41,10 @@ A feature normally moves through the states in order. A prototype may be impleme
 When a feature becomes **Required**, add the design-pressure ID. When it becomes **Implemented**, link the `solid-tools` tests or commit. When it becomes **Validated**, link the application test or example.
 
 Do not mark a broad row validated when the application has exercised only a narrower case. Split the row when necessary.
+
+## Full-IRI contract revalidation — 2026-09-23
+
+The existing local-first and sync capabilities were retested against OLDM
+`341530e` and solid-tools `003c62c`. Class/datatype comparisons now use full IRIs.
+All 53 application tests pass, including mounted persistence and sync paths;
+no new SimplySolid capability or broader server-conformance claim is introduced.

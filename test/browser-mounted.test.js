@@ -93,8 +93,8 @@ test('BrowserMounted: public API creates, restores, edits, and deletes one local
         editedId: edited.id,
         editedText: edited.oa$hasBody.rdf$value,
         editedFragment: edited.oa$hasBody.cobalt$fragment,
-        editedUnknownSubjectFact: storedAfterEdit.subjects[0].schema$about,
-        editedUnknownBodyFact: storedAfterEdit.subjects[0].oa$hasBody.schema$comment,
+        editedUnknownSubjectFact: storedAfterEdit.subjects[0].schema$about?.id ?? storedAfterEdit.subjects[0].schema$about,
+        editedUnknownBodyFact: String(storedAfterEdit.subjects[0].oa$hasBody.schema$comment),
         storedAfterDeleteCount: storedAfterDelete.subjects.length,
       };
 
@@ -125,7 +125,7 @@ test('BrowserMounted: public API creates, restores, edits, and deletes one local
       }
     });
 
-    assert.equal(result.createdType, 'oa$Annotation');
+    assert.equal(result.createdType, 'http://www.w3.org/ns/oa#Annotation');
     assert.equal(result.createdText, 'A browser-created note');
     assert.equal(result.storedFormat, 'margin-notes-oldmed-graph');
     assert.equal(result.storedSubjectCount, 1);
@@ -217,12 +217,37 @@ test('BrowserMounted: public API can persist through a Solid resource store adap
       });
       await waitFor(() => restoredApp.getNotesForAnchor('p-browser-one').length === 1);
       const [restored] = restoredApp.getNotesForAnchor('p-browser-one');
+      const restoredText = restored.oa$hasBody.rdf$value;
+      restoredApp.api.notes.CobaltEditorModal = class TestEditorModal {
+        async show() {
+          return { text: 'Edited on Solid', annotations: [] };
+        }
+      };
+      await restoredApp.actions.updateNote({ noteId: restored.id });
+      const afterEdit = await store.load({});
+      await restoredApp.actions.deleteNote({ noteId: restored.id });
+      const afterDelete = await store.load({});
       await restoredApp.destroy();
+      resetPage();
+
+      const deletedApp = MarginNotesAPI.mount({
+        anchors: anchorsFromPage(),
+        container: { element: document.getElementById('margin-notes-container') },
+        store,
+        storeKey: resourceUrl,
+      });
+      await waitFor(() => deletedApp.data.marginNotes.anchors.length === 2);
+      await deletedApp.actions.reloadNotesFromStore();
+      const remainingAfterReload = deletedApp.getNotesForAnchor('p-browser-one').length;
+      await deletedApp.destroy();
 
       return {
         createdId: created.id,
         restoredId: restored.id,
-        restoredText: restored.oa$hasBody.rdf$value,
+        restoredText,
+        editedText: afterEdit.subjects[0].oa$hasBody.rdf$value,
+        storedAfterDeleteCount: afterDelete.subjects.length,
+        remainingAfterReload,
         requestMethods: resourceCalls.map(call => call.method),
         putBody: resourceCalls.find(call => call.method === 'put')?.body,
         getAccept: resourceCalls.find(call => call.method === 'get')?.options?.headers?.Accept,
@@ -257,7 +282,10 @@ test('BrowserMounted: public API can persist through a Solid resource store adap
 
     assert.equal(result.restoredId, result.createdId);
     assert.equal(result.restoredText, 'A Solid-backed browser note');
-    assert.deepEqual(result.requestMethods, ['get', 'put', 'get']);
+    assert.equal(result.editedText, 'Edited on Solid');
+    assert.equal(result.storedAfterDeleteCount, 0);
+    assert.equal(result.remainingAfterReload, 0);
+    assert.equal(result.requestMethods.filter(method => method === 'put').length, 3);
     assert.equal(result.getAccept, 'text/turtle, application/ld+json;q=0.9, application/json;q=0.2');
     assert.match(result.putBody, /oa:Annotation/);
     assert.match(result.putBody, /cobalt:fragment/);
@@ -436,23 +464,23 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
       function annotation({ id, anchorId, text }) {
         return {
           id,
-          rdf$type: 'oa$Annotation',
+          rdf$type: 'http://www.w3.org/ns/oa#Annotation',
           dcterms$created: '2026-07-19T10:00:00.000Z',
           dcterms$modified: '2026-07-19T10:00:00.000Z',
           oa$hasBody: {
-            id: `${id}#body`,
-            rdf$type: ['oa$TextualBody', 'cobalt$Fragment'],
+            id: `${id}-body`,
+            rdf$type: ['http://www.w3.org/ns/oa#TextualBody', 'https://vocab.muze.nl/cobalt#Fragment'],
             dcterms$format: 'application/vnd.cobalt.fragment+json',
             rdf$value: text,
             schema$text: text,
             cobalt$fragment: { text, annotations: [] },
           },
           oa$hasTarget: {
-            id: `${id}#target`,
-            rdf$type: 'oa$SpecificResource',
+            id: `${id}-target`,
+            rdf$type: 'http://www.w3.org/ns/oa#SpecificResource',
             oa$hasSelector: {
-              id: `${id}#selector-fragment`,
-              rdf$type: 'oa$FragmentSelector',
+              id: `${id}-selector-fragment`,
+              rdf$type: 'http://www.w3.org/ns/oa#FragmentSelector',
               rdf$value: anchorId,
             },
           },
@@ -464,7 +492,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
           if (predicate()) return;
           await new Promise(resolve => setTimeout(resolve, 25));
         }
-        throw new Error(`Timed out waiting for ${label}`);
+        throw new Error(`Timed out waiting for ${label}: ${JSON.stringify(app.getSolidConnection())}`);
       }
     });
 
@@ -616,23 +644,23 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
       function annotation({ id, anchorId, text }) {
         return {
           id,
-          rdf$type: 'oa$Annotation',
+          rdf$type: 'http://www.w3.org/ns/oa#Annotation',
           dcterms$created: '2026-07-19T10:00:00.000Z',
           dcterms$modified: '2026-07-19T10:00:00.000Z',
           oa$hasBody: {
-            id: `${id}#body`,
-            rdf$type: ['oa$TextualBody', 'cobalt$Fragment'],
+            id: `${id}-body`,
+            rdf$type: ['http://www.w3.org/ns/oa#TextualBody', 'https://vocab.muze.nl/cobalt#Fragment'],
             dcterms$format: 'application/vnd.cobalt.fragment+json',
             rdf$value: text,
             schema$text: text,
             cobalt$fragment: { text, annotations: [] },
           },
           oa$hasTarget: {
-            id: `${id}#target`,
-            rdf$type: 'oa$SpecificResource',
+            id: `${id}-target`,
+            rdf$type: 'http://www.w3.org/ns/oa#SpecificResource',
             oa$hasSelector: {
-              id: `${id}#selector-fragment`,
-              rdf$type: 'oa$FragmentSelector',
+              id: `${id}-selector-fragment`,
+              rdf$type: 'http://www.w3.org/ns/oa#FragmentSelector',
               rdf$value: anchorId,
             },
           },
@@ -644,7 +672,7 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
           if (predicate()) return;
           await new Promise(resolve => setTimeout(resolve, 25));
         }
-        throw new Error(`Timed out waiting for ${label}`);
+        throw new Error(`Timed out waiting for ${label}: ${JSON.stringify(app.getSolidConnection())}`);
       }
     });
 

@@ -57,3 +57,16 @@ Slice M3.2: local-first notes with a Solid replica:
 ## SimplySolid status
 
 SimplySolid is now required by the default storage path. Features used by the mounted local-first and Solid-connect browser flows are marked in `SIMPLYSOLID_FEATURES.md`; broader workspace capabilities remain **Designed** until an active slice produces evidence for them.
+
+## Full-IRI migration validation — 2026-09-23
+
+Validated against OLDM `341530e` and solid-tools `003c62c` using the local package
+links. All 66 solid-tools tests and all 53 margin-notes tests pass; both repositories
+pass lint, and the browser bundle builds. The mounted Solid resource test now
+creates, restores, edits, deletes, and remounts against saved Turtle. Other mounted
+tests exercise IndexedDB persistence and local-to-remote sync/reconnect.
+
+The migration preserves unknown classes, named-node links, and typed/language
+literal metadata. Legacy shorthand class values remain readable. Browser Solid
+responses are fake-client evidence; a disposable real-Pod smoke test remains
+outstanding for the current slice.

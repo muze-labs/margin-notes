@@ -1,3 +1,4 @@
+import { annotationVocabulary } from '../features/paragraph-note-stacks/vocabulary.js';
 import { error, issues, Optional } from '@muze-nl/assert';
 import { solidApi } from '@muze-labs/metro-solid';
 import { createSolidMetroClient } from '@muze-labs/jsfs-solid';
@@ -146,12 +147,7 @@ function oldmContext({ resourceUrl, prefixes = {} }) {
 
 function annotationPrefixes(prefixes = {}) {
   return {
-    rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
-    rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
-    dcterms: 'http://purl.org/dc/terms/',
-    oa: 'http://www.w3.org/ns/oa#',
-    schema: 'https://schema.org/',
-    cobalt: 'https://vocab.muze.nl/cobalt#',
+    ...annotationVocabulary.prefixes,
     ...prefixes,
   };
 }
@@ -181,8 +177,8 @@ function writeSubjectToGraph({ graph, subject }) {
   for (const [predicate, value] of Object.entries(subject)) {
     if (predicate === 'id') continue;
 
-    if (predicate === 'rdf$type') {
-      graph.set(subject.id, 'rdf$type', value);
+    if (predicate === 'rdf$type' || predicate === 'a') {
+      graph.add(subject.id, 'a', value);
       continue;
     }
 
@@ -195,6 +191,10 @@ function writeSubjectToGraph({ graph, subject }) {
 function graphValueFromStorageValue({ graph, predicate, value }) {
   if (Array.isArray(value)) {
     return value.map(item => graphValueFromStorageValue({ graph, predicate, value: item }));
+  }
+
+  if (value instanceof String || value instanceof Number) {
+    return oldm.literal(value);
   }
 
   if (value && typeof value === 'object') {
@@ -217,7 +217,7 @@ function graphValueFromStorageValue({ graph, predicate, value }) {
 
 function storageDocumentFromGraph({ graph, resourceUrl }) {
   const subjects = Array.from(from(graphSubjects(graph))
-    .where(subject => oldm.many(subject.a).includes('oa$Annotation') || oldm.many(subject.rdf$type).includes('oa$Annotation'))
+    .where(subject => oldm.many(subject.a).includes(annotationVocabulary.classes.annotation) || oldm.many(subject.rdf$type).includes(annotationVocabulary.classes.annotation))
     .select(subject => repairConventionalAnnotationParts({
       graph,
       annotation: storageSubjectFromOldmSubject({ graph, subject }),
@@ -239,7 +239,7 @@ function repairConventionalAnnotationParts({ graph, annotation }) {
     graph,
     subjectId: annotation.id,
     suffixes: ['#body', '-body'],
-    types: ['oa$TextualBody', 'cobalt$Fragment'],
+    types: [annotationVocabulary.classes.textualBody, annotationVocabulary.classes.cobaltFragment],
   });
   if (body) {
     annotation.oa$hasBody = body;
@@ -249,14 +249,14 @@ function repairConventionalAnnotationParts({ graph, annotation }) {
     graph,
     subjectId: annotation.id,
     suffixes: ['#target', '-target'],
-    types: ['oa$SpecificResource'],
+    types: [annotationVocabulary.classes.specificResource],
   });
   if (target) {
     target.oa$hasSelector = target.oa$hasSelector || conventionalSubject({
       graph,
       subjectId: annotation.id,
       suffixes: ['#selector-fragment', '-selector', '#selector'],
-      types: ['oa$FragmentSelector'],
+      types: [annotationVocabulary.classes.fragmentSelector],
     });
     annotation.oa$hasTarget = target;
   }
@@ -302,11 +302,14 @@ function storageValueFromOldmValue({ graph, predicate, value, seen }) {
     if (linkedSubject && INLINE_PREDICATES.has(predicate)) {
       return storageSubjectFromOldmSubject({ graph, subject: linkedSubject, seen });
     }
-    return value.id;
+    return NODE_PREDICATES.has(predicate) ? value.id : {id: value.id};
   }
 
-  if (value instanceof String) {
-    return storageLiteralValue({ predicate, value: value.toString() });
+  if (value instanceof String || value instanceof Number) {
+    if (predicate !== 'cobalt$fragment' && (value.language || (value.type && value.type !== 'http://www.w3.org/2001/XMLSchema#string'))) {
+      return oldm.literal(value);
+    }
+    return storageLiteralValue({ predicate, value: value.valueOf() });
   }
 
   if (value && typeof value === 'object') {

@@ -68,3 +68,10 @@ The slice is complete when tests demonstrate:
 - `docs/BOOK_NOTES.md`
 - `docs/STATUS.md`
 - `docs/SIMPLYSOLID_FEATURES.md` if a SimplySolid capability becomes required, implemented, or validated.
+
+## Latest contract validation
+
+The 2026-09-23 migration consumes full-IRI values from OLDM `341530e` through
+solid-tools `003c62c`. All 53 application tests pass, including the mounted
+local and fake-Solid persistence/sync paths. This preserves the slice's existing
+boundaries; it does not close the outstanding real-server validation question.

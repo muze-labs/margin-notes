@@ -42,3 +42,13 @@ Append implementation discoveries here. Keep entries brief and factual while the
 - **Book relevance:** Local-first is not an optional storage trick; it changes the right abstraction from "adapter" to "workspace resource".
 - **Standard, convention, or Muze-specific:** Solid resources and Turtle are standards/conventions; SimplySolid local-first resources and `sync('notes')` are Muze stack API choices.
 - **Remaining question:** How should pending sync and remote conflict reconciliation be surfaced in the reader UI?
+
+### 2026-09-23 — Prefixes name properties; IRIs identify values
+
+- **Milestone:** M3.2, local-first notes with Solid sync.
+- **Problem:** Loaded notes disappeared because application filters expected shorthand classes after OLDM began returning full IRIs.
+- **Decision:** Keep class/datatype values explicit and absolute. Keep shorthand at property-name and serialization boundaries; expand old saved class values at load.
+- **Owning layer:** OLDM defines the value contract; solid-tools consumes it; margin-notes owns compatibility with its old saved documents.
+- **Evidence:** 66 library tests and 53 application tests pass against OLDM `341530e` and solid-tools `003c62c`. Mounted fake-Solid tests cover creation, restoration, editing, deletion, remount, and sync.
+- **Book relevance:** A spelling convenience must not change vocabulary identity. Unknown classes, named-node links, and literal metadata need explicit round-trip tests.
+- **Remaining question:** Repeat the current slice against a disposable real Pod; fake responses establish application behavior, not server conformance.

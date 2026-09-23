@@ -43,12 +43,12 @@ Example OLDMed object:
 ```js
 {
   id: 'urn:uuid:...',
-  rdf$type: 'oa$Annotation',
+  rdf$type: 'http://www.w3.org/ns/oa#Annotation',
   dcterms$created: '2026-07-19T10:00:00.000Z',
   dcterms$modified: '2026-07-19T10:00:00.000Z',
   oa$hasBody: {
     id: 'urn:uuid:...#body',
-    rdf$type: ['oa$TextualBody', 'cobalt$Fragment'],
+    rdf$type: ['http://www.w3.org/ns/oa#TextualBody', 'https://vocab.muze.nl/cobalt#Fragment'],
     dcterms$format: 'application/vnd.cobalt.fragment+json',
     rdf$value: 'This paragraph makes the boundary visible.',
     schema$text: 'This paragraph makes the boundary visible.',
@@ -56,11 +56,11 @@ Example OLDMed object:
   },
   oa$hasTarget: {
     id: 'urn:uuid:...#target',
-    rdf$type: 'oa$SpecificResource',
+    rdf$type: 'http://www.w3.org/ns/oa#SpecificResource',
     oa$hasSource: 'https://book.example/chapter/7',
     oa$hasSelector: {
       id: 'urn:uuid:...#selector-fragment',
-      rdf$type: 'oa$FragmentSelector',
+      rdf$type: 'http://www.w3.org/ns/oa#FragmentSelector',
       rdf$value: 'p-chapter7-boundary-visible'
     }
   }
@@ -74,6 +74,24 @@ The local store itself stores opaque values by key. It does not know about annot
 The default margin-notes path now stores the annotation graph through a SimplySolid local-first resource. The local replica uses IndexedDB and the remote replica is added later when the Solid connection flow discovers the per-page notes resource. The object shape stays the same across both replicas.
 
 The earlier fixed-resource Solid storage slice still exists as `createSolidResourceStore()`. It writes the same annotation graph to one configured Solid resource and translates between the app-facing graph document and Turtle through a Solid API client and OLDM. That adapter remains useful as compatibility evidence for the Solid stack, while the default path treats local and remote note data as replicas of one logical workspace resource.
+
+### Full-IRI values
+
+Class values use absolute IRIs, including `rdf$type` in the app-facing document
+and `a` in native OLDM subjects. Literal `.type` metadata is also an absolute
+IRI. Property names stay prefixed. HTTP and HTTPS class namespaces are distinct;
+only property names participate in namespace alias mapping.
+
+Legacy JSON graph documents with shorthand classes are expanded at the load
+boundary using their recorded prefixes (with the app vocabulary as fallback).
+The reader does not mutate that input document. Already-current subjects retain
+their identity so editing still belongs to their workspace records. New notes
+and subsequent saves use full class values.
+
+Unknown linked values retain `{id}` references. Unknown typed/language-tagged
+literals retain their metadata through edit/save. Known plain-text body fields
+remain convenient strings. A linked body ID uses `#body` for a fragment-free
+annotation ID and `-body` when the annotation already has a fragment.
 
 ## Prefer existing annotation terms
 

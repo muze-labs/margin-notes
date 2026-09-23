@@ -21,7 +21,7 @@ test('SolidResourceStore: loads a Turtle resource into an OLDMed graph document'
   assert.equal(document.format, 'margin-notes-oldmed-graph');
   assert.equal(document.version, 1);
   assert.equal(document.subjects[0].id, 'https://pod.example/private/notes.ttl#note-1');
-  assert.equal(document.subjects[0].rdf$type, 'oa$Annotation');
+  assert.equal(document.subjects[0].rdf$type, 'http://www.w3.org/ns/oa#Annotation');
   assert.equal(document.subjects[0].schema$about, 'https://example.test/topic');
   assert.equal(document.subjects[0].oa$hasBody.rdf$value, 'A linked-data note');
   assert.equal(document.subjects[0].oa$hasBody.schema$comment, 'keep this body fact');
@@ -125,7 +125,11 @@ test('SolidResourceStore: saves an OLDMed graph document as Turtle with PUT', as
     headers: { 'Content-Type': 'text/turtle' },
   });
   assert.match(turtle, /oa:Annotation/);
-  assert.match(turtle, /oa:hasBody <https:\/\/pod\.example\/private\/notes\.ttl#note-1-body>/);
+  const saved = oldm.context().parse(turtle, 'https://pod.example/private/notes.ttl', 'text/turtle');
+  assert.equal(
+    saved.get('https://pod.example/private/notes.ttl#note-1').oa$hasBody.id,
+    'https://pod.example/private/notes.ttl#note-1-body'
+  );
   assert.match(turtle, /cobalt:fragment/);
   assert.match(turtle, /A Turtle-backed note/);
 });
@@ -260,11 +264,11 @@ function graphDocument({ resourceUrl, text }) {
     },
     subjects: [{
       id: `${resourceUrl}#note-1`,
-      rdf$type: 'oa$Annotation',
+      rdf$type: 'http://www.w3.org/ns/oa#Annotation',
       schema$about: 'https://example.test/topic',
       oa$hasBody: {
         id: `${resourceUrl}#note-1-body`,
-        rdf$type: ['oa$TextualBody', 'cobalt$Fragment'],
+        rdf$type: ['http://www.w3.org/ns/oa#TextualBody', 'https://vocab.muze.nl/cobalt#Fragment'],
         dcterms$format: 'application/vnd.cobalt.fragment+json',
         rdf$value: text,
         schema$text: text,
@@ -273,11 +277,11 @@ function graphDocument({ resourceUrl, text }) {
       },
       oa$hasTarget: {
         id: `${resourceUrl}#note-1-target`,
-        rdf$type: 'oa$SpecificResource',
+        rdf$type: 'http://www.w3.org/ns/oa#SpecificResource',
         oa$hasSource: 'https://book.example/chapter/1',
         oa$hasSelector: {
           id: `${resourceUrl}#note-1-selector`,
-          rdf$type: 'oa$FragmentSelector',
+          rdf$type: 'http://www.w3.org/ns/oa#FragmentSelector',
           rdf$value: 'p-chapter-boundaries',
         },
       },
@@ -344,3 +348,30 @@ function orphanedPartsTurtle() {
   rdf:value "p-01-this-book-does-not-teach-you-how-to".
 `;
 }
+
+test('SolidResourceStore: editing a note preserves unknown IRIs, classes, and typed literals', async () => {
+  const noteId = 'https://pod.example/private/notes.ttl#note-1';
+  const turtle = turtleFixture({text: 'Before'}) + `
+    <${noteId}> a <http://schema.org/CreativeWork> ;
+      <urn:test:caption> "bonjour"@fr ;
+      <urn:test:rating> "12"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+      <urn:test:related> <urn:test:another-note> .
+  `;
+  const solid = solidDouble([
+    response(turtle, {status: 200, headers: {'Content-Type': 'text/turtle'}}),
+    response('', {status: 201}),
+  ]);
+  const store = createSolidResourceStore({resourceUrl: 'https://pod.example/private/notes.ttl', solid});
+  const loaded = await store.load({});
+  const {annotationModel} = await import('../src/features/paragraph-note-stacks/annotation-model.js');
+  loaded.subjects[0].oa$hasBody.rdf$value = 'Edited';
+  loaded.subjects[0].a = 'https://example.org/ExtraType';
+  await store.save({value: annotationModel.toStorageDocument({subjects: loaded.subjects})});
+  const saved = oldm.context().parse(await solid.calls[1].body.write(), 'https://pod.example/private/notes.ttl', 'text/turtle').get(noteId);
+  assert.deepEqual(oldm.many(saved.a), ['http://www.w3.org/ns/oa#Annotation', 'http://schema.org/CreativeWork', 'https://example.org/ExtraType']);
+  assert.equal(saved['urn:test:caption'].language, 'fr');
+  assert.equal(saved['urn:test:rating'].type, 'http://www.w3.org/2001/XMLSchema#integer');
+  assert.equal(String(saved['urn:test:rating']), '12');
+  assert.equal(saved['urn:test:related'].id, 'urn:test:another-note');
+  assert.equal(String(saved.oa$hasBody.rdf$value), 'Edited');
+});

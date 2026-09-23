@@ -1,0 +1,34 @@
+export const annotationVocabulary = {
+  prefixes: {
+    rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+    rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
+    dcterms: 'http://purl.org/dc/terms/',
+    oa: 'http://www.w3.org/ns/oa#',
+    schema: 'https://schema.org/',
+    cobalt: 'https://vocab.muze.nl/cobalt#',
+  },
+  classes: {
+    annotation: 'http://www.w3.org/ns/oa#Annotation',
+    textualBody: 'http://www.w3.org/ns/oa#TextualBody',
+    specificResource: 'http://www.w3.org/ns/oa#SpecificResource',
+    fragmentSelector: 'http://www.w3.org/ns/oa#FragmentSelector',
+    cobaltFragment: 'https://vocab.muze.nl/cobalt#Fragment',
+  },
+  predicates: {
+    type: 'rdf$type',
+    label: 'rdfs$label',
+    created: 'dcterms$created',
+    modified: 'dcterms$modified',
+    format: 'dcterms$format',
+    value: 'rdf$value',
+    hasBody: 'oa$hasBody',
+    hasTarget: 'oa$hasTarget',
+    hasSource: 'oa$hasSource',
+    hasSelector: 'oa$hasSelector',
+    text: 'schema$text',
+    cobaltFragment: 'cobalt$fragment',
+  },
+  mediaTypes: {
+    cobaltFragment: 'application/vnd.cobalt.fragment+json',
+  },
+};

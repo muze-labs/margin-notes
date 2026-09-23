@@ -1,46 +1,14 @@
+import { annotationVocabulary } from './vocabulary.js';
 import oldm from '@muze-nl/oldm';
 import { from } from '@muze-nl/jaqt';
 
 export const annotationModel = {
-  vocabulary: {
-    prefixes: {
-      rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
-      rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
-      dcterms: 'http://purl.org/dc/terms/',
-      oa: 'http://www.w3.org/ns/oa#',
-      schema: 'https://schema.org/',
-      cobalt: 'https://vocab.muze.nl/cobalt#',
-    },
-    classes: {
-      annotation: 'oa$Annotation',
-      textualBody: 'oa$TextualBody',
-      specificResource: 'oa$SpecificResource',
-      fragmentSelector: 'oa$FragmentSelector',
-      cobaltFragment: 'cobalt$Fragment',
-    },
-    predicates: {
-      type: 'rdf$type',
-      label: 'rdfs$label',
-      created: 'dcterms$created',
-      modified: 'dcterms$modified',
-      format: 'dcterms$format',
-      value: 'rdf$value',
-      hasBody: 'oa$hasBody',
-      hasTarget: 'oa$hasTarget',
-      hasSource: 'oa$hasSource',
-      hasSelector: 'oa$hasSelector',
-      text: 'schema$text',
-      cobaltFragment: 'cobalt$fragment',
-    },
-    mediaTypes: {
-      cobaltFragment: 'application/vnd.cobalt.fragment+json',
-    },
-  },
+  vocabulary: annotationVocabulary,
 
   createAnnotationNote({ anchorId, fragment, now = new Date().toISOString() }) {
     const annotationId = this.createLocalSubjectId({});
     const body = {
-      id: `${annotationId}#body`,
+      id: this.relatedSubjectId({annotationId, part: 'body'}),
       rdf$type: [
         this.vocabulary.classes.textualBody,
         this.vocabulary.classes.cobaltFragment,
@@ -51,11 +19,11 @@ export const annotationModel = {
       cobalt$fragment: fragment,
     };
     const target = {
-      id: `${annotationId}#target`,
+      id: this.relatedSubjectId({annotationId, part: 'target'}),
       rdf$type: this.vocabulary.classes.specificResource,
       oa$hasSource: this.currentDocumentIri({}),
       oa$hasSelector: {
-        id: `${annotationId}#selector-fragment`,
+        id: this.relatedSubjectId({annotationId, part: 'selector-fragment'}),
         rdf$type: this.vocabulary.classes.fragmentSelector,
         rdf$value: anchorId,
       },
@@ -69,6 +37,10 @@ export const annotationModel = {
       oa$hasBody: body,
       oa$hasTarget: target,
     };
+  },
+
+  relatedSubjectId({ annotationId, part }) {
+    return `${annotationId}${annotationId.includes('#') ? '-' : '#'}${part}`;
   },
 
   createLocalSubjectId() {
@@ -188,6 +160,8 @@ export const annotationModel = {
   },
 
   toStoredGraph({ value }) {
+    const context = oldm.context({prefixes: {...this.vocabulary.prefixes, ...value?.prefixes}});
+    value = this.expandStoredTypes({value, context});
     if (Array.isArray(value)) {
       return Array.from(from(value)
         .select(note => {
@@ -206,6 +180,33 @@ export const annotationModel = {
     }
 
     return [];
+  },
+
+  // Upgrade only RDF type values at the load boundary. Keep already-current
+  // subjects by reference so edits still belong to their workspace records.
+  expandStoredTypes({ value, context }) {
+    if (Array.isArray(value)) {
+      const expanded = value.map(item => this.expandStoredTypes({value: item, context}));
+      return expanded.some((item, index) => item !== value[index]) ? expanded : value;
+    }
+    if (!value || typeof value !== 'object' || value instanceof String || value instanceof Number || value instanceof Boolean) {
+      return value;
+    }
+    let result = value;
+    for (const [key, item] of Object.entries(value)) {
+      let expanded;
+      if (value.id && (key === 'a' || key === 'rdf$type')) {
+        expanded = Array.isArray(item) ? item.map(type => context.fullURI(type)) : context.fullURI(item);
+        if (Array.isArray(item) && expanded.every((type, index) => type === item[index])) expanded = item;
+      } else {
+        expanded = this.expandStoredTypes({value: item, context});
+      }
+      if (expanded !== item) {
+        if (result === value) result = {...value};
+        result[key] = expanded;
+      }
+    }
+    return result;
   },
 
   isOldmedAnnotation({ value }) {
@@ -232,9 +233,9 @@ export const annotationModel = {
     annotation.id = this.legacyLocalSubjectId({ id: note.id });
     annotation.dcterms$created = note.created || annotation.dcterms$created;
     annotation.dcterms$modified = note.modified || annotation.dcterms$modified;
-    annotation.oa$hasBody.id = `${annotation.id}#body`;
-    annotation.oa$hasTarget.id = `${annotation.id}#target`;
-    annotation.oa$hasTarget.oa$hasSelector.id = `${annotation.id}#selector-fragment`;
+    annotation.oa$hasBody.id = this.relatedSubjectId({annotationId: annotation.id, part: 'body'});
+    annotation.oa$hasTarget.id = this.relatedSubjectId({annotationId: annotation.id, part: 'target'});
+    annotation.oa$hasTarget.oa$hasSelector.id = this.relatedSubjectId({annotationId: annotation.id, part: 'selector-fragment'});
 
     return annotation;
   },
@@ -253,14 +254,15 @@ export const annotationModel = {
     }
 
     if (value instanceof String || value instanceof Number || value instanceof Boolean) {
-      return value.valueOf();
+      const clone = new value.constructor(value.valueOf());
+      for (const [key, item] of Object.entries(value)) {
+        if (!/^\d+$/.test(key)) clone[key] = this.cloneValue({value: item});
+      }
+      return clone;
     }
 
     if (value && typeof value === 'object') {
       const entries = Object.entries(value);
-      if (entries.length === 1 && value.id) {
-        return value.id;
-      }
       return Object.fromEntries(
         entries
           .map(([key, item]) => [key, this.cloneValue({ value: item })])
