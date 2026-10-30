@@ -43,6 +43,130 @@ test('Solid notes location: negotiates Turtle and parses it once through the ins
   assert.match(connection.resourceUrl, /^https:\/\/pod\.example\/private\/notes\/page-[a-f0-9]+\.ttl$/);
 });
 
+for (const loseFirstResponse of [false, true]) {
+  test(`Solid notes location: authenticates with consumed token bodies${loseFirstResponse ? ' after a lost exchange response' : ''}`, async (t) => {
+    const { default: metro } = await import('@muze-nl/metro');
+    const { default: oidcMockServer } = await import('@muze-nl/metro-oidc/testing');
+    const issuer = 'https://issuer.example/';
+    const callbackUrl = 'https://book.example/callback';
+    const server = oidcMockServer({ issuer, redirect_uri: callbackUrl, client_secret: null });
+    const previousStorage = globalThis.localStorage;
+    const storage = new Map();
+    globalThis.localStorage = {
+      getItem: key => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, String(value)),
+      removeItem: key => storage.delete(key),
+    };
+    t.after(() => {
+      if (previousStorage === undefined) delete globalThis.localStorage;
+      else globalThis.localStorage = previousStorage;
+    });
+    let tokenRequests = 0;
+    let logins = 0;
+    let protectedReads = 0;
+    t.mock.method(globalThis, 'fetch', async request => {
+      const url = new URL(request.url);
+      if (url.origin === new URL(issuer).origin) {
+        const body = request.body ? await request.text() : undefined;
+        const incoming = metro.request(request.url, { method: request.method, headers: request.headers, body });
+        const response = await server(incoming);
+        if (url.pathname === '/token/') {
+          tokenRequests++;
+          if (loseFirstResponse && tokenRequests === 1) throw new Error('token response lost');
+        }
+        return new Response(await response.text(), { status: response.status, headers: response.headers });
+      }
+      if (url.pathname === '/profile/card') {
+        return new Response(`
+          @prefix space: <http://www.w3.org/ns/pim/space#>.
+          @prefix solid: <http://www.w3.org/ns/solid/terms#>.
+          <#me> space:storage <https://pod.example/storage/>;
+            space:preferencesFile <https://pod.example/settings/prefs.ttl>;
+            solid:oidcIssuer <${issuer}>.
+        `, { headers: { 'Content-Type': 'text/turtle' } });
+      }
+      assert.equal(url.href, 'https://pod.example/settings/prefs.ttl');
+      if (!request.headers.has('Authorization')) return new Response('', { status: 401 });
+      protectedReads++;
+      assert.equal(request.headers.get('Authorization'), 'Bearer mockAccessToken');
+      return new Response(`
+        @prefix notes: <https://vocab.muze.nl/margin-notes#>.
+        <#margin-notes> notes:rootFolder <https://pod.example/private/notes/>.
+      `, { headers: { 'Content-Type': 'text/turtle' } });
+    });
+
+    const options = {
+      webId: 'https://pod.example/profile/card#me',
+      pageUrl: 'https://book.example/chapter',
+      callbackUrl,
+      solidOptions: { use_dpop: false }, // Node has no browser IndexedDB key store.
+      authorize_callback: async url => {
+        logins++;
+        const response = await globalThis.fetch(new Request(url));
+        const authorization = await response.json();
+        return { authorization_code: authorization.code, state: authorization.state };
+      },
+    };
+    if (loseFirstResponse) await assert.rejects(createSolidNotesConnection(options), /token response lost/);
+    const connection = await createSolidNotesConnection(options);
+
+    assert.equal(connection.rootFolderUrl, 'https://pod.example/private/notes/');
+    assert.equal(tokenRequests, loseFirstResponse ? 2 : 1);
+    assert.equal(logins, tokenRequests);
+    assert.equal(protectedReads, 1);
+  });
+}
+
+for (const { existing, failAt } of [false, true].flatMap(existing =>
+  [null, 'head', 'write'].map(failAt => ({ existing, failAt })))) {
+  test(`Solid notes location: initializes ${existing ? 'existing' : 'missing'} preferences${failAt ? ` with ${failAt} denied` : ''} through the installed client`, async t => {
+    const calls = [];
+    t.mock.method(globalThis, 'fetch', async request => {
+      calls.push(request);
+      const url = new URL(request.url);
+      if (url.pathname === '/profile/card') {
+        return new Response(`
+          @prefix space: <http://www.w3.org/ns/pim/space#>.
+          <#me> space:storage <https://pod.example/storage/>;
+            space:preferencesFile <https://pod.example/settings/prefs.ttl>.
+        `, { headers: { 'Content-Type': 'text/turtle' } });
+      }
+      if (url.pathname === '/storage/margin-notes/') {
+        assert.equal(request.method, 'PUT');
+        return new Response(null, { status: 201 });
+      }
+      assert.equal(url.href, 'https://pod.example/settings/prefs.ttl');
+      if (request.method === 'GET') {
+        return new Response(existing ? '<#me> <https://schema.org/name> "Preferences".' : null, {
+          status: existing ? 200 : 404,
+          headers: { 'Content-Type': 'text/turtle' },
+        });
+      }
+      if (request.method === 'HEAD') return new Response(null, { status: failAt === 'head' ? 403 : existing ? 200 : 404 });
+      assert.equal(request.method, existing ? 'PATCH' : 'PUT');
+      const body = await request.text();
+      assert.match(body, /mn:rootFolder <https:\/\/pod\.example\/storage\/margin-notes\/>/);
+      if (existing) assert.match(body, /INSERT DATA/);
+      return new Response(null, { status: failAt === 'write' ? 403 : existing ? 205 : 201 });
+    });
+
+    const connecting = createSolidNotesConnection({
+      webId: 'https://pod.example/profile/card#me',
+      pageUrl: 'https://book.example/chapter',
+      usePopupAuth: false,
+    });
+    if (failAt) {
+      await assert.rejects(connecting, error => error.cause?.status === 403);
+      assert.equal(calls.length, failAt === 'head' ? 3 : 4, 'no further write after denial');
+      return;
+    }
+    const connection = await connecting;
+
+    assert.equal(connection.rootFolderUrl, 'https://pod.example/storage/margin-notes/');
+    assert.deepEqual(calls.map(request => request.method), ['GET', 'GET', 'HEAD', existing ? 'PATCH' : 'PUT', 'PUT']);
+  });
+}
+
 test('Solid notes location: writes default root preference and hashes the page URI', async () => {
   const calls = [];
   const solid = solidDouble({
@@ -252,7 +376,9 @@ function solidDouble({ calls, profile, preferencesResponse, headResponse }) {
     },
     async head(url, options) {
       calls.push({ method: 'head', url, options });
-      return headResponse || new Response('', { status: 200 });
+      const response = headResponse || new Response('', { status: 200 });
+      if (!response.ok) throw new Error(`${response.status}: ${response.statusText}`, { cause: response });
+      return {};
     },
     async put(url, options) {
       calls.push({ method: 'put', url, body: options?.body, options });

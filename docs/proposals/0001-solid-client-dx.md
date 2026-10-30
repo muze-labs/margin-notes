@@ -200,3 +200,33 @@ profile/preferences graphs regardless of document prefixes. A fixture reproduces
 the public profile's namespace pattern without storing personal profile data.
 The full application suite passes with the packed OLDM fix. Real authenticated
 Pod save/reload validation remains pending publication.
+
+## Consumed token request body — 2026-10-30
+
+After real authorization, OIDC reads the token POST grant type after forwarding
+the request. Browser fetch has already consumed the body, so cloning it fails.
+The owning boundary is Metro-OIDC's token-response observer: inspect grant type
+before dispatch, then validate the response using that captured value. No app
+workaround or token-validation relaxation is needed. Existing login/refresh
+contract tests must consume request bodies like a transport, and application
+integration must exercise authenticated preferences discovery.
+
+The native-response integration also exposed a second defect: `res.data` may be
+a `ReadableStream`, so its being an object does not mean JSON was already parsed.
+The token observer now parses a cloned native response stream and leaves the
+original response readable by OAuth2. Login, refresh with/without an ID token,
+and invalid-token rejection tests use consumed request bodies and native token
+responses. The app integration reproduces authorization and protected preference
+reading with the real installed stack and a mock issuer.
+
+## Spent authorization codes after failed exchanges — 2026-10-30
+
+The prior token-response crash can happen after the issuer has already redeemed
+the code. OAuth2 only deleted cached authorization codes after successful token
+processing, so a later Connect skipped login and retried the spent code. The
+reported immediate `invalid_grant` is consistent with this sequence. The library
+must retire an authorization code when dispatching its exchange, even when the
+response fails, is lost, or cannot be processed. Keep the error visible and ask
+for a new authorization on the next attempt, without silently replaying codes.
+Contract tests cover a lost response, an invalid_grant response and malformed
+successful token data, followed by a successful new login.

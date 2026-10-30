@@ -131,41 +131,40 @@ async function saveDefaultMarginNotesRootFolder({ solid, preferencesUrl, rootFol
   const exists = await resourceExists({ solid, resourceUrl: preferencesUrl });
 
   if (!exists) {
-    const response = await solid.put(preferencesUrl, {
+    await solid.put(preferencesUrl, {
       body: preferencesTurtle({ preferencesUrl, rootFolderUrl }),
       headers: { 'Content-Type': TURTLE },
     });
-    await ensureOk({ response, operation: 'create preferences' });
     return;
   }
 
-  const response = await solid.patch(preferencesUrl, {
+  await solid.patch(preferencesUrl, {
     body: preferencesPatch({ preferencesUrl, rootFolderUrl }),
     headers: { 'Content-Type': SPARQL_UPDATE },
   });
-  await ensureOk({ response, operation: 'update preferences' });
 }
 
 async function ensureRootFolder({ solid, rootFolderUrl }) {
-  const response = await solid.createContainer(rootFolderUrl);
-  if (response?.ok || [200, 201, 204, 205, 409, 412].includes(response?.status)) return;
-  await ensureOk({ response, operation: 'create margin-notes folder' });
+  try {
+    await solid.createContainer(rootFolderUrl);
+  } catch (error) {
+    if ([409, 412].includes(error.cause?.status)) return;
+    throw error;
+  }
 }
 
 async function resourceExists({ solid, resourceUrl }) {
-  const response = await solid.head(resourceUrl);
-
-  if (response?.status === 404) return false;
-  await ensureOk({ response, operation: 'check preferences' });
-  return true;
+  try {
+    await solid.head(resourceUrl);
+    return true;
+  } catch (error) {
+    if (isMissing(error.cause)) return false;
+    throw error;
+  }
 }
 
 function isMissing(response) {
   return response?.status === 404;
-}
-
-async function responseText(response) {
-  return response.text();
 }
 
 function preferencesTurtle({ preferencesUrl, rootFolderUrl }) {
@@ -302,12 +301,4 @@ function fallbackHash(value) {
     hash = Math.imul(hash, 0x01000193);
   }
   return (hash >>> 0).toString(16).padStart(8, '0');
-}
-
-async function ensureOk({ response, operation }) {
-  if (response?.ok) return;
-
-  const detail = (await responseText(response)).trim();
-  const suffix = detail ? `: ${detail}` : '';
-  throw new Error(`Solid ${operation} failed (${response?.status || 'unknown'} ${response?.statusText || ''})${suffix}`);
 }

@@ -194,3 +194,56 @@ release artifacts. After publishing OLDM, run `npm ci` in margin-notes before
 packing/publishing it so its prepack build uses the fixed installed dependencies.
 After publishing margin-notes, run `npm update margin-notes` in the book and
 rebuild it. No release was published by this repair.
+
+## Token response handling — 2026-10-30
+
+Real browser authorization exposed Metro-OIDC reading the grant type after
+fetch consumed the outgoing token POST body. The observer now captures it before
+dispatch. An application integration test with native request/response bodies
+also exposed a response stream being treated as parsed JSON; the observer now
+parses a clone of the native response, leaving OAuth2's response body readable.
+Token signature, nonce, identity and refresh validation remain in place.
+
+Validation: the Metro workspace suite passed (476 assertions), then all 89 OIDC
+assertions passed again with native response coverage added. All 50 application
+tests pass, including 12 mounted Chromium tests, plus lint and release builds.
+The authenticated preferences test uses a mock issuer and actual installed
+middleware; DPoP is disabled only in that Node test because its browser IndexedDB
+key store is unavailable. This is not a claim of successful real-Pod login.
+
+Prepared unpublished patches: `@muze-nl/metro-oidc@0.9.3`, followed by
+`margin-notes@0.1.2`. The app lockfile includes the new OIDC tarball integrity and
+registry destination, verified using an isolated packed install. After publishing
+OIDC, run `npm ci` in margin-notes before publishing it. Then update margin-notes
+in the book and rebuild. No new JSFS-Solid or OLDM release is required.
+
+## Authorization retry and preferences initialization — 2026-10-30
+
+After the token-processing crash, Connect immediately retried a cached spent
+code and received `invalid_grant`. A regression reproduces the same sequence.
+Metro-OAuth2 now retires the authorization code before dispatching its exchange,
+so a failed/lost/invalid response cannot leave it available for reuse. Errors
+remain visible; a subsequent Connect obtains a new code. Existing users with a
+cached code from the old implementation can remove only the issuer's
+`:authorization_code` localStorage entry and reconnect; note storage is untouched.
+
+Successful authentication then exposed preferences code treating Metro-Solid
+results as HTTP Responses. The app now uses its success/throw contract for HEAD,
+PUT, PATCH and container creation. HEAD 404 selects file creation; other failures
+propagate. Existing preference documents are updated with INSERT DATA. Native
+transport tests cover empty success responses, existing/missing preferences,
+and denied HEAD/write operations without subsequent writes. No shared Solid API
+change or compatibility layer was added.
+
+Prepared releases: `@muze-nl/metro-oauth2@0.9.3`, then
+`@muze-nl/metro-oidc@0.9.4` (updated minimum OAuth2 dependency and browser bundles),
+then `margin-notes@0.1.3`. Run npm ci in margin-notes after publishing the libraries
+so prepack includes their fixes. Tests use packed artifacts and registry
+third-party dependencies in an isolated install. The app lockfile contains their
+verified integrity hashes and registry URLs, with no local links. The book still
+uses published margin-notes 0.1.2 until these patches are published and installed.
+
+Validation: all 168 OAuth2 assertions and 89 OIDC assertions pass, plus all 57
+application tests (including 12 mounted Chromium tests), lint and release builds.
+The retry integration uses persisted browser-like state and a mock issuer; no
+real-Pod write or browser session was modified during these checks.
