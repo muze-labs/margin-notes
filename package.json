@@ -20,17 +20,18 @@
     "dist"
   ],
   "dependencies": {
-    "@muze-labs/jsfs-solid": "file:../solid-tools/packages/jsfs-solid",
-    "@muze-labs/metro-solid": "file:../solid-tools/packages/metro-solid",
-    "@muze-labs/simplysolid": "file:../solid-tools/packages/simplysolid",
-    "@muze-nl/assert": "^0.6.0",
-    "@muze-nl/jaqt": "^0.10.6",
-    "@muze-nl/oldm": "file:../../muze-nl/oldm/packages/oldm",
-    "@muze-nl/oldm-core": "file:../../muze-nl/oldm/packages/oldm-core",
-    "@muze-nl/oldm-n3": "file:../../muze-nl/oldm/packages/oldm-n3"
+    "@muze-labs/jsfs-solid": "^0.1.1",
+    "@muze-labs/metro-solid": "^0.1.0",
+    "@muze-labs/simplyflow": "^0.10.4",
+    "@muze-labs/simplysolid": "^0.1.0",
+    "@muze-nl/assert": "^0.7.0",
+    "@muze-nl/jaqt": "^0.10.7",
+    "@muze-nl/oldm": "^0.8.0",
+    "@muze-nl/oldm-core": "^0.8.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@muze-labs/solid-workspace": "^0.1.0",
     "esbuild": "^0.25.0",
     "eslint": "^9.39.2",
     "globals": "^16.5.0"

@@ -52,3 +52,17 @@ Append implementation discoveries here. Keep entries brief and factual while the
 - **Evidence:** 66 library tests and 53 application tests pass against OLDM `341530e` and solid-tools `003c62c`. Mounted fake-Solid tests cover creation, restoration, editing, deletion, remount, and sync.
 - **Book relevance:** A spelling convenience must not change vocabulary identity. Unknown classes, named-node links, and literal metadata need explicit round-trip tests.
 - **Remaining question:** Repeat the current slice against a disposable real Pod; fake responses establish application behavior, not server conformance.
+
+## 2026-10-30 — Completion belongs to the operation's owner
+
+A successful IndexedDB request is not a committed transaction. A merged remote
+snapshot is not permission to overwrite a newer local save. A service wrapper
+must not turn a failed save into a successful return value. These distinctions
+belong in the library that owns persistence, not in UI locks or app merge code.
+
+The corrected boundary removed the default app-owned graph-to-Solid adaptation.
+Native OLDM values then exposed a SimplyFlow proxy invariant failure, fixed at
+the reactive boundary. The connected browser test also showed that announcing
+“connected” before installing notes allowed a new note to disappear from view.
+Small tests at the owner and one mounted workflow exposed failures a passing
+lower-level suite had missed.

@@ -68,3 +68,16 @@ When adding a decision, capture:
 5. which layer owns the solution;
 6. consequences and unresolved risks;
 7. likely book chapter or lesson.
+
+## D046 — Accepted: persistence failure and replica ownership
+
+2026-10-30. Proposal 0003 reproduces stale scalar accumulation, resurrected
+deletes, lost concurrent saves, and premature save completion. Solid Workspace
+owns their repair; SimplySolid preserves the resulting failures and pending
+states. Margin notes supplies editable predicate IRIs and body timestamps, uses
+the default Turtle transport, and reports local durability separately from
+remote sync. The app announces connection only after installing loaded notes.
+
+Tombstones and timestamped scalar replacement follow the existing minimal sync
+draft. Unrelated facts remain additive. Cross-tab ordering, ETag-guarded writes,
+and real-Pod authentication are still separate work.

@@ -48,3 +48,15 @@ The existing local-first and sync capabilities were retested against OLDM
 `341530e` and solid-tools `003c62c`. Class/datatype comparisons now use full IRIs.
 All 53 application tests pass, including mounted persistence and sync paths;
 no new SimplySolid capability or broader server-conformance claim is introduced.
+
+## Editable-replica evidence — 2026-10-30
+
+DP-006 is implemented and validated for the mounted local/fake-Solid path:
+connected edit/delete/reconnect, pending remote failure, and local remount.
+Library contracts additionally cover transaction abort, cyclic/shared RDF,
+ordered lists, saves during sync/open, local commit failure and retry, and
+real Metro/OLDM middleware composition.
+
+The broad earlier “preserve unknown predicates” claim is bounded by these
+fixtures. This work does not establish arbitrary RDF graph reconciliation,
+real-Pod authentication, cross-tab serialization, or safe concurrent remote PUTs.

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { annotationModel } from '../src/features/paragraph-note-stacks/annotation-model.js';
+import { local } from '@muze-labs/solid-workspace';
 
 function createModel() {
   return {
@@ -184,4 +185,73 @@ test('AnnotationModel: legacy note IDs with fragments produce valid linked subje
   assert.equal(note.id, 'https://example.org/notes#one');
   assert.equal(note.oa$hasBody.id, 'https://example.org/notes#one-body');
   assert.equal(note.oa$hasTarget.oa$hasSelector.id, 'https://example.org/notes#one-selector-fragment');
+});
+
+test('AnnotationModel: restores a Cobalt fragment returned as a String literal', () => {
+  const model = createModel();
+  const annotation = model.createAnnotationNote({
+    anchorId: 'p-chapter-boundaries',
+    fragment: { text: 'Round-tripped', annotations: [{ range: [0, 5] }] },
+    now: '2026-07-19T10:00:00.000Z',
+  });
+
+  annotation.oa$hasBody['cobalt$fragment'] = new String(JSON.stringify({ text: 'Round-tripped', annotations: [{ range: [0, 5] }] }));
+
+  const fragment = model.annotationBodyFragment({ annotation });
+  assert.deepEqual(fragment, { text: 'Round-tripped', annotations: [{ range: [0, 5] }] });
+  assert.equal(model.noteText({ fragment }), 'Round-tripped');
+});
+
+test('AnnotationModel: falls back to plain text when the fragment is not JSON', () => {
+  const model = createModel();
+  const annotation = model.createAnnotationNote({
+    anchorId: 'p-chapter-boundaries',
+    fragment: { text: 'Original', annotations: [] },
+    now: '2026-07-19T10:00:00.000Z',
+  });
+
+  annotation.oa$hasBody['cobalt$fragment'] = 'just plain text';
+
+  const fragment = model.annotationBodyFragment({ annotation });
+  assert.deepEqual(fragment, { text: 'just plain text', annotations: [] });
+  assert.equal(model.noteText({ fragment }), 'just plain text');
+});
+
+test('AnnotationModel: returns an empty fragment when the body has no Cobalt fragment', () => {
+  const model = createModel();
+  const annotation = { id: 'urn:uuid:empty', rdf$type: 'http://www.w3.org/ns/oa#Annotation', oa$hasBody: { id: 'urn:uuid:empty#body' } };
+
+  const fragment = model.annotationBodyFragment({ annotation });
+  assert.deepEqual(fragment, { text: '', annotations: [] });
+  assert.equal(model.noteText({ fragment }), '');
+});
+
+test('AnnotationModel: note body text survives a Turtle round-trip through a local workspace resource', async () => {
+  const model = createModel();
+  const annotation = model.createAnnotationNote({
+    anchorId: 'p-chapter-boundaries',
+    fragment: { text: 'The boundary is the component.', annotations: [] },
+    now: '2026-07-19T10:00:00.000Z',
+  });
+
+  const rawDocument = model.toStorageDocument({ subjects: [annotation] });
+  const document = {
+    ...rawDocument,
+    subjects: Object.fromEntries(rawDocument.subjects.map(subject => [subject.id, subject])),
+  };
+  const source = local.memory('annotation-round-trip', { prefixes: document.prefixes });
+  await source.save(document);
+  assert.match(await source.turtle(), /The boundary is the component/);
+  const loaded = await source.load();
+
+  const loadedAnnotation = loaded.data.find(subject => subject['oa$hasBody'] !== undefined);
+  assert.ok(loadedAnnotation, 'expected the annotation subject carrying oa$hasBody');
+
+  const fragment = model.annotationBodyFragment({ annotation: loadedAnnotation });
+  assert.deepEqual(fragment, { text: 'The boundary is the component.', annotations: [] });
+  assert.equal(model.noteText({ fragment }), 'The boundary is the component.');
+
+  const renderable = model.toRenderableNote({ annotation: loadedAnnotation });
+  assert.equal(renderable.bodyText, 'The boundary is the component.');
+  assert.notEqual(renderable.bodyText, '(empty note)');
 });

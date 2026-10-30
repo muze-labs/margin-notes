@@ -313,6 +313,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
 
       const calls = [];
       let savedNotesDocument = null;
+      let failWrites = false;
       const solid = {
         async discoverWebId(webId) {
           calls.push({ method: 'discoverWebId', webId });
@@ -347,6 +348,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
             })]);
         },
         async put(url, options) {
+          if (failWrites) return new Response('offline test', { status: 503 });
           savedNotesDocument = options?.body;
           calls.push({ method: 'put', url });
           return new Response('', {
@@ -389,18 +391,23 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         }
       };
       await app.actions.createNote({ anchorId: 'p-browser-two' });
-      await waitFor(() => Object.values(savedNotesDocument?.subjects ?? {}).some(subject => {
-        return String(subject.oa$hasBody?.rdf$value ?? '') === 'Saved before reconnect'
-          || String(subject.rdf$value ?? '') === 'Saved before reconnect';
-      }), 'saved new note document');
+      await waitFor(() => String(savedNotesDocument).includes('Saved before reconnect'), 'saved new note document');
+      await waitFor(() => app.getNotesForAnchor('p-browser-two').length === 1, 'rendered new note');
+      const [createdNote] = app.getNotesForAnchor('p-browser-two');
+      app.api.notes.CobaltEditorModal = class TestEditorModal {
+        async show() { return { text: 'Edited before reconnect', annotations: [] }; }
+      };
+      await app.actions.updateNote({ noteId: createdNote.id });
+      await app.actions.deleteNote({ noteId: note.id });
       await app.destroy();
 
       resetPage();
       const restoredSlot = document.getElementById('solid-connection-slot');
+      const restoredStoreKey = `browser-solid-connection-${crypto.randomUUID()}`;
       const restoredApp = MarginNotesAPI.mount({
         anchors: anchorsFromPage(),
         container: { element: document.getElementById('margin-notes-container') },
-        storeKey: `browser-solid-connection-${crypto.randomUUID()}`,
+        storeKey: restoredStoreKey,
         solidConnection: {
           container: { element: restoredSlot },
           pageUrl: 'https://book.example/chapters/one.html#book-start',
@@ -411,7 +418,23 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         && restoredApp.getNotesForAnchor('p-browser-two').length === 1, 'restored connected note');
       const restoredStatus = restoredApp.getSolidConnection();
       const [restoredNote] = restoredApp.getNotesForAnchor('p-browser-two');
+      const deletedNoteCount = restoredApp.getNotesForAnchor('p-browser-one').length;
+      failWrites = true;
+      restoredApp.api.notes.CobaltEditorModal = class TestEditorModal {
+        async show() { return { text: 'Saved while offline', annotations: [] }; }
+      };
+      await restoredApp.actions.updateNote({ noteId: restoredNote.id });
+      const pendingStatus = restoredApp.getSolidConnection();
       await restoredApp.destroy();
+      resetPage();
+      const offlineApp = MarginNotesAPI.mount({
+        anchors: anchorsFromPage(),
+        container: { element: document.getElementById('margin-notes-container') },
+        storeKey: restoredStoreKey,
+      });
+      await waitFor(() => offlineApp.getNotesForAnchor('p-browser-two').length === 1, 'offline remount');
+      const offlineText = offlineApp.getNotesForAnchor('p-browser-two')[0].oa$hasBody.rdf$value;
+      await offlineApp.destroy();
 
       return {
         status,
@@ -419,6 +442,9 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         noteText: note.oa$hasBody.rdf$value,
         restoredStatus,
         restoredNoteText: restoredNote.oa$hasBody.rdf$value,
+        deletedNoteCount,
+        pendingStatus,
+        offlineText,
         savedNotesText: typeof savedNotesDocument?.write === 'function'
           ? await savedNotesDocument.write()
           : JSON.stringify(savedNotesDocument),
@@ -457,7 +483,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
             schema: 'https://schema.org/',
             cobalt: 'https://vocab.muze.nl/cobalt#',
           },
-          subjects,
+          subjects: Object.fromEntries(subjects.map(subject => [subject.id, subject])),
         };
       }
 
@@ -504,10 +530,14 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
     assert.equal(result.noteText, 'Loaded after WebID connection');
     assert.equal(result.restoredStatus.status, 'connected');
     assert.equal(result.restoredStatus.webId, 'https://pod.example/profile/card#me');
-    assert.equal(result.restoredNoteText, 'Saved before reconnect');
-    assert.match(result.savedNotesText, /Saved before reconnect/);
+    assert.equal(result.restoredNoteText, 'Edited before reconnect');
+    assert.equal(result.deletedNoteCount, 0);
+    assert.equal(result.pendingStatus.status, 'sync-pending');
+    assert.match(result.pendingStatus.message, /Saved on this device/);
+    assert.equal(result.offlineText, 'Saved while offline');
+    assert.match(result.savedNotesText, /Edited before reconnect/);
     assert.equal(result.popupHandleRedirectType, 'function');
-    assert.deepEqual(result.requestMethods.filter(method => method !== 'put'), ['discoverWebId', 'get', 'get', 'get', 'get', 'discoverWebId', 'get', 'get', 'get']);
+    assert.deepEqual(result.requestMethods.filter(method => method !== 'put'), ['discoverWebId', 'get', 'get', 'get', 'get', 'get', 'get', 'discoverWebId', 'get', 'get', 'get', 'get']);
   } finally {
     page?.close();
     await chrome.close();
@@ -637,7 +667,7 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
             schema: 'https://schema.org/',
             cobalt: 'https://vocab.muze.nl/cobalt#',
           },
-          subjects,
+          subjects: Object.fromEntries(subjects.map(subject => [subject.id, subject])),
         };
       }
 

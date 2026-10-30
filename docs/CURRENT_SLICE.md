@@ -75,3 +75,27 @@ The 2026-09-23 migration consumes full-IRI values from OLDM `341530e` through
 solid-tools `003c62c`. All 53 application tests pass, including the mounted
 local and fake-Solid persistence/sync paths. This preserves the slice's existing
 boundaries; it does not close the outstanding real-server validation question.
+
+## Replica contract repair — 2026-10-30
+
+The default connection now passes the Solid client and resource URL directly to
+SimplySolid. Workspace owns Turtle conversion, timestamps/scalar merge,
+tombstones, save/open/sync ordering, and transaction completion. The app declares
+its three editable body predicates and timestamps body edits. It reads public
+resource status rather than reaching into workspace resource maps.
+
+The mounted browser path now covers connected creation, replacement of body
+text, deletion, remount/reconnect, and a failed remote write followed by a local
+remount. The UI says “Saved on this device. Solid sync pending” after a failed
+remote write. Connection status is published after the loaded notes are installed.
+
+Remaining: disposable real-Pod authentication/permission testing, conditional
+remote writes and cross-tab concurrency, and the larger one-context/library
+boundary refactor. This repair does not declare the entire stack finished.
+
+
+The repaired application path also passes all 57 tests against the npm releases
+listed in `STATUS.md`. Cobalt remains the sole sibling-checkout build dependency
+while its scoped packages are pending publication. Registry installation replaces
+the SimplyFlow resolver and local Solid Tools/OLDM links; it does not broaden the
+fake-Solid test evidence into real-Pod validation.

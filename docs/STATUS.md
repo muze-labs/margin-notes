@@ -41,17 +41,16 @@ Milestone 0 is complete enough to support implementation. The active work item i
 Slice M3.2: local-first notes with a Solid replica:
 
 1. record the exact manual smoke-test environment and steps if this validation should become repeatable evidence;
-2. decide how offline sync-pending and failed remote saves should become visible in the UI;
+2. validate the existing sync-pending message and recovery flow against a disposable real Pod;
 3. decide whether the example page should expose the Solid connection path for manual testing.
 
 ## Known unresolved choices
 
-- repository location;
 - exact Web Annotation shape;
 - local identifier namespace;
 - browser tooling;
 - exact styling and placement for narrow-screen note creation controls;
-- exact error UI for failed remote saves.
+- conflict and retry UI beyond the current local-saved/Solid-sync-pending message.
 
 
 ## SimplySolid status
@@ -70,3 +69,38 @@ The migration preserves unknown classes, named-node links, and typed/language
 literal metadata. Legacy shorthand class values remain readable. Browser Solid
 responses are fake-client evidence; a disposable real-Pod smoke test remains
 outstanding for the current slice.
+
+## Replica persistence repair — 2026-10-30
+
+Implemented in Solid Tools: transaction-level IndexedDB completion, RDF-preserving
+snapshots, native Turtle transport, timestamped scalar replacement, persisted
+tombstones, ordered resource operations with revision guards, and truthful save
+failure propagation. SimplyFlow now respects fixed-property proxy invariants;
+this was required when native OLDM subjects reached the mounted app.
+
+The connected browser scenario validates create/edit/delete/reconnect and a
+failed remote save with a durable local note. It uses actual IndexedDB and Turtle
+with a fake Solid client. A separate library test composes the real Metro and
+OLDM middleware. Existing local, custom-store, editor, keyboard and theme cases
+remain part of the suite. No real-Pod or multi-device safety claim is made.
+
+The library repairs are released in `@muze-labs/simplysolid@0.1.0`,
+`@muze-labs/solid-workspace@0.1.0`, and `@muze-labs/simplyflow@0.10.4`.
+The application integration remains pending review and commit. See proposal 0003.
+
+
+## Published dependency validation — 2026-10-30
+
+The application now installs Solid Tools, SimplyFlow, and OLDM from npm rather
+than sibling checkout links. Tested versions are JSFS-Solid 0.1.1, Metro-Solid
+0.1.0, SimplySolid 0.1.0, Solid Workspace 0.1.0, SimplyFlow 0.10.4, and OLDM/Core/N3
+0.8.0. Build, lint, and all 57 tests pass, including 11 mounted browser tests.
+The Turtle regression uses Solid Workspace's public local-resource API.
+
+Cobalt still builds from the sibling checkout at `7ff42ad`: the requested
+`@muze-labs/cobalt-rich-text-note` and `@muze-labs/cobalt-note-core` releases are
+pending and currently return npm 404s. Once available, declare the editor package
+as a dependency, remove both build aliases, and repeat the mounted tests before
+publishing margin notes. No other missing library release was found in the
+current dependency chain. Real-Pod authentication/permissions, cross-tab writes,
+and conditional remote writes remain unvalidated.

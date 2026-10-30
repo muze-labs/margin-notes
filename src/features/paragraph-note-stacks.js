@@ -9,7 +9,6 @@ import MARGIN_NOTES_DESIGN_SYSTEM_STYLES from '../design-system.css';
 import MARGIN_NOTES_UI_STYLES from './paragraph-note-stacks/ui.css';
 import SOLID_CONNECTION_STYLES from './solid-connection/ui.css';
 import { createSolidNotesConnection } from '../storage/solid-notes-location.js';
-import { createSolidResourceStore } from '../storage/solid-resource-store.js';
 import { authorizePopup } from '@muze-labs/jsfs-solid';
 
 export const paragraphNoteStacks = {
@@ -266,37 +265,9 @@ export const paragraphNoteStacks = {
         if (!solidClient) {
           throw new Error('Solid connection did not provide a Solid API client for note sync');
         }
-        const solidStore = notesApi.createSolidResourceStore({
-          resourceUrl: connection.resourceUrl,
-          solid: solidClient,
-        });
         await notesService.connect({
           solid: solidClient,
-          resources: {
-            notes: {
-              url: connection.resourceUrl,
-              async load() {
-                const document = await solidStore.load({ key: connection.resourceUrl });
-                if (!document) {
-                  return { subjects: {} };
-                }
-
-                return {
-                  ...document,
-                  subjects: Object.fromEntries(document.subjects.map(subject => [subject.id, subject])),
-                };
-              },
-              async save(document) {
-                return solidStore.save({
-                  key: connection.resourceUrl,
-                  value: {
-                    ...document,
-                    subjects: Object.values(document.subjects),
-                  },
-                });
-              },
-            },
-          },
+          resources: { notes: { url: connection.resourceUrl } },
         });
         const syncStatus = await notesService.sync('notes');
         if (syncStatus?.ok === false) {
@@ -305,6 +276,9 @@ export const paragraphNoteStacks = {
 
         notesService.data.notes.refresh();
         this.marginNotesRuntime.solidConnection = connection;
+        await this.actions.replaceNotesGraph({
+          graph: notesService.data.notes.list(),
+        });
         notesApi.setSolidConnectionStatus({
           app: this,
           status: 'connected',
@@ -314,9 +288,6 @@ export const paragraphNoteStacks = {
           message: `Connected to ${connection.storageUrl}`,
         });
         notesApi.renderSolidConnectionStatus({ app: this });
-        await this.actions.replaceNotesGraph({
-          graph: notesService.data.notes.list(),
-        });
         notesApi.rememberSolidConnection({
           app: this,
           connection,
@@ -714,7 +685,6 @@ export const paragraphNoteStacks = {
       ...annotationModel,
       CobaltEditorModal,
       createSolidNotesConnection,
-      createSolidResourceStore,
       authorizePopup,
       path,
       templates: {
@@ -904,6 +874,11 @@ export const paragraphNoteStacks = {
           data: {
             notes: {
               kind: 'resource',
+              scalarPredicates: [
+                'http://www.w3.org/1999/02/22-rdf-syntax-ns#value',
+                'https://schema.org/text',
+                'https://vocab.muze.nl/cobalt#fragment',
+              ],
               local: {
                 database: 'margin-notes-workspace',
                 store: 'resources',
@@ -1026,7 +1001,7 @@ export const paragraphNoteStacks = {
 
       async syncNotesResource({ app }) {
         const notesService = app.marginNotesRuntime.notesService;
-        const resource = notesService?.workspace?.resourceById?.get?.('notes');
+        const resource = notesService?.status.resources.notes;
         if (!resource?.remote) {
           return null;
         }
@@ -1035,9 +1010,12 @@ export const paragraphNoteStacks = {
         if (status?.ok === false) {
           this.setSolidConnectionStatus({
             app,
-            status: 'error',
-            message: status.error?.message || `Solid sync failed: ${status.status}`,
+            status: 'sync-pending',
+            message: `Saved on this device. Solid sync pending: ${status.error?.message || status.status}`,
           });
+          this.renderSolidConnectionStatus({ app });
+        } else if (status?.status !== 'sync-pending' && app.marginNotesRuntime.solidConnection) {
+          this.setSolidConnectionStatus({ app, status: 'connected', message: `Connected to ${app.marginNotesRuntime.solidConnection.storageUrl}` });
           this.renderSolidConnectionStatus({ app });
         }
         return status;

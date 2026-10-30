@@ -1,5 +1,6 @@
 import { annotationVocabulary } from './vocabulary.js';
 import oldm from '@muze-nl/oldm';
+import { BlankNode, NamedNode, Collection } from '@muze-nl/oldm-core';
 import { from } from '@muze-nl/jaqt';
 
 export const annotationModel = {
@@ -14,6 +15,7 @@ export const annotationModel = {
         this.vocabulary.classes.cobaltFragment,
       ],
       dcterms$format: this.vocabulary.mediaTypes.cobaltFragment,
+      dcterms$modified: now,
       rdf$value: this.noteText({ fragment }),
       schema$text: this.noteText({ fragment }),
       cobalt$fragment: fragment,
@@ -79,7 +81,32 @@ export const annotationModel = {
   },
 
   annotationBodyFragment({ annotation }) {
-    return this.annotationBody({ annotation })?.cobalt$fragment || { text: '', annotations: [] };
+    return this.normalizeFragment(this.annotationBody({ annotation })?.cobalt$fragment);
+  },
+
+  normalizeFragment(raw) {
+    if (raw instanceof String) {
+      raw = raw.valueOf();
+    }
+
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      return raw;
+    }
+
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          return parsed;
+        }
+      } catch {
+        // Legacy bodies can contain plain text rather than a JSON fragment.
+      }
+
+      return { text: raw, annotations: [] };
+    }
+
+    return { text: '', annotations: [] };
   },
 
   updateAnnotationBody({ annotation, fragment, now = new Date().toISOString() }) {
@@ -90,6 +117,7 @@ export const annotationModel = {
     body.schema$text = this.noteText({ fragment });
     body.cobalt$fragment = fragment;
     annotation.dcterms$modified = now;
+    body.dcterms$modified = now;
   },
 
   removeAnnotationFromGraph({ app, annotationId }) {
@@ -184,9 +212,13 @@ export const annotationModel = {
 
   // Upgrade only RDF type values at the load boundary. Keep already-current
   // subjects by reference so edits still belong to their workspace records.
-  expandStoredTypes({ value, context }) {
+  expandStoredTypes({ value, context, seen = new WeakSet() }) {
+    if (value && typeof value === 'object') {
+      if (seen.has(value)) return value;
+      seen.add(value);
+    }
     if (Array.isArray(value)) {
-      const expanded = value.map(item => this.expandStoredTypes({value: item, context}));
+      const expanded = value.map(item => this.expandStoredTypes({value: item, context, seen}));
       return expanded.some((item, index) => item !== value[index]) ? expanded : value;
     }
     if (!value || typeof value !== 'object' || value instanceof String || value instanceof Number || value instanceof Boolean) {
@@ -199,7 +231,7 @@ export const annotationModel = {
         expanded = Array.isArray(item) ? item.map(type => context.fullURI(type)) : context.fullURI(item);
         if (Array.isArray(item) && expanded.every((type, index) => type === item[index])) expanded = item;
       } else {
-        expanded = this.expandStoredTypes({value: item, context});
+        expanded = this.expandStoredTypes({value: item, context, seen});
       }
       if (expanded !== item) {
         if (result === value) result = {...value};
@@ -248,28 +280,23 @@ export const annotationModel = {
     return `urn:muze:margin-notes:${encodeURIComponent(id || this.createLocalSubjectId({}))}`;
   },
 
-  cloneValue({ value }) {
-    if (Array.isArray(value)) {
-      return value.map(item => this.cloneValue({ value: item }));
+  cloneValue({ value, copied = new WeakMap() }) {
+    if (!value || typeof value !== 'object') return value;
+    if (copied.has(value)) return copied.get(value);
+    let clone;
+    if (value instanceof Collection) clone = new Collection(value.graph);
+    else if (Array.isArray(value)) clone = [];
+    else if (value instanceof NamedNode) clone = new NamedNode(value.id, value.graph);
+    else if (value instanceof BlankNode) clone = new BlankNode(value.graph);
+    else if (value instanceof String || value instanceof Number || value instanceof Boolean) clone = new value.constructor(value.valueOf());
+    else clone = {};
+    copied.set(value, clone);
+    for (const [key, item] of Object.entries(value)) {
+      if (value instanceof NamedNode && key === 'id') continue;
+      if (value instanceof String && /^\d+$/.test(key)) continue;
+      clone[key] = this.cloneValue({ value: item, copied });
     }
-
-    if (value instanceof String || value instanceof Number || value instanceof Boolean) {
-      const clone = new value.constructor(value.valueOf());
-      for (const [key, item] of Object.entries(value)) {
-        if (!/^\d+$/.test(key)) clone[key] = this.cloneValue({value: item});
-      }
-      return clone;
-    }
-
-    if (value && typeof value === 'object') {
-      const entries = Object.entries(value);
-      return Object.fromEntries(
-        entries
-          .map(([key, item]) => [key, this.cloneValue({ value: item })])
-      );
-    }
-
-    return value;
+    return clone;
   },
 
   noteText({ fragment }) {

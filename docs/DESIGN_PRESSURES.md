@@ -260,6 +260,21 @@ client with Turtle persistence. They do not validate a real Pod or authenticatio
 The lesson is to keep vocabulary identity independent of presentation shorthand.
 No new SimplySolid API was needed.
 
+## DP-006: Save completion and editable replicas
+
+**Status:** Implemented; validated for the mounted local/fake-Solid path
+**Active slice:** M3.2
+**Opened:** 2026-10-30
+**Proposal:** `docs/proposals/0003-replica-save-contract.md`
+
+Direct tests of the current workspace reproduce edits accumulating stale values,
+deleted notes returning on sync, remote-only changes missing from local storage,
+and newer saves being overwritten during sync. Persistence probes also reproduce
+ignored failed adapter results, premature IndexedDB completion, and loss of
+cyclic RDF structures. These belong to persistence and replica ownership in
+solid-workspace, with failure propagation through SimplySolid. The application
+must consume those contracts rather than implement its own merge or save lock.
+
 ## Entry template
 
 Copy this section for each new pressure.

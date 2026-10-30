@@ -204,3 +204,20 @@ Deletion semantics require a deliberate decision:
 - remove only a publication or submission copy.
 
 The correct operation depends on source ownership and sharing state.
+
+## Editable replica metadata — 2026-10-30
+
+The default local and remote replicas persist Turtle through Solid Workspace.
+The old graph-document store contract remains compatibility for host stores.
+Annotations and editable bodies carry `dcterms:modified`. The application declares
+`rdf:value`, `schema:text`, and `cobalt:fragment` as replaceable scalar fields;
+workspace applies the timestamp policy and unions unknown facts.
+
+Workspace marks the deleted annotation itself with
+`https://purl.org/pdsinterop/link-metadata#deleted` and `dcterms:modified`.
+The deletion predicate comes from the PDS Interop Solid Link Metadata vocabulary;
+timestamp-based replica reconciliation is library policy. The subject and its
+facts survive persistence but are excluded from collection views. Linked
+body/target facts are not implicitly deleted.
+The default connection no longer projects remote graphs through the annotation-only
+fixed-resource store, so unrelated subjects and tombstones stay in the resource.
