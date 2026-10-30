@@ -4,7 +4,7 @@
  * Creates a modal dialog for editing notes with Cobalt rich text editor.
  */
 
-import { edit } from '@cobalt/rich-text-note';
+import { edit } from '@muze-labs/cobalt-rich-text-note';
 import COBALT_EDITOR_TEMPLATE from './cobalt-editor-modal.html';
 import COBALT_EDITOR_STYLES from './cobalt-editor-modal.css';
 

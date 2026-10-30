@@ -10,8 +10,8 @@ const rootDir = path.join(__dirname, '..');
 const srcDir = path.join(rootDir, 'src');
 const distDir = path.join(rootDir, 'dist');
 
-const cobaltRichTextNotePath = path.resolve('/home/auke/git/poef/cobalt-note/packages/rich-text-note/dist/index.js');
-const cobaltNoteCorePath = path.resolve('/home/auke/git/poef/cobalt-note/packages/note-core/dist/index.js');
+const cobaltRichTextNotePath = path.resolve(rootDir, '../cobalt-note/packages/rich-text-note/dist/index.js');
+const cobaltNoteCorePath = path.resolve(rootDir, '../cobalt-note/packages/note-core/dist/index.js');
 const simplyflowDir = path.resolve(rootDir, '../simplyflow/packages');
 
 const simplyflowPackages = new Map([
@@ -56,8 +56,8 @@ try {
     sourcemap: true,
     minify: false,
     alias: {
-      '@cobalt/rich-text-note': cobaltRichTextNotePath,
-      '@cobalt/note-core': cobaltNoteCorePath
+      '@muze-labs/cobalt-rich-text-note': cobaltRichTextNotePath,
+      '@muze-labs/cobalt-note-core': cobaltNoteCorePath
     },
     plugins: [simplyflowResolver],
     loader: {
