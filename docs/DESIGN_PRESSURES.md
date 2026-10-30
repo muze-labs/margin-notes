@@ -390,3 +390,11 @@ separate work. The mapping is a Muze convention, not a Solid or Cobalt dependenc
 Validation covers ordered and duplicate annotations, UTF-16 ranges, empty
 lists, invalid input, unknown facts, competing edits, and a mounted Cobalt
 edit/save/reload through Turtle. See `COBALT_RDF.md` for the contracts and tests.
+
+## DP-003 follow-up — WebID namespaces, 2026-10-30
+
+Real WebID discovery fails on `<http://>` / `<https://>` prefix declarations
+before their local names supply the host. This is an OLDM namespace-validation
+boundary issue, separate from application middleware duplication. The concrete
+attempt and narrow repair are recorded in proposal 0001. Validation will use
+sanitized profile Turtle through the installed client stack.

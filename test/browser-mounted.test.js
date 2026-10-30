@@ -418,21 +418,19 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
           return {
             storage: ['https://pod.example/storage/'],
             issuer: 'https://issuer.example/',
-            profile: {
-              pim$preferencesFile: { id: 'https://pod.example/settings/prefs.ttl' },
-              solid$oidcIssuer: { id: 'https://issuer.example/' },
-            },
+            profile: globalThis.oldm.context().parse(`
+              @prefix space: <http://www.w3.org/ns/pim/space#>.
+              <#me> space:preferencesFile <https://pod.example/settings/prefs.ttl>.
+            `, webId, 'text/turtle').primary,
           };
         },
         async get(url, options) {
           calls.push({ method: 'get', url, options });
           if (url === 'https://pod.example/settings/prefs.ttl') {
-            return {
-              subjects: [{
-                id: 'https://pod.example/settings/prefs.ttl#margin-notes',
-                mn$rootFolder: { id: 'https://pod.example/private/margin-notes/' },
-              }],
-            };
+            return globalThis.oldm.context().parse(`
+              @prefix notes: <https://vocab.muze.nl/margin-notes#>.
+              <#margin-notes> notes:rootFolder <https://pod.example/private/margin-notes/>.
+            `, url, 'text/turtle');
           }
 
           if (savedNotesTurtle) {
@@ -651,20 +649,19 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
           return {
             storage: ['https://pod.example/storage/'],
             issuer: 'https://issuer.example/',
-            profile: {
-              pim$preferencesFile: { id: 'https://pod.example/settings/prefs.ttl' },
-            },
+            profile: globalThis.oldm.context().parse(`
+              @prefix space: <http://www.w3.org/ns/pim/space#>.
+              <#me> space:preferencesFile <https://pod.example/settings/prefs.ttl>.
+            `, webId, 'text/turtle').primary,
           };
         },
         async get(url, options) {
           calls.push({ method: 'get', url, options });
           if (url === 'https://pod.example/settings/prefs.ttl') {
-            return {
-              subjects: [{
-                id: 'https://pod.example/settings/prefs.ttl#margin-notes',
-                mn$rootFolder: { id: 'https://pod.example/private/margin-notes/' },
-              }],
-            };
+            return globalThis.oldm.context().parse(`
+              @prefix notes: <https://vocab.muze.nl/margin-notes#>.
+              <#margin-notes> notes:rootFolder <https://pod.example/private/margin-notes/>.
+            `, url, 'text/turtle');
           }
 
           return savedNotesTurtle ?? notesTurtle([annotation({

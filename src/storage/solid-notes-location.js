@@ -33,7 +33,7 @@ export async function createSolidNotesConnection(options = {}) {
     throw new Error(`No Solid storage root found in WebID profile: ${webId}`);
   }
 
-  const issuer = profile?.issuer || firstId(profile?.profile?.solid$oidcIssuer);
+  const issuer = profile?.issuer;
   const preferences = preferencesUrlForProfile({
     profile: profile?.profile,
     storageUrl,
@@ -77,7 +77,9 @@ function preferencesUrlForProfile({ profile, storageUrl, options }) {
     };
   }
 
-  const profilePreferencesUrl = firstId(profile?.pim$preferencesFile);
+  const context = oldm.context({ prefixes });
+  context.addGraph(profile.graph);
+  const profilePreferencesUrl = firstId(context.get(profile.id)?.pim$preferencesFile);
   if (profilePreferencesUrl) {
     return {
       url: profilePreferencesUrl,
@@ -118,7 +120,9 @@ async function loadMarginNotesRootFolder({ solid, preferencesUrl }) {
     throw error;
   }
 
-  const subject = from(graphSubjects(graph))
+  const context = oldm.context({ prefixes });
+  context.addGraph(graph);
+  const subject = from(context.data)
     .where(subject => firstId(subject.mn$rootFolder))[0];
   return firstId(subject?.mn$rootFolder);
 }
@@ -156,10 +160,6 @@ async function resourceExists({ solid, resourceUrl }) {
   return true;
 }
 
-function graphSubjects(graph) {
-  return Object.values(graph.subjects);
-}
-
 function isMissing(response) {
   return response?.status === 404;
 }
@@ -184,6 +184,7 @@ function createDiscoverySolid({ webId, options }) {
   const metroClient = createSolidMetroClient(webId, {
     ...storageOptions({ options, pageUrl: currentPageUrl(options.pageUrl) }),
     oidc: false,
+    oldm: false, // solidApi owns the RDF middleware.
     configureMetro: true,
   });
   return solidApi(metroClient);
@@ -194,6 +195,7 @@ function createStorageSolid({ issuer, rootUrl, options }) {
     ...options,
     issuer,
     oidc: Boolean(issuer),
+    oldm: false, // solidApi owns the RDF middleware.
     configureMetro: true,
   });
   return solidApi(metroClient);

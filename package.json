@@ -1,6 +1,6 @@
 {
   "name": "margin-notes",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "An embeddable margin-notes component for Solid",
   "license": "MIT",
@@ -12,7 +12,8 @@
     "test": "npm run build && node --test test/**/*.test.js",
     "build": "node scripts/build.mjs",
     "dev": "node scripts/dev.mjs",
-    "lint": "eslint src test"
+    "lint": "eslint src test",
+    "prepack": "npm run build"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -20,14 +21,15 @@
     "dist"
   ],
   "dependencies": {
+    "@muze-labs/cobalt-rich-text-note": "^0.1.0",
     "@muze-labs/jsfs-solid": "^0.1.1",
     "@muze-labs/metro-solid": "^0.1.0",
     "@muze-labs/simplyflow": "^0.10.4",
-    "@muze-labs/simplysolid": "^0.1.0",
+    "@muze-labs/simplysolid": "^0.2.0",
+    "@muze-labs/solid-workspace": "^0.2.0",
     "@muze-nl/assert": "^0.7.0",
     "@muze-nl/jaqt": "^0.10.7",
-    "@muze-nl/oldm": "^0.8.0",
-    "@muze-labs/solid-workspace": "^0.1.0"
+    "@muze-nl/oldm": "^0.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

@@ -178,3 +178,25 @@ Transport-layer fixes should preserve existing successful OAuth flows. Any chang
 ## Outcome
 
 Pending. The application has temporary guards and tests; the library proposal is ready for a `solid-tools` implementation pass.
+
+## WebID prefix failure — 2026-10-30
+
+A real WebID responds with `Content-Type: text/turtle` and declares prefixes
+`<http://>` and `<https://>` for terms such as `n1:localhost`. N3 parses these,
+but OLDM rejects the namespace string before expansion with `Missing HTTP host`.
+The application also installed RDF middleware twice; that composition is fixed
+by letting Metro-Solid own it.
+
+The smallest library fix belongs in OLDM's IRI helpers: resolve prefix namespaces
+using generic IRI syntax, and validate the complete identifier after expansion.
+Keep existing validation for complete HTTP identifiers. Apply the same namespace
+rule to the small Turtle adapter. Add core expansion/shortening tests, both
+adapters' parse/write round trips, and a sanitized profile fixture in the app's
+real-client integration test. No profile rewriting or application parser fallback.
+
+The prefix repair is implemented and verified in both adapters. The application
+uses a context with explicitly declared `pim` and `mn` prefixes to read native
+profile/preferences graphs regardless of document prefixes. A fixture reproduces
+the public profile's namespace pattern without storing personal profile data.
+The full application suite passes with the packed OLDM fix. Real authenticated
+Pod save/reload validation remains pending publication.

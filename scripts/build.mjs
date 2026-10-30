@@ -10,8 +10,6 @@ const rootDir = path.join(__dirname, '..');
 const srcDir = path.join(rootDir, 'src');
 const distDir = path.join(rootDir, 'dist');
 
-const cobaltRichTextNotePath = path.resolve(rootDir, '../cobalt-note/packages/rich-text-note/dist/index.js');
-const cobaltNoteCorePath = path.resolve(rootDir, '../cobalt-note/packages/note-core/dist/index.js');
 // Ensure dist directory exists
 if (!fs.existsSync(distDir)) {
   fs.mkdirSync(distDir, { recursive: true });
@@ -27,10 +25,6 @@ try {
     platform: 'browser',
     sourcemap: true,
     minify: false,
-    alias: {
-      '@muze-labs/cobalt-rich-text-note': cobaltRichTextNotePath,
-      '@muze-labs/cobalt-note-core': cobaltNoteCorePath
-    },
     loader: {
       '.css': 'text',
       '.html': 'text'

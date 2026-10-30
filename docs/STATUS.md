@@ -141,3 +141,56 @@ No real-Pod or cross-tab concurrency claim is added. See `COBALT_RDF.md`.
 Validation: build, lint and all 48 application tests pass, including 12 mounted
 Chromium tests. App code lives in this repository; the isolated test install uses
 local packed libraries because the native workspace API is not yet released.
+
+## Release preparation — 2026-10-30
+
+Solid Workspace and SimplySolid target 0.2.0 for the native API changes.
+Margin notes remains 0.1.0 for its first publication and requires both libraries
+at ^0.2.0. The published Cobalt rich-text package is now a declared dependency;
+its core dependency resolves through npm. The build no longer uses sibling
+Cobalt aliases. The earlier Cobalt publication-pending note is superseded:
+both scoped 0.1.0 packages were verified on npm at commit `7ff42ad`.
+
+Before publication, the app lockfile is prepared from packed 0.2.0 release
+candidates with registry tarball destinations and their actual integrity hashes.
+Validation uses those candidates plus registry Cobalt packages. A registry-only
+install of this lockfile requires publishing Solid Workspace and SimplySolid
+first; it has not been claimed as completed before publication.
+
+Release-candidate validation: 107 Solid Tools tests and 48 margin-notes tests
+pass, with lint/build checks. The app install uses npm Cobalt 0.1.0 and no sibling
+aliases. A prepack build prevents publication of an outdated bundled app.
+
+## WebID discovery repair — 2026-10-30
+
+A request to the reported public WebID with `Accept: text/turtle` returned
+HTTP 200 and `Content-Type: text/turtle`. The profile declares `<http://>` and
+`<https://>` namespaces, then supplies the host in prefixed local names. OLDM
+incorrectly applied complete HTTP identifier validation to those namespace
+strings. OLDM core now resolves and validates namespaces separately; expanded
+identifiers retain the existing validation. Both N3 and the small Turtle adapter
+have parse/write regression coverage. The downloaded profile parses and
+round-trips with the fix; its personal contents are not stored in repository tests.
+
+The application also installed RDF middleware twice. It now disables the
+JSFS-Solid middleware for discovery and storage clients because `solidApi` owns
+RDF parsing. Discovery reads source graphs through an application OLDM context
+with explicit prefixes, so `pim$preferencesFile` and `mn$rootFolder` work even
+when documents choose `space:` and `notes:`. Native graphs retain their original
+prefixes and provenance. Browser doubles now use native graphs for these reads.
+
+Validation: all 897 OLDM assertions and 49 application tests pass, including
+12 mounted Chromium tests, plus application lint and release builds. Application
+checks use packed fixed OLDM core with registry dependencies in an isolated
+install; there are no sibling aliases. Real authenticated Pod writes were not
+performed. The installed book package has not been replaced.
+
+Prepared patch releases (unpublished): `@muze-nl/oldm-core@0.8.1`,
+`@muze-nl/oldm@0.8.1`, `@muze-labs/oldm-turtle@0.4.1`, and
+`margin-notes@0.1.1`. Publish core first, then OLDM and the Turtle adapter;
+margin-notes requires OLDM ^0.8.1. The Turtle adapter is not used by this app.
+The app lockfile has registry destinations and integrity hashes from the exact
+release artifacts. After publishing OLDM, run `npm ci` in margin-notes before
+packing/publishing it so its prepack build uses the fixed installed dependencies.
+After publishing margin-notes, run `npm update margin-notes` in the book and
+rebuild it. No release was published by this repair.
