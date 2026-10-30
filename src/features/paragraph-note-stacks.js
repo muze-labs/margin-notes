@@ -2,6 +2,7 @@ import { graph } from '@muze-labs/solid-workspace';
 import { path } from '@muze-labs/simplyflow';
 import { CobaltEditorModal, COBALT_EDITOR_STYLES } from '../cobalt-editor-modal.js';
 import { annotationModel } from './paragraph-note-stacks/annotation-model.js';
+import { render } from '@muze-labs/cobalt-rich-text-note';
 import MARGIN_NOTES_ROOT_TEMPLATE from './paragraph-note-stacks/root.html';
 import MARGIN_NOTES_ANCHOR_WIDGET_TEMPLATE from './paragraph-note-stacks/anchor-widget.html';
 import MARGIN_NOTES_INLINE_NOTE_TEMPLATE from './paragraph-note-stacks/inline-note.html';
@@ -13,6 +14,12 @@ import { createSolidNotesConnection } from '../storage/solid-notes-location.js';
 import { authorizePopup } from '@muze-labs/jsfs-solid';
 
 export const paragraphNoteStacks = {
+  transformers: {
+    cobaltFragment(context, next) {
+      context.value = { innerHTML: context.value == null ? '' : render(context.value) };
+      return next(context);
+    },
+  },
   templates: {
     'margin-notes': MARGIN_NOTES_ROOT_TEMPLATE,
     'margin-notes-anchor-widget': MARGIN_NOTES_ANCHOR_WIDGET_TEMPLATE,
@@ -226,6 +233,7 @@ export const paragraphNoteStacks = {
     async connectSolidStorage({ webId }) {
       const notesApi = this.api.notes;
       const config = this.marginNotesRuntime.solidConnectionConfig || {};
+      let authorization;
 
       try {
         notesApi.setSolidConnectionStatus({
@@ -236,9 +244,10 @@ export const paragraphNoteStacks = {
         });
         notesApi.renderSolidConnectionStatus({ app: this });
 
+        authorization = notesApi.prepareSolidAuthorization({ config });
         const connection = await notesApi.createSolidNotesConnection({
           ...config,
-          ...notesApi.prepareSolidAuthorization({ config }),
+          ...authorization.options,
           webId,
         });
 
@@ -297,6 +306,8 @@ export const paragraphNoteStacks = {
         });
         notesApi.renderSolidConnectionStatus({ app: this });
         throw error;
+      } finally {
+        authorization?.close?.();
       }
     },
 
@@ -736,10 +747,16 @@ export const paragraphNoteStacks = {
           || config.usePopupAuth === false
         ) return {};
 
-        const popup = this.openSolidAuthPopup();
+        let popup = this.openSolidAuthPopup();
         return {
-          authorize_callback: authorizationCodeURL => {
-            return this.authorizeSolidPopup({ authorizationCodeURL, popup });
+          options: {
+            authorize_callback: authorizationCodeURL => {
+              return this.authorizeSolidPopup({ authorizationCodeURL, popup });
+            },
+          },
+          close() {
+            popup?.close();
+            popup = null;
           },
         };
       },

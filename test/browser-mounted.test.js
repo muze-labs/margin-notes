@@ -56,11 +56,17 @@ test('BrowserMounted: real Cobalt editing round-trips ordered formatting through
       modal.editor.setValue(fragment);
       modal.modal.querySelector('[data-action="save"]').click();
       await creating;
+      await waitFor(() => document.querySelector('.margin-notes-target-note-text strong'));
+      const inlineBeforeReload = document.querySelector('.margin-notes-target-note-text').innerHTML;
       const savedTurtle = turtle;
       const id = app.getNotesForAnchor('p-browser-one')[0].id;
       await app.destroy();
       app = MarginNotesAPI.mount(config);
       await waitFor(() => app.getNotesForAnchor('p-browser-one').length === 1);
+      await waitFor(() => document.querySelector('.margin-notes-target-note-text strong'));
+      const inlineAfterReload = document.querySelector('.margin-notes-target-note-text').innerHTML;
+      const inlineWeight = getComputedStyle(document.querySelector('.margin-notes-target-note-text strong')).fontWeight;
+      const inlineStyle = getComputedStyle(document.querySelector('.margin-notes-target-note-text em')).fontStyle;
       modal = null;
       captureEditor();
       const editing = app.actions.updateNote({ noteId: id });
@@ -74,8 +80,14 @@ test('BrowserMounted: real Cobalt editing round-trips ordered formatting through
       const edited = app.api.notes.annotationBodyFragment({
         annotation: app.getNotesForAnchor('p-browser-one')[0],
       });
+      await waitFor(() => document.querySelector('.margin-notes-target-note-text')?.textContent === 'No formatting now');
+      const inlineAfterEdit = document.querySelector('.margin-notes-target-note-text').innerHTML;
       await app.destroy();
-      return { fragment, restored, rendered, savedTurtle, edited };
+      return {
+        fragment, restored, rendered, savedTurtle, edited,
+        inlineBeforeReload, inlineAfterReload, inlineAfterEdit,
+        inlineWeight, inlineStyle,
+      };
 
       async function waitFor(predicate) {
         for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -88,6 +100,12 @@ test('BrowserMounted: real Cobalt editing round-trips ordered formatting through
       }
     });
     assert.deepEqual(result.restored, result.fragment);
+    assert.match(result.inlineBeforeReload, /<strong>Bold<\/strong>/);
+    assert.match(result.inlineAfterReload, /<strong>Bold<\/strong>/);
+    assert.match(result.inlineAfterReload, /<em>/);
+    assert.ok(Number(result.inlineWeight) >= 600);
+    assert.equal(result.inlineStyle, 'italic');
+    assert.equal(result.inlineAfterEdit, 'No formatting now');
     assert.match(result.rendered, /<strong/);
     assert.match(result.rendered, /<em/);
     assert.match(result.rendered, /href="https:\/\/example.test\/"/);
@@ -787,7 +805,7 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
   }
 });
 
-test('BrowserMounted: Solid connection pre-opens the OAuth popup from the submit gesture', async () => {
+test('BrowserMounted: Solid connection reserves and closes its OAuth popup', async () => {
   const server = await startServer();
   const chrome = await startChrome(`${server.url}/test.html`);
   let page;
@@ -805,6 +823,7 @@ test('BrowserMounted: Solid connection pre-opens the OAuth popup from the submit
       window.open = (url, name, features) => {
         const popup = {
           closed: false,
+          close() { this.closed = true; },
           location: { href: url || 'about:blank' },
           name,
           features,
@@ -824,6 +843,8 @@ test('BrowserMounted: Solid connection pre-opens the OAuth popup from the submit
       });
       await waitFor(() => slot.querySelector('[data-margin-notes-solid-webid]'));
 
+      let requiresLogin = true;
+      let failConnection = false;
       let callbackPopup;
       let callbackUrl;
       app.api.notes.authorizePopup = async (authorizationCodeURL, options) => {
@@ -835,7 +856,8 @@ test('BrowserMounted: Solid connection pre-opens the OAuth popup from the submit
         return 'mockAuthorizationCode';
       };
       app.api.notes.createSolidNotesConnection = async options => {
-        await options.authorize_callback('https://issuer.example/authorize?redirect_uri=https%3A%2F%2Fbook.example%2Fassets%2Fmargin-notes-oauth-callback.html&state=mockState');
+        if (failConnection) throw new Error('discovery failed');
+        if (requiresLogin) await options.authorize_callback('https://issuer.example/authorize?redirect_uri=https%3A%2F%2Fbook.example%2Fassets%2Fmargin-notes-oauth-callback.html&state=mockState');
         const solid = {
           async get() {
             throw new Error('missing', { cause: { status: 404 } });
@@ -865,11 +887,31 @@ test('BrowserMounted: Solid connection pre-opens the OAuth popup from the submit
       await waitFor(() => app.getSolidConnection().status === 'connected');
       const [popup] = openedPopups;
       const status = app.getSolidConnection();
+      const loginPopupClosed = popup.closed;
+
+      requiresLogin = false;
+      await app.actions.connectSolidStorage({ webId: 'https://pod.example/profile/card#me' });
+      const unusedPopupClosed = openedPopups[1].closed;
+      const unusedPopupHref = openedPopups[1].location.href;
+
+      failConnection = true;
+      let failure;
+      try {
+        await app.actions.connectSolidStorage({ webId: 'https://pod.example/profile/card#me' });
+      } catch (error) {
+        failure = error.message;
+      }
+      const failedPopupClosed = openedPopups[2].closed;
       await app.destroy();
       window.open = originalOpen;
 
       return {
         openedCount: openedPopups.length,
+        loginPopupClosed,
+        unusedPopupClosed,
+        unusedPopupHref,
+        failedPopupClosed,
+        failure,
         popupName: popup?.name,
         popupFeatures: popup?.features,
         callbackUrl,
@@ -895,7 +937,12 @@ test('BrowserMounted: Solid connection pre-opens the OAuth popup from the submit
       }
     });
 
-    assert.equal(result.openedCount, 1);
+    assert.equal(result.openedCount, 3);
+    assert.equal(result.loginPopupClosed, true);
+    assert.equal(result.unusedPopupClosed, true);
+    assert.equal(result.unusedPopupHref, 'about:blank');
+    assert.equal(result.failedPopupClosed, true);
+    assert.equal(result.failure, 'discovery failed');
     assert.equal(result.popupName, 'margin-notes-solid-oauth');
     assert.match(result.popupFeatures, /popup/);
     assert.equal(result.callbackReceivedOpenedPopup, true);

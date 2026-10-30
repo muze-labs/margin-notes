@@ -247,3 +247,22 @@ Validation: all 168 OAuth2 assertions and 89 OIDC assertions pass, plus all 57
 application tests (including 12 mounted Chromium tests), lint and release builds.
 The retry integration uses persisted browser-like state and a mock issuer; no
 real-Pod write or browser session was modified during these checks.
+
+## Inline formatting and popup cleanup — 2026-10-30
+
+The margin template previously displayed only the fragment's plain text even
+though editing and Turtle storage preserved its annotations. It now binds the
+fragment through a SimplyFlow transformer using Cobalt's existing renderer.
+Formatting stays a derived view; no HTML is stored in the note graph. The app
+only adapts Cobalt's output to SimplyFlow and renders empty bindings as empty
+content during mounting and graph replacement. Attribute validation is deferred
+as a TODO in cobalt-note; the app does not filter Cobalt's rendered markup.
+
+Connect still reserves its OAuth popup from the initiating click. The connection
+operation closes that window after success or failure, including when an existing
+session makes login unnecessary. It releases the reference so a later authorization
+attempt does not reuse the closed window.
+
+Validation: all 57 application tests and lint pass. Mounted Chromium coverage
+checks visible bold and italic before and after Turtle reload, removing formatting,
+and popup cleanup with and without login and after failure. These application fixes are not yet published.
