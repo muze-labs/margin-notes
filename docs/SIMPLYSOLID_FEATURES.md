@@ -30,7 +30,7 @@ A feature normally moves through the states in order. A prototype may be impleme
 | Default fragment identity sequence | Designed | Milestone 3 | — | — | — | Test against actual note creation and resource layout. |
 | Save existing subjects to original sources | Validated | Milestone 3 | DP-004 | `packages/simplysolid/test/index.test.mjs` | `test/browser-mounted.test.js` | Validated for local resource saves and local-to-remote resource sync. |
 | Per-resource save results | Implemented | Milestone 3 or 4 | DP-004 | `packages/solid-workspace/test/index.test.mjs` | `test/browser-mounted.test.js` | App observes `sync('notes')` success/failure at the logical resource level. More UI nuance remains future work. |
-| `saveAll()` throwing convenience | Validated | Later | DP-004 | `packages/simplysolid/test/index.test.mjs` | `test/browser-mounted.test.js` | Used by the app's `saveNotes()` compatibility action for tracked local resource records. |
+| `saveAll()` throwing convenience | Validated | Later | DP-004 | `packages/simplysolid/test/index.test.mjs` | `test/browser-mounted.test.js` | Used by the app's `saveNotes()` action for native resource graphs. |
 | Preserve unknown predicates and extra types | Validated | Milestone 3 | DP-004 | `packages/solid-workspace/test/index.test.mjs` | `test/browser-mounted.test.js` | Mounted local edit/save coverage preserves unknown annotation and body facts through the SimplySolid path. |
 | Enrich read-only data in a writable target | Designed | Milestone 4 | — | — | — | Public/private note combination should drive it. |
 | Prevent moves by default | Designed | Later | — | — | — | Implement only when a move can actually occur. |

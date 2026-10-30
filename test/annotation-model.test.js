@@ -1,257 +1,142 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import oldm from '@muze-nl/oldm';
 import { annotationModel } from '../src/features/paragraph-note-stacks/annotation-model.js';
-import { local } from '@muze-labs/solid-workspace';
+import { collection, graph, local, resource, workspace } from '@muze-labs/solid-workspace';
 
 function createModel() {
   return {
     ...annotationModel,
-    createLocalSubjectId() {
-      return 'urn:uuid:test-note';
-    },
-    currentDocumentIri() {
-      return 'https://book.example/chapter/1';
-    },
+    createLocalSubjectId: () => 'urn:uuid:test-note',
+    currentDocumentIri: () => 'https://book.example/chapter/1',
   };
 }
 
-test('AnnotationModel: creates OLDMed Web Annotation subjects', () => {
+test('AnnotationModel: creates linked annotation input with native RDF fragments', () => {
   const model = createModel();
-  const fragment = { text: 'A useful note', annotations: [] };
-
+  const fragment = { text: 'https://example.test/literal-text', annotations: [] };
   const annotation = model.createAnnotationNote({
-    anchorId: 'p-chapter-boundaries',
-    fragment,
-    now: '2026-07-19T10:00:00.000Z',
+    anchorId: 'paragraph', fragment, now: '2026-07-19T10:00:00.000Z',
   });
-
   assert.equal(annotation.id, 'urn:uuid:test-note');
-  assert.equal(annotation.rdf$type, 'http://www.w3.org/ns/oa#Annotation');
-  assert.equal(annotation.dcterms$created, '2026-07-19T10:00:00.000Z');
-  assert.equal(annotation.oa$hasBody.rdf$value, 'A useful note');
-  assert.equal(annotation.oa$hasBody.schema$text, 'A useful note');
-  assert.equal(annotation.oa$hasBody.dcterms$format, 'application/vnd.cobalt.fragment+json');
-  assert.deepEqual(annotation.oa$hasBody.cobalt$fragment, fragment);
+  assert.equal(annotation.a, model.vocabulary.classes.annotation);
+  assert.equal(String(annotation.oa$hasBody.rdf$value), fragment.text);
+  assert.deepEqual(model.annotationBodyFragment({ annotation }), fragment);
+  assert.equal(model.annotationAnchorId({ annotation }), 'paragraph');
   assert.equal(annotation.oa$hasTarget.oa$hasSource, 'https://book.example/chapter/1');
-  assert.equal(annotation.oa$hasTarget.oa$hasSelector.rdf$type, 'http://www.w3.org/ns/oa#FragmentSelector');
-  assert.equal(annotation.oa$hasTarget.oa$hasSelector.rdf$value, 'p-chapter-boundaries');
 });
 
-test('AnnotationModel: derives renderable note fields from the annotation subject', () => {
+test('AnnotationModel: render fields retain the original annotation handle', () => {
   const model = createModel();
   const annotation = model.createAnnotationNote({
-    anchorId: 'p-chapter-boundaries',
-    fragment: { text: 'Derived text', annotations: [] },
+    anchorId: 'paragraph', fragment: { text: 'Derived text', annotations: [] },
     now: '2026-07-19T10:00:00.000Z',
   });
-
   const note = model.toRenderableNote({ annotation });
-
-  assert.equal(note.id, annotation.id);
   assert.equal(note.annotation, annotation);
-  assert.equal(note.anchorId, 'p-chapter-boundaries');
+  assert.equal(note.anchorId, 'paragraph');
   assert.equal(note.bodyText, 'Derived text');
   assert.equal(note.createdLabel, 'Created: 2026-07-19');
+  assert.equal(model.isMarginNoteAnnotation({ value: { id: 'urn:shell', a: annotation.a } }), false);
 });
 
-test('AnnotationModel: updates the body without dropping unknown predicates', () => {
+test('AnnotationModel: edit and Turtle reload preserve graph identity and unknown RDF', async () => {
   const model = createModel();
-  const annotation = model.createAnnotationNote({
-    anchorId: 'p-chapter-boundaries',
-    fragment: { text: 'Before', annotations: [] },
-    now: '2026-07-19T10:00:00.000Z',
+  const source = local.memory('notes', { prefixes: model.vocabulary.prefixes });
+  const ws = workspace({
+    resources: [resource('notes', { local: source })],
+    collections: { notes: collection({ sources: ['notes'], createIn: 'notes' }) },
   });
-  annotation.schema$about = 'https://example.test/topic';
-  annotation.oa$hasBody.schema$comment = 'preserve me';
-
+  await ws.open();
+  const annotation = await ws.createIn('notes', model.createAnnotationNote({
+    anchorId: 'paragraph', fragment: { text: 'Before', annotations: [] },
+  }));
+  const body = annotation.oa$hasBody;
+  ws.graph('notes').set(body, 'schema$comment', oldm.literal('bonjour', { language: 'fr' }));
+  ws.graph('notes').set('urn:unrelated', 'schema$text', 'retain');
   model.updateAnnotationBody({
-    annotation,
-    fragment: { text: 'After', annotations: [{ range: [0, 5] }] },
+    annotation, fragment: { text: 'After', annotations: [{ range: [0, 5], tag: '<strong>', order: 1 }] },
     now: '2026-07-19T11:00:00.000Z',
   });
-
-  assert.equal(annotation.dcterms$modified, '2026-07-19T11:00:00.000Z');
-  assert.equal(annotation.oa$hasBody.rdf$value, 'After');
-  assert.equal(annotation.oa$hasBody.schema$text, 'After');
-  assert.deepEqual(annotation.oa$hasBody.cobalt$fragment, {
-    text: 'After',
-    annotations: [{ range: [0, 5] }],
-  });
-  assert.equal(annotation.schema$about, 'https://example.test/topic');
-  assert.equal(annotation.oa$hasBody.schema$comment, 'preserve me');
+  assert.equal(annotation.oa$hasBody, body);
+  assert.equal(body, ws.graph('notes').get(body.id));
+  assert.equal((await ws.save(annotation)).ok, true);
+  assert.equal(typeof await source.load(), 'string');
+  await ws.open();
+  const restored = ws.graph('notes').get(annotation.id);
+  assert.equal(String(restored.oa$hasBody.rdf$value), 'After');
+  assert.equal(restored.oa$hasBody.schema$comment.language, 'fr');
+  assert.equal(String(ws.graph('notes').get('urn:unrelated').schema$text), 'retain');
+  assert.equal(model.annotationBodyFragment({ annotation: restored }).annotations[0].tag, '<strong>');
+  assert.equal(String(restored.oa$hasBody.dcterms$modified), '2026-07-19T11:00:00.000Z');
 });
 
-test('AnnotationModel: stores a graph document with prefixes and cloned subjects', () => {
+test('AnnotationModel: legacy fragment literals are not silently migrated', () => {
   const model = createModel();
-  const annotation = model.createAnnotationNote({
-    anchorId: 'p-chapter-boundaries',
-    fragment: { text: 'Stored', annotations: [] },
-    now: '2026-07-19T10:00:00.000Z',
-  });
-
-  const document = model.toStorageDocument({ subjects: [annotation] });
-
-  assert.equal(document.format, 'margin-notes-oldmed-graph');
-  assert.equal(document.version, 1);
-  assert.equal(document.prefixes.oa, 'http://www.w3.org/ns/oa#');
-  assert.equal(document.subjects[0].rdf$type, 'http://www.w3.org/ns/oa#Annotation');
-  assert.notEqual(document.subjects[0], annotation);
+  const annotation = { oa$hasBody: { cobalt$fragment: '{"text":"old"}' } };
+  assert.throws(() => model.annotationBodyFragment({ annotation }), /Fragment node/);
 });
 
-test('AnnotationModel: ignores incomplete annotation shells when loading and saving notes', () => {
+test('AnnotationModel: replica sync selects a whole fragment without reviving removed formatting', async () => {
   const model = createModel();
-  const annotation = model.createAnnotationNote({
-    anchorId: 'p-chapter-boundaries',
-    fragment: { text: 'Complete note', annotations: [] },
-    now: '2026-07-19T10:00:00.000Z',
-  });
-  const shell = {
-    id: 'urn:uuid:annotation-shell',
-    rdf$type: 'http://www.w3.org/ns/oa#Annotation',
-    dcterms$created: '2026-07-19T20:40:29.378Z',
-    dcterms$modified: '2026-07-19T20:40:29.378Z',
-  };
-
-  const loaded = model.toStoredGraph({
-    value: {
-      subjects: [shell, annotation],
+  let turtle = '';
+  function replica(id) {
+    return workspace({ resources: [resource('notes', {
+      local: local.memory(id, { prefixes: model.vocabulary.prefixes }),
+      remote: graph.resource({
+        id: 'remote', url: 'https://pod.example/notes.ttl',
+        prefixes: model.vocabulary.prefixes,
+        load: async () => turtle,
+        save: async value => { turtle = value; },
+      }),
+      scalarPredicates: [
+        model.vocabulary.prefixes.rdf + 'value',
+        model.vocabulary.prefixes.schema + 'text',
+        model.vocabulary.prefixes.cobalt + 'fragment',
+      ],
+    })] });
+  }
+  const first = replica('first');
+  await first.open();
+  const annotation = await first.createIn('notes', model.createAnnotationNote({
+    anchorId: 'paragraph',
+    fragment: {
+      text: 'Before',
+      annotations: [{ range: [0, 6], tag: '<strong>', order: 1 }],
     },
-  });
-  const saved = model.toStorageDocument({
-    subjects: [shell, annotation],
-  });
-
-  assert.deepEqual(loaded, [annotation]);
-  assert.deepEqual(saved.subjects, [annotation]);
-});
-
-test('AnnotationModel: migrates old flat note records into OLDMed subjects', () => {
-  const model = createModel();
-
-  const [annotation] = model.toStoredGraph({
-    value: [{
-      id: 'note-1',
-      anchorId: 'p-chapter-boundaries',
-      body: { text: 'Legacy', annotations: [] },
-      created: '2026-07-19T10:00:00.000Z',
-      modified: '2026-07-19T10:30:00.000Z',
-    }],
-  });
-
-  assert.equal(annotation.id, 'urn:muze:margin-notes:note-1');
-  assert.equal(annotation.rdf$type, 'http://www.w3.org/ns/oa#Annotation');
-  assert.equal(annotation.dcterms$created, '2026-07-19T10:00:00.000Z');
-  assert.equal(annotation.dcterms$modified, '2026-07-19T10:30:00.000Z');
-  assert.equal(model.annotationAnchorId({ annotation }), 'p-chapter-boundaries');
-  assert.deepEqual(model.annotationBodyFragment({ annotation }), {
-    text: 'Legacy',
-    annotations: [],
-  });
-});
-
-
-test('AnnotationModel: loads legacy prefixed classes using the document prefixes without mutating it', () => {
-  const model = createModel();
-  const annotation = model.createAnnotationNote({anchorId: 'paragraph', fragment: {text: 'Legacy', annotations: []}});
-  annotation.rdf$type = ['old$Annotation', 'http://schema.org/CreativeWork'];
-  annotation.oa$hasBody.rdf$type = ['old$TextualBody', 'cobalt$Fragment'];
-  annotation.oa$hasTarget.rdf$type = 'old$SpecificResource';
-  annotation.oa$hasTarget.oa$hasSelector.rdf$type = 'old$FragmentSelector';
-  annotation.schema$comment = 'old$Annotation';
-  const document = {version: 1, prefixes: {old: 'http://www.w3.org/ns/oa#'}, subjects: [annotation]};
-  const [loaded] = model.toStoredGraph({value: document});
-  assert.deepEqual(loaded.rdf$type, ['http://www.w3.org/ns/oa#Annotation', 'http://schema.org/CreativeWork']);
-  assert.equal(model.annotationAnchorId({annotation: loaded}), 'paragraph');
-  assert.equal(loaded.schema$comment, 'old$Annotation');
-  assert.deepEqual(annotation.rdf$type, ['old$Annotation', 'http://schema.org/CreativeWork']);
-});
-
-test('AnnotationModel: keeps full-IRI subjects attached to their workspace and preserves literal metadata', () => {
-  const model = createModel();
-  const annotation = model.createAnnotationNote({anchorId: 'paragraph', fragment: {text: 'Note', annotations: []}});
-  annotation.schema$comment = Object.assign(new String('bonjour'), {type: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#langString', language: 'fr'});
-  const [loaded] = model.toStoredGraph({value: [annotation]});
-  assert.equal(loaded, annotation);
-  const stored = model.toStorageDocument({subjects: [loaded]}).subjects[0];
-  assert.equal(stored.schema$comment.type, annotation.schema$comment.type);
-  assert.equal(stored.schema$comment.language, 'fr');
-  assert.notEqual(stored.schema$comment, annotation.schema$comment);
-});
-
-
-test('AnnotationModel: legacy note IDs with fragments produce valid linked subject IRIs', () => {
-  const model = createModel();
-  const [note] = model.toStoredGraph({value: [{id: 'https://example.org/notes#one', anchorId: 'paragraph', body: {text: 'Legacy', annotations: []}}]});
-  assert.equal(note.id, 'https://example.org/notes#one');
-  assert.equal(note.oa$hasBody.id, 'https://example.org/notes#one-body');
-  assert.equal(note.oa$hasTarget.oa$hasSelector.id, 'https://example.org/notes#one-selector-fragment');
-});
-
-test('AnnotationModel: restores a Cobalt fragment returned as a String literal', () => {
-  const model = createModel();
-  const annotation = model.createAnnotationNote({
-    anchorId: 'p-chapter-boundaries',
-    fragment: { text: 'Round-tripped', annotations: [{ range: [0, 5] }] },
-    now: '2026-07-19T10:00:00.000Z',
-  });
-
-  annotation.oa$hasBody['cobalt$fragment'] = new String(JSON.stringify({ text: 'Round-tripped', annotations: [{ range: [0, 5] }] }));
-
-  const fragment = model.annotationBodyFragment({ annotation });
-  assert.deepEqual(fragment, { text: 'Round-tripped', annotations: [{ range: [0, 5] }] });
-  assert.equal(model.noteText({ fragment }), 'Round-tripped');
-});
-
-test('AnnotationModel: falls back to plain text when the fragment is not JSON', () => {
-  const model = createModel();
-  const annotation = model.createAnnotationNote({
-    anchorId: 'p-chapter-boundaries',
-    fragment: { text: 'Original', annotations: [] },
-    now: '2026-07-19T10:00:00.000Z',
-  });
-
-  annotation.oa$hasBody['cobalt$fragment'] = 'just plain text';
-
-  const fragment = model.annotationBodyFragment({ annotation });
-  assert.deepEqual(fragment, { text: 'just plain text', annotations: [] });
-  assert.equal(model.noteText({ fragment }), 'just plain text');
-});
-
-test('AnnotationModel: returns an empty fragment when the body has no Cobalt fragment', () => {
-  const model = createModel();
-  const annotation = { id: 'urn:uuid:empty', rdf$type: 'http://www.w3.org/ns/oa#Annotation', oa$hasBody: { id: 'urn:uuid:empty#body' } };
-
-  const fragment = model.annotationBodyFragment({ annotation });
-  assert.deepEqual(fragment, { text: '', annotations: [] });
-  assert.equal(model.noteText({ fragment }), '');
-});
-
-test('AnnotationModel: note body text survives a Turtle round-trip through a local workspace resource', async () => {
-  const model = createModel();
-  const annotation = model.createAnnotationNote({
-    anchorId: 'p-chapter-boundaries',
-    fragment: { text: 'The boundary is the component.', annotations: [] },
-    now: '2026-07-19T10:00:00.000Z',
-  });
-
-  const rawDocument = model.toStorageDocument({ subjects: [annotation] });
-  const document = {
-    ...rawDocument,
-    subjects: Object.fromEntries(rawDocument.subjects.map(subject => [subject.id, subject])),
-  };
-  const source = local.memory('annotation-round-trip', { prefixes: document.prefixes });
-  await source.save(document);
-  assert.match(await source.turtle(), /The boundary is the component/);
-  const loaded = await source.load();
-
-  const loadedAnnotation = loaded.data.find(subject => subject['oa$hasBody'] !== undefined);
-  assert.ok(loadedAnnotation, 'expected the annotation subject carrying oa$hasBody');
-
-  const fragment = model.annotationBodyFragment({ annotation: loadedAnnotation });
-  assert.deepEqual(fragment, { text: 'The boundary is the component.', annotations: [] });
-  assert.equal(model.noteText({ fragment }), 'The boundary is the component.');
-
-  const renderable = model.toRenderableNote({ annotation: loadedAnnotation });
-  assert.equal(renderable.bodyText, 'The boundary is the component.');
-  assert.notEqual(renderable.bodyText, '(empty note)');
+    now: '2026-10-30T10:00:00Z',
+  }));
+  const original = annotation.oa$hasBody.cobalt$fragment;
+  original.schema$comment = oldm.literal('keep fragment metadata');
+  original.cobalt$annotations[0].schema$comment = oldm.literal('keep annotation metadata');
+  await first.save(annotation);
+  assert.equal((await first.sync('notes')).ok, true);
+  const second = replica('second');
+  await second.open();
+  const older = first.graph('notes').get(annotation.id);
+  const newer = second.graph('notes').get(annotation.id);
+  model.updateAnnotationBody({ annotation: older, fragment: {
+    text: 'Older edit',
+    annotations: [{ range: [0, 5], tag: '<em>', order: 2 }],
+  }, now: '2026-10-30T10:01:00Z' });
+  model.updateAnnotationBody({ annotation: newer, fragment: {
+    text: 'Newer unformatted edit', annotations: [],
+  }, now: '2026-10-30T10:02:00Z' });
+  assert.notEqual(older.oa$hasBody.cobalt$fragment.id, newer.oa$hasBody.cobalt$fragment.id);
+  await first.save(older);
+  await second.save(newer);
+  assert.equal((await second.sync('notes')).ok, true);
+  assert.equal((await first.sync('notes')).ok, true);
+  assert.equal((await second.sync('notes')).ok, true);
+  for (const ws of [first, second]) {
+    await ws.open();
+    const restored = ws.graph('notes').get(annotation.id);
+    assert.deepEqual(model.annotationBodyFragment({ annotation: restored }), {
+      text: 'Newer unformatted edit', annotations: [],
+    });
+    assert.equal(String(restored.oa$hasBody.rdf$value), 'Newer unformatted edit');
+    const retained = ws.graph('notes').get(original.id);
+    assert.equal(String(retained.schema$comment), 'keep fragment metadata');
+    assert.equal(String(retained.cobalt$annotations[0].schema$comment), 'keep annotation metadata');
+  }
 });

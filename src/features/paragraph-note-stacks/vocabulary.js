@@ -28,7 +28,4 @@ export const annotationVocabulary = {
     text: 'schema$text',
     cobaltFragment: 'cobalt$fragment',
   },
-  mediaTypes: {
-    cobaltFragment: 'application/vnd.cobalt.fragment+json',
-  },
 };

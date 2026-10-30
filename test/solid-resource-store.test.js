@@ -1,377 +1,78 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSolidResourceStore } from '../src/storage/solid-resource-store.js';
 import oldm from '@muze-nl/oldm';
+import { createSolidResourceStore } from '../src/storage/solid-resource-store.js';
 
-test('SolidResourceStore: loads a Turtle resource into an OLDMed graph document', async () => {
-  const turtle = turtleFixture({ text: 'A linked-data note' });
-  const solid = solidDouble([
-    response(turtle, {
-      status: 200,
-      headers: { 'Content-Type': 'text/turtle' },
-    }),
-  ]);
-  const store = createSolidResourceStore({
-    resourceUrl: 'https://pod.example/private/notes.ttl',
-    solid,
-  });
+const url = 'https://pod.example/notes.ttl';
+const turtle = '<urn:note> <https://schema.org/text> "note" .';
 
-  const document = await store.load({ key: 'ignored-local-key' });
-
-  assert.equal(document.format, 'margin-notes-oldmed-graph');
-  assert.equal(document.version, 1);
-  assert.equal(document.subjects[0].id, 'https://pod.example/private/notes.ttl#note-1');
-  assert.equal(document.subjects[0].rdf$type, 'http://www.w3.org/ns/oa#Annotation');
-  assert.equal(document.subjects[0].schema$about, 'https://example.test/topic');
-  assert.equal(document.subjects[0].oa$hasBody.rdf$value, 'A linked-data note');
-  assert.equal(document.subjects[0].oa$hasBody.schema$comment, 'keep this body fact');
-  assert.deepEqual(document.subjects[0].oa$hasBody.cobalt$fragment, {
-    text: 'A linked-data note',
-    annotations: [],
-  });
-  assert.equal(document.subjects[0].oa$hasTarget.oa$hasSelector.rdf$value, 'p-chapter-boundaries');
-  assert.deepEqual(solid.calls[0], {
-    url: 'https://pod.example/private/notes.ttl',
-    method: 'get',
-    options: {
-      headers: {
-        Accept: 'text/turtle, application/ld+json;q=0.9, application/json;q=0.2',
-      },
-    },
-    body: undefined,
-  });
-});
-
-test('SolidResourceStore: recovers conventional note parts when linking triples are missing', async () => {
-  const solid = solidDouble([
-    response(orphanedPartsTurtle(), {
-      status: 200,
-      headers: { 'Content-Type': 'text/turtle' },
-    }),
-    response('', { status: 201, statusText: 'Created' }),
-  ]);
-  const store = createSolidResourceStore({
-    resourceUrl: 'https://pod.example/private/notes.ttl',
-    solid,
-  });
-
-  const document = await store.load({});
-
-  assert.equal(document.subjects.length, 1);
-  assert.equal(document.subjects[0].oa$hasBody.rdf$value, 'blabla');
-  assert.equal(document.subjects[0].oa$hasTarget.oa$hasSelector.rdf$value, 'p-01-this-book-does-not-teach-you-how-to');
-
-  await store.save({ value: document });
-  const turtle = await solid.calls[1].body.write();
-
-  assert.match(turtle, /oa:hasBody <urn:uuid:3b46ac04-cd34-4e2b-a44c-6f56d08c9df3#body>/);
-  assert.match(turtle, /oa:hasTarget <urn:uuid:3b46ac04-cd34-4e2b-a44c-6f56d08c9df3#target>/);
-  assert.match(turtle, /oa:hasSelector <urn:uuid:3b46ac04-cd34-4e2b-a44c-6f56d08c9df3#selector-fragment>/);
-});
-
-test('SolidResourceStore: returns null when the configured resource does not exist yet', async () => {
-  const store = createSolidResourceStore({
-    resourceUrl: 'https://pod.example/private/missing-notes.ttl',
-    solid: solidDouble([
-      response('', { status: 404, statusText: 'Not Found' }),
-    ]),
-  });
-
-  assert.equal(await store.load({ key: 'ignored-local-key' }), null);
-});
-
-test('SolidResourceStore: rejects non-document JSON instead of treating it as empty notes', async () => {
-  const store = createSolidResourceStore({
-    resourceUrl: 'https://pod.example/private/notes.ttl',
-    solid: solidDouble([
-      response('false', {
-        status: 200,
-        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-      }),
-    ]),
-  });
-
-  await assert.rejects(
-    () => store.load({}),
-    /JSON that is not a notes document/
-  );
-});
-
-test('SolidResourceStore: saves an OLDMed graph document as Turtle with PUT', async () => {
-  const solid = solidDouble([
-    response('', { status: 201, statusText: 'Created' }),
-  ]);
-  const store = createSolidResourceStore({ solid });
-  const value = graphDocument({
-    resourceUrl: 'https://pod.example/private/notes.ttl',
-    text: 'A Turtle-backed note',
-  });
-
-  const result = await store.save({
-    key: 'https://pod.example/private/notes.ttl',
-    value,
-  });
-  const turtle = await solid.calls[0].body.write();
-
-  assert.deepEqual(result, {
-    key: 'https://pod.example/private/notes.ttl',
-    resourceUrl: 'https://pod.example/private/notes.ttl',
-    status: 201,
-  });
-  assert.equal(solid.calls[0].url, 'https://pod.example/private/notes.ttl');
-  assert.equal(solid.calls[0].method, 'put');
-  assert.deepEqual(solid.calls[0].options, {
-    body: solid.calls[0].body,
-    headers: { 'Content-Type': 'text/turtle' },
-  });
-  assert.match(turtle, /oa:Annotation/);
-  const saved = oldm.context().parse(turtle, 'https://pod.example/private/notes.ttl', 'text/turtle');
-  assert.equal(
-    saved.get('https://pod.example/private/notes.ttl#note-1').oa$hasBody.id,
-    'https://pod.example/private/notes.ttl#note-1-body'
-  );
-  assert.match(turtle, /cobalt:fragment/);
-  assert.match(turtle, /A Turtle-backed note/);
-});
-
-test('SolidResourceStore: removes a resource with DELETE and treats missing resources as already removed', async () => {
-  const solid = solidDouble([
-    response(null, { status: 204, statusText: 'No Content' }),
-    response('', { status: 404, statusText: 'Not Found' }),
-  ]);
-  const store = createSolidResourceStore({
-    resourceUrl: 'https://pod.example/private/notes.ttl',
-    solid,
-  });
-
-  assert.deepEqual(await store.remove({}), {
-    key: 'https://pod.example/private/notes.ttl',
-    resourceUrl: 'https://pod.example/private/notes.ttl',
-    status: 204,
-  });
-  assert.deepEqual(await store.remove({}), {
-    key: 'https://pod.example/private/notes.ttl',
-    resourceUrl: 'https://pod.example/private/notes.ttl',
-    status: 404,
-  });
-  assert.equal(solid.calls[0].method, 'delete');
-  assert.equal(solid.calls[1].method, 'delete');
-});
-
-test('SolidResourceStore: reports failed Solid resource writes', async () => {
-  const store = createSolidResourceStore({
-    resourceUrl: 'https://pod.example/private/notes.ttl',
-    solid: solidDouble([
-      response('ACL denied', { status: 403, statusText: 'Forbidden' }),
-    ]),
-  });
-
-  await assert.rejects(
-    () => store.save({ value: { subjects: [] } }),
-    /Solid resource save failed \(403 Forbidden\): ACL denied/
-  );
-});
-
-test('SolidResourceStore: requires either a configured resourceUrl or a key', async () => {
-  const store = createSolidResourceStore({
-    solid: solidDouble([]),
-  });
-
-  await assert.rejects(
-    () => store.load({}),
-    /requires a resourceUrl option or key/
-  );
-});
-
-test('SolidResourceStore: accepts a Metro thrower error for a missing resource', async () => {
-  const missing = response('', { status: 404, statusText: 'Not Found' });
-  const solid = {
-    async get() {
-      throw new Error('404: Not Found', { cause: missing });
-    },
-    async put() {},
-    async delete() {},
-  };
-  const store = createSolidResourceStore({
-    resourceUrl: 'https://pod.example/private/missing-notes.ttl',
-    solid,
-  });
-
-  assert.equal(await store.load({}), null);
-});
-
-function solidDouble(responses) {
-  const calls = [];
-
+function client(overrides = {}) {
   return {
-    calls,
-    async get(url, options) {
-      calls.push({ url, method: 'get', options, body: undefined });
-      return solidGetResult({ response: nextResponse({ responses, url }), url });
-    },
-    async put(url, options) {
-      calls.push({ url, method: 'put', options, body: options?.body });
-      return nextResponse({ responses, url });
-    },
-    async delete(url, options) {
-      calls.push({ url, method: 'delete', options, body: undefined });
-      return nextResponse({ responses, url });
-    },
+    get: async () => new Response(turtle, { headers: { 'Content-Type': 'text/turtle' } }),
+    put: async () => new Response(null, { status: 204 }),
+    delete: async () => new Response(null, { status: 204 }),
+    ...overrides,
   };
 }
 
-async function solidGetResult({ response, url }) {
-  if (!response.ok) {
-    throw new Error(`${response.status}: ${response.statusText}`, {
-      cause: response,
-    });
-  }
-
-  if (/^text\/turtle\b/.test(response.headers.get('Content-Type'))) {
-    return oldm.context().parse(await response.text(), url, response.headers.get('Content-Type'));
-  }
-
-  return response;
-}
-
-function nextResponse({ responses, url }) {
-  const next = responses.shift();
-  if (!next) {
-    throw new Error(`Unexpected Solid resource call to ${url}`);
-  }
-  return next;
-}
-
-function response(body, options = {}) {
-  return new Response(body, {
-    status: options.status,
-    statusText: options.statusText,
-    headers: options.headers,
-  });
-}
-
-function graphDocument({ resourceUrl, text }) {
-  return {
-    format: 'margin-notes-oldmed-graph',
-    version: 1,
-    prefixes: {
-      rdf: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
-      rdfs: 'http://www.w3.org/2000/01/rdf-schema#',
-      dcterms: 'http://purl.org/dc/terms/',
-      oa: 'http://www.w3.org/ns/oa#',
-      schema: 'https://schema.org/',
-      cobalt: 'https://vocab.muze.nl/cobalt#',
+test('SolidResourceStore: transports Turtle without application graph conversion', async () => {
+  let saved;
+  const store = createSolidResourceStore({ resourceUrl: url, solid: client({
+    get: async (requested, options) => {
+      assert.equal(requested, url);
+      assert.equal(options.headers.Accept, 'text/turtle');
+      return new Response(turtle, { headers: { 'Content-Type': 'text/turtle' } });
     },
-    subjects: [{
-      id: `${resourceUrl}#note-1`,
-      rdf$type: 'http://www.w3.org/ns/oa#Annotation',
-      schema$about: 'https://example.test/topic',
-      oa$hasBody: {
-        id: `${resourceUrl}#note-1-body`,
-        rdf$type: ['http://www.w3.org/ns/oa#TextualBody', 'https://vocab.muze.nl/cobalt#Fragment'],
-        dcterms$format: 'application/vnd.cobalt.fragment+json',
-        rdf$value: text,
-        schema$text: text,
-        schema$comment: 'keep this body fact',
-        cobalt$fragment: { text, annotations: [] },
-      },
-      oa$hasTarget: {
-        id: `${resourceUrl}#note-1-target`,
-        rdf$type: 'http://www.w3.org/ns/oa#SpecificResource',
-        oa$hasSource: 'https://book.example/chapter/1',
-        oa$hasSelector: {
-          id: `${resourceUrl}#note-1-selector`,
-          rdf$type: 'http://www.w3.org/ns/oa#FragmentSelector',
-          rdf$value: 'p-chapter-boundaries',
-        },
-      },
-    }],
-  };
-}
+    put: async (requested, options) => {
+      assert.equal(requested, url);
+      assert.equal(options.headers['Content-Type'], 'text/turtle');
+      saved = options.body;
+      return new Response(null, { status: 204 });
+    },
+  }) });
+  assert.equal(await store.load(), turtle);
+  await store.save({ value: turtle });
+  assert.equal(saved, turtle);
+});
 
-function turtleFixture({ text }) {
-  const escapedFragment = JSON.stringify(JSON.stringify({ text, annotations: [] }));
+test('SolidResourceStore: accepts native graphs from Metro OLDMed responses', async () => {
+  const graph = oldm.context().parse(turtle, url, 'text/turtle');
+  graph.set('urn:unrelated', 'schema$comment', oldm.literal('bonjour', { language: 'fr' }));
+  const store = createSolidResourceStore({ resourceUrl: url, solid: client({ get: async () => graph }) });
+  const loaded = oldm.context().parse(await store.load(), url, 'text/turtle');
+  assert.equal(String(loaded.get('urn:note').schema$text), 'note');
+  assert.equal(loaded.get('urn:unrelated').schema$comment.language, 'fr');
+});
 
-  return `
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
-@prefix dcterms: <http://purl.org/dc/terms/>.
-@prefix oa: <http://www.w3.org/ns/oa#>.
-@prefix schema: <https://schema.org/>.
-@prefix cobalt: <https://vocab.muze.nl/cobalt#>.
+test('SolidResourceStore: missing resources return null, including Metro thrown responses', async () => {
+  for (const get of [
+    async () => new Response(null, { status: 404 }),
+    async () => { throw new Error('missing', { cause: { status: 404 } }); },
+  ]) {
+    const store = createSolidResourceStore({ resourceUrl: url, solid: client({ get }) });
+    assert.equal(await store.load(), null);
+  }
+});
 
-<#note-1>
-  a oa:Annotation;
-  schema:about <https://example.test/topic>;
-  oa:hasBody <#note-1-body>;
-  oa:hasTarget <#note-1-target>.
+test('SolidResourceStore: rejects JSON responses and document writes', async () => {
+  const store = createSolidResourceStore({ resourceUrl: url, solid: client({
+    get: async () => new Response('{"subjects":[]}', { headers: { 'Content-Type': 'application/json' } }),
+  }) });
+  await assert.rejects(store.load(), /text\/turtle/);
+  await assert.rejects(store.save({ value: { subjects: [] } }), /Turtle text/);
+});
 
-<#note-1-body>
-  a oa:TextualBody, cobalt:Fragment;
-  dcterms:format "application/vnd.cobalt.fragment+json";
-  rdf:value ${JSON.stringify(text)};
-  schema:text ${JSON.stringify(text)};
-  schema:comment "keep this body fact";
-  cobalt:fragment ${escapedFragment}.
+test('SolidResourceStore: reports failed writes and treats missing deletes as complete', async () => {
+  const store = createSolidResourceStore({ resourceUrl: url, solid: client({
+    put: async () => new Response('permission denied', { status: 403 }),
+    delete: async () => new Response(null, { status: 404 }),
+  }) });
+  await assert.rejects(store.save({ value: turtle }), /403.*permission denied/);
+  assert.equal((await store.remove()).status, 404);
+});
 
-<#note-1-target>
-  a oa:SpecificResource;
-  oa:hasSource <https://book.example/chapter/1>;
-  oa:hasSelector <#note-1-selector>.
-
-<#note-1-selector>
-  a oa:FragmentSelector;
-  rdf:value "p-chapter-boundaries".
-`;
-}
-
-function orphanedPartsTurtle() {
-  return `
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
-@prefix dcterms: <http://purl.org/dc/terms/>.
-@prefix oa: <http://www.w3.org/ns/oa#>.
-@prefix schema: <https://schema.org/>.
-@prefix cobalt: <https://vocab.muze.nl/cobalt#>.
-
-<urn:uuid:3b46ac04-cd34-4e2b-a44c-6f56d08c9df3> a oa:Annotation;
-  dcterms:created "2026-07-19T21:20:59.640Z";
-  dcterms:modified "2026-07-19T21:20:59.640Z".
-
-<urn:uuid:3b46ac04-cd34-4e2b-a44c-6f56d08c9df3#body> a oa:TextualBody, cobalt:Fragment;
-  dcterms:format "application/vnd.cobalt.fragment+json";
-  rdf:value "blabla";
-  schema:text "blabla";
-  cobalt:fragment "{\\"text\\":\\"blabla\\",\\"annotations\\":[]}".
-
-<urn:uuid:3b46ac04-cd34-4e2b-a44c-6f56d08c9df3#target> a oa:SpecificResource.
-
-<urn:uuid:3b46ac04-cd34-4e2b-a44c-6f56d08c9df3#selector-fragment> a oa:FragmentSelector;
-  rdf:value "p-01-this-book-does-not-teach-you-how-to".
-`;
-}
-
-test('SolidResourceStore: editing a note preserves unknown IRIs, classes, and typed literals', async () => {
-  const noteId = 'https://pod.example/private/notes.ttl#note-1';
-  const turtle = turtleFixture({text: 'Before'}) + `
-    <${noteId}> a <http://schema.org/CreativeWork> ;
-      <urn:test:caption> "bonjour"@fr ;
-      <urn:test:rating> "12"^^<http://www.w3.org/2001/XMLSchema#integer> ;
-      <urn:test:related> <urn:test:another-note> .
-  `;
-  const solid = solidDouble([
-    response(turtle, {status: 200, headers: {'Content-Type': 'text/turtle'}}),
-    response('', {status: 201}),
-  ]);
-  const store = createSolidResourceStore({resourceUrl: 'https://pod.example/private/notes.ttl', solid});
-  const loaded = await store.load({});
-  const {annotationModel} = await import('../src/features/paragraph-note-stacks/annotation-model.js');
-  loaded.subjects[0].oa$hasBody.rdf$value = 'Edited';
-  loaded.subjects[0].a = 'https://example.org/ExtraType';
-  await store.save({value: annotationModel.toStorageDocument({subjects: loaded.subjects})});
-  const saved = oldm.context().parse(await solid.calls[1].body.write(), 'https://pod.example/private/notes.ttl', 'text/turtle').get(noteId);
-  assert.deepEqual(oldm.many(saved.a), ['http://www.w3.org/ns/oa#Annotation', 'http://schema.org/CreativeWork', 'https://example.org/ExtraType']);
-  assert.equal(saved['urn:test:caption'].language, 'fr');
-  assert.equal(saved['urn:test:rating'].type, 'http://www.w3.org/2001/XMLSchema#integer');
-  assert.equal(String(saved['urn:test:rating']), '12');
-  assert.equal(saved['urn:test:related'].id, 'urn:test:another-note');
-  assert.equal(String(saved.oa$hasBody.rdf$value), 'Edited');
+test('SolidResourceStore: uses the host key when no resource URL is configured', async () => {
+  const store = createSolidResourceStore({ solid: client() });
+  await assert.rejects(store.load(), /resourceUrl option or key/);
+  assert.equal(await store.load({ key: url }), turtle);
 });

@@ -35,7 +35,7 @@ Statuses:
 | D022 | Accepted | Use `margin-notes` as the package name. | The name matches the component's reusable role and leaves Solid support as a capability rather than the package identity. |
 | D023 | Accepted | Use Node.js' native test runner as the current `npm test` entry point. | The current slice has simple contract tests and does not need Jest yet; browser automation can be added when end-to-end coverage requires it. |
 | D024 | Accepted | Leave the exact Web Annotation shape open until implementation needs it. | The project should not freeze a normative annotation shape before the local slice proves the required facts. |
-| D025 | Accepted | Store Cobalt bodies in the minimal JSON format for browser-local storage. | The local store should preserve the editor body without inventing a richer body model before interoperability requires it. |
+| D025 | Superseded by D048 | Store Cobalt bodies in the minimal JSON format for browser-local storage. | The local store should preserve the editor body without inventing a richer body model before interoperability requires it. |
 | D026 | Accepted | Put note-creation affordances on host anchors and reveal them only on hover or keyboard focus. | Creating a note is target-driven; the margin panel should stay quiet until there are notes to show. |
 | D027 | Accepted | Show notes beside their target as collapsed single-line cards that expand in place. | Reader notes should stay spatially tied to the paragraph and avoid turning the margin into a separate feed. |
 | D028 | Accepted | Fit collapsed note stacks to the paragraph height and show an overflow toggle only when notes are hidden. | Multiple notes should not visually run into the next paragraph until the reader deliberately opens that stack. |
@@ -81,3 +81,31 @@ remote sync. The app announces connection only after installing loaded notes.
 Tombstones and timestamped scalar replacement follow the existing minimal sync
 draft. Unrelated facts remain additive. Cross-tab ordering, ETag-guarded writes,
 and real-Pod authentication are still separate work.
+
+## D047 — Accepted: remove compatibility while updating app and libraries together
+
+2026-10-30. The user confirmed margin notes is the only consumer and requested
+removal of backwards compatibility. This supersedes the compatibility portions
+of D031 and D045. Remove the graph-document model, legacy class/flat-note
+migrations, old IndexedDB importer, class/create host facade, and storageKey alias.
+Default and custom stores share one native workspace path and exchange Turtle.
+The app owns explicit Cobalt JSON-literal encoding; generic libraries reject
+unidentified object values instead of silently encoding them.
+
+Reactive UI values are views. Edits resolve the authoritative workspace node by
+id; refresh views after sync replaces source graphs. Unknown resource facts
+remain in their graph even when they do not appear in the annotation view.
+No package has been published by this change.
+
+## D048 — Accepted: native RDF Cobalt fragments at the application boundary
+
+2026-10-30. The user requests native Turtle fragments and text, with ordered
+annotations represented by a Collection and no Turtle dependency in Cobalt.
+This supersedes D025 and the JSON-literal portion of D047. The application bridge
+maps Cobalt's existing plain Fragment value API to native OLDM fragment and
+annotation nodes. No Cobalt, SimplySolid or workspace API change is required.
+
+Each edit creates a fresh fragment snapshot. The body's timestamped scalar link
+selects the whole text/formatting value during sync. Unknown facts and prior
+snapshots remain in the graph; pruning and revision UI are deferred. The mapping
+is documented as an application convention in [Cobalt RDF](COBALT_RDF.md).

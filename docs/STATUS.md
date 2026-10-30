@@ -104,3 +104,40 @@ as a dependency, remove both build aliases, and repeat the mounted tests before
 publishing margin notes. No other missing library release was found in the
 current dependency chain. Real-Pod authentication/permissions, cross-tab writes,
 and conditional remote writes remain unvalidated.
+
+## Native workspace API — 2026-10-30
+
+The user requested removal of backwards compatibility because margin notes is
+the only consumer. Solid Workspace now exposes native graphs; adapters exchange
+Turtle. The app has no graph-document conversion, flat-note/type migration,
+legacy IndexedDB importer, or class/create host facade. Custom host stores use
+the same workspace resource as default IndexedDB storage. The native-node
+`save(id)` facade preserves SimplySolid failure/status handling.
+
+Validation: 107 Solid Tools tests and 42 app tests pass, including all 11 mounted
+browser tests, plus lint/build checks. Migration tests were removed with their
+APIs. Browser checks cover local and Solid create/edit/delete/reload, disconnected
+local durability, and unrelated graph facts. These are fake-Solid integration
+checks, not a real-Pod authentication claim.
+
+Tests use packed local workspace/SimplySolid builds. Published dependency ranges
+and versions have not yet been advanced; the breaking library and app changes
+need a coordinated release. Solid Workspace is committed as `6a1d682` and SimplySolid as `59b23e0` in
+solid-tools. This application commit integrates those changes and the native
+Cobalt RDF bridge. No new release has been published for the native workspace API.
+
+## Native Cobalt fragments — 2026-10-30
+
+The application stores fragment text and ordered formatting as RDF rather than
+JSON literals. Its bridge uses the existing Cobalt editor value API; no Cobalt
+package or dependency changed. Validation uses packed local workspace/SimplySolid
+builds from the committed native API, plus the existing Cobalt checkout.
+
+The mounted browser test saves actual Cobalt editor values through a Turtle
+store, remounts, checks formatting in the editor, removes formatting and reloads.
+Model tests verify competing edits and unknown fragment/annotation facts.
+No real-Pod or cross-tab concurrency claim is added. See `COBALT_RDF.md`.
+
+Validation: build, lint and all 48 application tests pass, including 12 mounted
+Chromium tests. App code lives in this repository; the isolated test install uses
+local packed libraries because the native workspace API is not yet released.

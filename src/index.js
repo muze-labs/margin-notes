@@ -13,7 +13,7 @@
  *   </script>
  */
 
-import { MarginNotes, mount } from './component.js';
+import { mount } from './component.js';
 import { createSolidResourceStore } from './storage/solid-resource-store.js';
 import { createSolidNotesConnection, notesResourceUrlForPage } from './storage/solid-notes-location.js';
 import { popupHandleRedirect } from '@muze-labs/jsfs-solid';
@@ -23,16 +23,11 @@ import { popupHandleRedirect } from '@muze-labs/jsfs-solid';
  * 
  * @type {Object}
  * @property {(config: Object) => Object} mount - Mount and return the SimplyFlow app
- * @property {() => MarginNotes} create - Create a new component instance
  * @property {(options: Object) => Object} createSolidResourceStore - Create a Solid resource-backed store
  */
 const MarginNotesAPI = {
   mount(config) {
     return mount(config);
-  },
-
-  create() {
-    return new MarginNotes();
   },
 
   createSolidResourceStore(options) {
@@ -54,7 +49,6 @@ const MarginNotesAPI = {
 
 // Export for module systems
 export { MarginNotesAPI };
-export { MarginNotes };
 export { mount };
 export { createSolidResourceStore };
 export { createSolidNotesConnection, notesResourceUrlForPage };

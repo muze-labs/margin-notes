@@ -27,11 +27,10 @@
     "@muze-nl/assert": "^0.7.0",
     "@muze-nl/jaqt": "^0.10.7",
     "@muze-nl/oldm": "^0.8.0",
-    "@muze-nl/oldm-core": "^0.8.0"
+    "@muze-labs/solid-workspace": "^0.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@muze-labs/solid-workspace": "^0.1.0",
     "esbuild": "^0.25.0",
     "eslint": "^9.39.2",
     "globals": "^16.5.0"

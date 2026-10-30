@@ -19,7 +19,7 @@ The project will provide an embeddable margin-notes component that a site can lo
 
 Implementation has started with a local-first slice, the first fixed-resource Solid storage slice, and the first SimplySolid workspace-backed storage path. The current code exposes the `margin-notes` package, mounts a SimplyFlow app through `MarginNotes.mount(config)`, attaches quiet note affordances to host-supplied anchors, opens the Cobalt editor, and saves/restores OLDMed annotation subjects through a local-first SimplySolid `notes` resource.
 
-The current storage shape uses OLDM-style `prefix$predicate` property names and full IRIs for class/datatype values. The default notes resource has an IndexedDB local replica and can attach a discovered Solid Turtle resource as its remote replica when the reader connects. `createSolidResourceStore({ resourceUrl, solid })` remains available as a narrow fixed-resource adapter and compatibility test of the Solid stack. The automated tests now cover the annotation model, local store, Turtle-backed Solid resource store, executable host contract used by the component, local-first create/restore/edit/delete, Solid connect/sync, and keyboard-access paths against the mounted public API.
+The current storage shape uses OLDM-style `prefix$predicate` property names and full IRIs for class/datatype values. The default notes resource has an IndexedDB local replica and can attach a discovered Solid Turtle resource as its remote replica when the reader connects. `createSolidResourceStore({ resourceUrl, solid })` remains available as a narrow fixed-resource Turtle adapter used through the same workspace as default local storage. The automated tests now cover the annotation model, local store, Turtle-backed Solid resource store, executable host contract used by the component, local-first create/restore/edit/delete, Solid connect/sync, and keyboard-access paths against the mounted public API.
 
 The package name is `margin-notes`.
 
@@ -69,3 +69,14 @@ Continue the slice in [`docs/CURRENT_SLICE.md`](docs/CURRENT_SLICE.md): validate
 ## Licence
 
 MIT. Copyright muze.nl.
+
+## Current storage contract
+
+All stores exchange Turtle. The workspace owns native OLDM graphs and persistence;
+annotation code supplies vocabulary, timestamps, and native RDF fragment nodes
+with ordered annotation Collections. The [Cobalt RDF bridge](docs/COBALT_RDF.md)
+keeps Turtle dependencies out of Cobalt. Host-provided `load({ key })` returns Turtle or `null`, and
+`save({ key, value })` receives Turtle. No old JSON-document migration is run.
+Use `MarginNotes.mount(config)` and `storeKey`; the previous class/create API and
+`storageKey` alias have been removed. `getNotesForAnchor()` returns native nodes;
+re-read them after reload or sync.

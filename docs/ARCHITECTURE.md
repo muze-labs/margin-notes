@@ -146,3 +146,11 @@ Flattening notes into anonymous JavaScript records would lose the property the a
 5. Can local and remote storage use one linked-data identity model?
 6. Can target resolution remain separate from annotation storage?
 7. Can permissions be exposed without baking WAC or ACP rules into presentation components?
+
+## Implemented Cobalt boundary — 2026-10-30
+
+The application bridge `cobalt-fragment-rdf.js` translates Cobalt Fragment values
+to/from native OLDM nodes. Cobalt owns editing and accepts plain values; OLDM
+owns Turtle; Solid Workspace owns persistence and replica ordering. The bridge
+owns the Cobalt vocabulary mapping, including ordered annotation Collections.
+See [Cobalt RDF](COBALT_RDF.md). No transport or storage policy enters the editor.

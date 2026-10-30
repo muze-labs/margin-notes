@@ -159,17 +159,15 @@ test('HostContract: derives the default store key from namespace', () => {
   assert.equal(storeKeyFromConfig({ namespace: 'chapter-1' }), 'margin-notes-chapter-1');
 });
 
-test('HostContract: prefers storeKey over the backwards-compatible storageKey alias', () => {
+test('HostContract: uses the explicit storeKey', () => {
   assert.equal(storeKeyFromConfig({
     namespace: 'chapter-1',
-    storageKey: 'old-key',
     storeKey: 'new-key',
   }), 'new-key');
 
   assert.equal(storeKeyFromConfig({
     namespace: 'chapter-1',
-    storageKey: 'old-key',
-  }), 'old-key');
+  }), 'margin-notes-chapter-1');
 });
 
 function element() {

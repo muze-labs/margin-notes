@@ -17,7 +17,7 @@ margin-notes/
 ├── src/
 │   ├── index.js              # Entry point (exposes API to host)
 │   ├── host-contract.js      # API definitions and executable validation
-│   ├── component.js          # SimplyFlow app setup and compatibility adapter
+│   ├── component.js          # SimplyFlow app setup
 │   ├── design-system.css     # Curated the-ds subset imported as text
 │   ├── cobalt-editor-modal.html # Modal markup imported as text
 │   ├── cobalt-editor-modal.css  # Modal styles imported as text
@@ -88,7 +88,6 @@ This pattern, adopted from `programming-for-wizards`, is intended to be:
   - `container`: where the component UI mounts
   - `namespace?`: for multiple instances (defaults to "margin-notes")
   - `storeKey?`: custom browser-local note key
-  - `storageKey?`: backwards-compatible alias for `storeKey`
   - `store?`: optional object with async `load`, `save`, and `remove` methods
   - `theme?`: optional margin-notes color theme, one of `system`, `light`, or `dark`
 
@@ -101,7 +100,6 @@ This pattern, adopted from `programming-for-wizards`, is intended to be:
 
 - **`MarginNotesAPI`** — What the host page receives
   - `mount(config)`: mount and return the SimplyFlow app
-  - `create()`: backwards-compatible adapter for the previous component API
   - `createSolidResourceStore(options)`: create a store adapter for one configured Solid resource
 
 ### Usage Example
@@ -130,7 +128,7 @@ The feature component does not define app state. The app owns the state in `data
 Feature helpers and dependencies are merged into `app.api.notes`, so actions can call `this.api.notes` without reaching back through `app.components`.
 Templates and styles live in `.html` and `.css` files and are imported as text by esbuild before being added to the app/component object. The app uses a curated local subset of `the-ds` tokens and button/dialog primitives instead of importing the whole design system into host pages.
 
-- **Store**: small app-facing store API with async `load`, `save`, and `remove` methods over opaque values. It remains available for custom host stores and legacy local-note migration.
+- **Store**: small app-facing store API with async `load`, `save`, and `remove` methods over Turtle text. Custom host stores are adapted into the workspace notes resource.
 - **SimplySolid notes service**: the default storage path creates a local-first `notes` resource and collection through `@muze-labs/simplysolid`. The local replica is persisted in the `margin-notes-workspace` IndexedDB database, and the Solid replica is attached after WebID/resource discovery.
 - **Solid resource store**: `createSolidResourceStore({ resourceUrl, solid })` implements the same store API against one configured Solid resource through Metro-Solid resource methods and Turtle serialization. Without an injected client it composes the `jsfs-solid` Metro client stack with Metro-OLDM enabled by default.
 - **Stored value**: app-facing graph document containing OLDMed annotation subjects with `prefix$predicate` names; the Solid adapter stores this graph as Turtle.
@@ -140,7 +138,7 @@ Templates and styles live in `.html` and `.css` files and are imported as text b
 - **Theme**: `theme` mount config plus `setTheme()` / `getTheme()` keep margin notes on `system`, `light`, or `dark` without reading host-specific settings directly.
 - **Imperative DOM boundary**: host-anchor attachment, layout measurement, focus placement, and Cobalt editor mounting.
 
-The current browser-local note document is still JSON-like, while the Solid path stores Turtle. Both deliberately use the same object naming style OLDM exposes so the local-first workspace path does not require renaming the application model. The old store boundary remains for custom host stores and migration, but default create/update/delete/save operations now delegate to SimplySolid.
+Browser-local and Solid resources both store Turtle through the same native workspace. Custom host stores use that path too. Annotation shaping and the Cobalt/RDF bridge belong to the application; SimplySolid owns the app-facing persistence operations.
 
 ## Build & Development
 
@@ -181,7 +179,7 @@ Serves `examples/simple.html` at `http://localhost:3000` for local testing.
 Run `npm test` to build the browser bundle, run the unit tests, and exercise a mounted public API path in headless Chrome.
 
 - Config validation for anchors, containers, duplicate ids, and optional stores
-- Store-key derivation and backwards-compatible `storageKey` handling
+- Explicit store-key and namespace-based key derivation
 - Annotation model creation, migration, and preservation behavior
 - Local store contract over opaque values
 - Mounted browser create, restore, edit, and delete path through `MarginNotesAPI.mount()`
@@ -204,7 +202,7 @@ This structure embodies these decisions from [docs/CURRENT_SLICE.md](../docs/CUR
 - Host supplies stable anchors; the component does not auto-discover targets yet.
 - Storage policy is local-first, with Solid connected later as a remote replica.
 - Paragraph note chrome is rendered with SimplyFlow templates and commands.
-- Cobalt bodies are preserved in their minimal JSON fragment form under a Muze `cobalt$fragment` predicate, with plain text duplicated through standard body predicates.
+- `cobalt-fragment-rdf.js` maps Cobalt values to native fragment nodes and ordered annotation Collections. `cobalt$fragment` links the snapshot; standard body predicates retain plain text. See `COBALT_RDF.md`.
 
 Questions still being answered in this slice:
 

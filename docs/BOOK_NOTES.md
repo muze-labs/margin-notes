@@ -66,3 +66,23 @@ the reactive boundary. The connected browser test also showed that announcing
 “connected” before installing notes allowed a new note to disappear from view.
 Small tests at the owner and one mounted workflow exposed failures a passing
 lower-level suite had missed.
+
+## Native graph ownership without migration layers — 2026-10-30
+
+D047 removes the app's historic compatibility responsibilities. Show one Turtle
+storage contract for IndexedDB and host-provided stores, one OLDM working context,
+and explicit app-owned encoding of editor literals. UI state is a view: resolve a
+native node by id before editing, save it through the owning collection, and read
+fresh nodes after sync. A note projection must never decide which unrelated facts
+survive a complete resource save.
+
+## Native editor data without teaching the editor Turtle — 2026-10-30
+
+Cobalt already exposes a plain Fragment value. A small application bridge is
+sufficient to persist its text and formatting as RDF. An ordered Collection is
+necessary: RDF multivalues cannot stand in for annotation sequence, and Cobalt's
+precedence field is a separate fact. Native representation also exposes the
+identity question during sync: a named immutable fragment snapshot lets the
+body select one complete edit while unknown facts remain attached to their
+original subjects. Retaining those snapshots has a storage cost; pruning needs
+its own ownership policy. See D048 and `COBALT_RDF.md`.

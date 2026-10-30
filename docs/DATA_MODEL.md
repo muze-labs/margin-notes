@@ -19,7 +19,7 @@ Stored annotation subjects currently use these prefixes:
 
 The current note graph uses:
 
-- `rdf$type`
+- `a`
 - `dcterms$created`
 - `dcterms$modified`
 - `dcterms$format`
@@ -38,60 +38,47 @@ The current note graph uses:
 
 The Cobalt predicate is intentionally marked as a Muze convention. It preserves the editor fragment for this application while `rdf$value` and `schema$text` provide a plain-text body for consumers that do not understand Cobalt.
 
-Example OLDMed object:
+Example OLDMed input (`writeCobaltFragment` comes from the application
+[Cobalt RDF bridge](COBALT_RDF.md); string body values are explicit OLDM literals
+in the implementation):
 
 ```js
 {
   id: 'urn:uuid:...',
-  rdf$type: 'http://www.w3.org/ns/oa#Annotation',
+  a: 'http://www.w3.org/ns/oa#Annotation',
   dcterms$created: '2026-07-19T10:00:00.000Z',
   dcterms$modified: '2026-07-19T10:00:00.000Z',
   oa$hasBody: {
     id: 'urn:uuid:...#body',
-    rdf$type: ['http://www.w3.org/ns/oa#TextualBody', 'https://vocab.muze.nl/cobalt#Fragment'],
-    dcterms$format: 'application/vnd.cobalt.fragment+json',
+    a: 'http://www.w3.org/ns/oa#TextualBody',
+    dcterms$format: 'text/plain',
     rdf$value: 'This paragraph makes the boundary visible.',
     schema$text: 'This paragraph makes the boundary visible.',
-    cobalt$fragment: { text: 'This paragraph makes the boundary visible.', annotations: [] }
+    cobalt$fragment: writeCobaltFragment({ text: 'This paragraph makes the boundary visible.', annotations: [] })
   },
   oa$hasTarget: {
     id: 'urn:uuid:...#target',
-    rdf$type: 'http://www.w3.org/ns/oa#SpecificResource',
+    a: 'http://www.w3.org/ns/oa#SpecificResource',
     oa$hasSource: 'https://book.example/chapter/7',
     oa$hasSelector: {
       id: 'urn:uuid:...#selector-fragment',
-      rdf$type: 'http://www.w3.org/ns/oa#FragmentSelector',
+      a: 'http://www.w3.org/ns/oa#FragmentSelector',
       rdf$value: 'p-chapter7-boundary-visible'
     }
   }
 }
 ```
 
-Browser-local storage currently writes a small document containing `format`, `version`, `prefixes`, and `subjects`. This is still JSON, but the subject objects already use the native OLDMed property names expected from OLDM.
+Local and remote resources persist Turtle. Solid Workspace owns the native OLDM
+context and source graphs; annotation code reads those nodes directly. There is
+no application graph-document format, copy/merge implementation, or migration of
+old stored JSON. Cobalt fragments are native RDF nodes with text literals and
+ordered annotation Collections. The editor still uses its plain value API;
+the application bridge owns the mapping.
 
-The local store itself stores opaque values by key. It does not know about annotations, OLDMed, or Cobalt. Annotation-specific conversion belongs to the note feature API.
-
-The default margin-notes path now stores the annotation graph through a SimplySolid local-first resource. The local replica uses IndexedDB and the remote replica is added later when the Solid connection flow discovers the per-page notes resource. The object shape stays the same across both replicas.
-
-The earlier fixed-resource Solid storage slice still exists as `createSolidResourceStore()`. It writes the same annotation graph to one configured Solid resource and translates between the app-facing graph document and Turtle through a Solid API client and OLDM. That adapter remains useful as compatibility evidence for the Solid stack, while the default path treats local and remote note data as replicas of one logical workspace resource.
-
-### Full-IRI values
-
-Class values use absolute IRIs, including `rdf$type` in the app-facing document
-and `a` in native OLDM subjects. Literal `.type` metadata is also an absolute
-IRI. Property names stay prefixed. HTTP and HTTPS class namespaces are distinct;
-only property names participate in namespace alias mapping.
-
-Legacy JSON graph documents with shorthand classes are expanded at the load
-boundary using their recorded prefixes (with the app vocabulary as fallback).
-The reader does not mutate that input document. Already-current subjects retain
-their identity so editing still belongs to their workspace records. New notes
-and subsequent saves use full class values.
-
-Unknown linked values retain `{id}` references. Unknown typed/language-tagged
-literals retain their metadata through edit/save. Known plain-text body fields
-remain convenient strings. A linked body ID uses `#body` for a fragment-free
-annotation ID and `-body` when the annotation already has a fragment.
+Default IndexedDB and custom host stores both run through the SimplySolid notes
+resource. `createSolidResourceStore()` transports Turtle to a fixed Solid URL;
+it has no annotation vocabulary, fragment repair, or subject projection.
 
 ## Prefer existing annotation terms
 
@@ -165,15 +152,12 @@ Target resolution should therefore support multiple selectors and report its res
 
 ## Body formats
 
-The initial vertical slice preserves the Cobalt body in its minimal JSON format under `cobalt$fragment` when writing to browser-local storage. The body also stores plain text through `rdf$value` and `schema$text` so the annotation is not useful only to Cobalt-aware consumers.
-
-Possible approaches to test:
-
-- a textual body with a media type;
-- a linked body resource containing Cobalt data;
-- a plain-text fallback alongside structured content.
-
-The `cobalt$fragment` predicate remains a Muze convention to revisit when Solid and interoperability work begin.
+The body stores interoperable plain text through `rdf:value` and `schema:text`
+and links to a native fragment using `cobalt:fragment`. The fragment has its own
+text literal and ordered `cobalt:annotations` RDF list. Annotation nodes preserve
+Cobalt's range, tag and precedence fields. See [Cobalt RDF](COBALT_RDF.md) for the
+exact mapping, UTF-16 offsets, empty lists, editor API and snapshot semantics.
+There is no JSON fragment literal or automatic conversion of old stored data.
 
 ## Collections and resources
 
@@ -208,7 +192,7 @@ The correct operation depends on source ownership and sharing state.
 ## Editable replica metadata — 2026-10-30
 
 The default local and remote replicas persist Turtle through Solid Workspace.
-The old graph-document store contract remains compatibility for host stores.
+Custom host stores also load and save Turtle through a workspace source.
 Annotations and editable bodies carry `dcterms:modified`. The application declares
 `rdf:value`, `schema:text`, and `cobalt:fragment` as replaceable scalar fields;
 workspace applies the timestamp policy and unions unknown facts.

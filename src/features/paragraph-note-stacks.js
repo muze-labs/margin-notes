@@ -1,3 +1,4 @@
+import { graph } from '@muze-labs/solid-workspace';
 import { path } from '@muze-labs/simplyflow';
 import { CobaltEditorModal, COBALT_EDITOR_STYLES } from '../cobalt-editor-modal.js';
 import { annotationModel } from './paragraph-note-stacks/annotation-model.js';
@@ -166,9 +167,7 @@ export const paragraphNoteStacks = {
       anchor.notes.push(notesApi.toRenderableNote({ annotation: noteAnnotation }));
       await this.actions.updateAnchorNoteState({ anchor });
       await this.actions.renderAnchorNotes({ anchor });
-      if (!this.marginNotesRuntime.notesService) {
-        await this.actions.saveNotes({});
-      }
+      await notesApi.syncNotesResource({ app: this });
     },
 
     async updateNote({ noteId }) {
@@ -184,19 +183,16 @@ export const paragraphNoteStacks = {
       const fragment = await modal.show();
       if (!fragment) return;
 
-      notesApi.updateAnnotationBody({
-        annotation: match.note.annotation,
-        fragment,
-      });
+      const annotation = this.marginNotesRuntime.notesService.data.notes.get(noteId);
+      notesApi.updateAnnotationBody({ annotation, fragment });
+      match.note.annotation = annotation;
       notesApi.syncRenderableNote({ note: match.note });
       await notesApi.saveStoredAnnotation({
         app: this,
         annotation: match.note.annotation,
       });
       await this.actions.renderAnchorNotes({ anchor: match.anchor });
-      if (!this.marginNotesRuntime.notesService) {
-        await this.actions.saveNotes({});
-      }
+      await notesApi.syncNotesResource({ app: this });
     },
 
     async deleteNote({ noteId }) {
@@ -215,9 +211,7 @@ export const paragraphNoteStacks = {
       });
       await this.actions.updateAnchorNoteState({ anchor: match.anchor });
       await this.actions.renderAnchorNotes({ anchor: match.anchor });
-      if (!this.marginNotesRuntime.notesService) {
-        await this.actions.saveNotes({});
-      }
+      await notesApi.syncNotesResource({ app: this });
     },
 
     async saveNotes() {
@@ -277,7 +271,7 @@ export const paragraphNoteStacks = {
         notesService.data.notes.refresh();
         this.marginNotesRuntime.solidConnection = connection;
         await this.actions.replaceNotesGraph({
-          graph: notesService.data.notes.list(),
+          graph: notesApi.noteSubjects({ service: notesService }),
         });
         notesApi.setSolidConnectionStatus({
           app: this,
@@ -726,7 +720,8 @@ export const paragraphNoteStacks = {
         const anchor = this.findAnchor({ app, anchorId });
         if (!anchor) return [];
 
-        return Array.from(anchor.notes, note => this.toStoredAnnotation({ annotation: note.annotation }));
+        return this.noteSubjects({ service: app.marginNotesRuntime.notesService })
+          .filter(annotation => this.annotationAnchorId({ annotation }) === anchorId);
       },
 
       hostElement(value) {
@@ -843,34 +838,34 @@ export const paragraphNoteStacks = {
       },
 
       async setupNotesStorage({ app, storeKey }) {
-        if (app.marginNotesRuntime.customStore) {
-          return null;
-        }
-
-        return this.ensureNotesService({
-          app,
-          storeKey,
-        });
+        return this.ensureNotesService({ app, storeKey });
       },
 
       async ensureNotesService({ app, storeKey = app.data.marginNotes.storeKey }) {
         if (app.marginNotesRuntime.notesService) {
           return app.marginNotesRuntime.notesService;
         }
-        if (app.marginNotesRuntime.customStore) {
-          return null;
-        }
-
-        const legacyGraph = await this.loadGraphFromStore({
-          store: app.marginNotesRuntime.store,
+        const store = app.marginNotesRuntime.store;
+        const local = store ? graph.resource({
+          id: 'notes:local',
+          url: `urn:margin-notes:store:${encodeURIComponent(storeKey)}`,
+          local: true,
+          prefixes: this.vocabulary.prefixes,
+          async load() {
+            return await store.load({ key: storeKey }) ?? '';
+          },
+          async save(turtle) {
+            return store.save({ key: storeKey, value: turtle });
+          },
+        }) : {
+          indexedDB: 'margin-notes-workspace',
+          store: 'resources',
           key: storeKey,
-        });
-        const localDocument = this.toStorageDocument({ subjects: legacyGraph });
+          prefixes: this.vocabulary.prefixes,
+        };
         const service = app.marginNotesRuntime.simplySolid({
           localFirst: true,
-          app: {
-            slug: 'margin-notes',
-          },
+          app: { slug: 'margin-notes' },
           data: {
             notes: {
               kind: 'resource',
@@ -879,124 +874,46 @@ export const paragraphNoteStacks = {
                 'https://schema.org/text',
                 'https://vocab.muze.nl/cobalt#fragment',
               ],
-              local: {
-                database: 'margin-notes-workspace',
-                store: 'resources',
-                key: storeKey,
-                prefixes: this.vocabulary.prefixes,
-                document: {
-                  ...localDocument,
-                  subjects: Object.fromEntries(localDocument.subjects.map(subject => [subject.id, subject])),
-                },
-              },
+              local,
             },
           },
         });
-
         await service.open();
         app.marginNotesRuntime.notesService = service;
         return service;
       },
 
-      async loadGraph({ app, key, throwOnError = false }) {
-        const notesService = await this.ensureNotesService({
-          app,
-          storeKey: key,
-        });
-        if (notesService) {
-          return notesService.data.notes.list();
-        }
-
-        return this.loadGraphFromStore({
-          store: app.marginNotesRuntime.store,
-          key,
-          throwOnError,
-        });
+      noteSubjects({ service }) {
+        return service.data.notes.list().filter(value => (
+          this.isMarginNoteAnnotation({ value })
+        ));
       },
 
-      async loadGraphFromStore({ store, key, throwOnError = false }) {
-        try {
-          const value = await store.load({ key });
-          if (!value) return [];
-
-          return this.toStoredGraph({ value });
-        } catch (error) {
-          if (throwOnError) {
-            throw error;
-          }
-          console.error('Failed to load notes:', error);
-          return [];
-        }
+      async loadGraph({ app, key }) {
+        const service = await this.ensureNotesService({ app, storeKey: key });
+        return this.noteSubjects({ service });
       },
 
-      async saveGraph({ app, key, subjects }) {
-        const notesService = await this.ensureNotesService({
-          app,
-          storeKey: key,
-        });
-        if (notesService) {
-          await notesService.data.notes.saveAll();
-          await this.syncNotesResource({ app });
-          return true;
-        }
-
-        return this.saveGraphToStore({
-          store: app.marginNotesRuntime.store,
-          key,
-          subjects,
-        });
-      },
-
-      async saveGraphToStore({ store, key, subjects, throwOnError = false }) {
-        try {
-          await store.save({
-            key,
-            value: this.toStorageDocument({ subjects }),
-          });
-          return true;
-        } catch (error) {
-          if (throwOnError) {
-            throw error;
-          }
-          console.error('Failed to save notes:', error);
-          return false;
-        }
+      async saveGraph({ app, key }) {
+        const service = await this.ensureNotesService({ app, storeKey: key });
+        await service.data.notes.saveAll();
+        await this.syncNotesResource({ app });
+        return true;
       },
 
       async createStoredAnnotation({ app, annotation }) {
         const notesService = await this.ensureNotesService({ app });
-        if (!notesService) {
-          return annotation;
-        }
-
-        const stored = await notesService.data.notes.create(annotation);
-        await this.syncNotesResource({ app });
-        return stored;
+        return notesService.data.notes.create(annotation);
       },
 
       async saveStoredAnnotation({ app, annotation }) {
         const notesService = await this.ensureNotesService({ app });
-        if (!notesService) {
-          return null;
-        }
-
-        const saved = await notesService.data.notes.update(
-          annotation.id,
-          this.toStoredAnnotation({ annotation })
-        );
-        await this.syncNotesResource({ app });
-        return saved;
+        return notesService.data.notes.save(annotation.id);
       },
 
       async deleteStoredAnnotation({ app, annotation }) {
         const notesService = await this.ensureNotesService({ app });
-        if (!notesService) {
-          return null;
-        }
-
-        const deleted = await notesService.data.notes.delete(annotation.id);
-        await this.syncNotesResource({ app });
-        return deleted;
+        return notesService.data.notes.delete(annotation.id);
       },
 
       async syncNotesResource({ app }) {
@@ -1007,6 +924,9 @@ export const paragraphNoteStacks = {
         }
 
         const status = await notesService.sync('notes');
+        await app.actions.replaceNotesGraph({
+          graph: this.noteSubjects({ service: notesService }),
+        });
         if (status?.ok === false) {
           this.setSolidConnectionStatus({
             app,
@@ -1023,7 +943,7 @@ export const paragraphNoteStacks = {
 
       groupNotesByAnchor({ notes }) {
         return notes.reduce((grouped, note) => {
-          const anchorId = this.annotationAnchorId({ annotation: note }) || note.anchorId;
+          const anchorId = this.annotationAnchorId({ annotation: note });
           if (!anchorId) return grouped;
 
           if (!grouped[anchorId]) {

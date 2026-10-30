@@ -13,7 +13,7 @@ A reader can create, edit, delete, reload, and keep notes locally before connect
 
 ## Current implementation state
 
-The default storage path now creates a SimplySolid service with one local-first `notes` resource. Its local replica is an IndexedDB graph resource in the `margin-notes-workspace` database. The old app-owned IndexedDB store remains as a compatibility and migration source; custom host stores still use the previous `load`, `save`, and `remove` boundary.
+The default storage path now creates a SimplySolid service with one local-first `notes` resource. Its local replica is an IndexedDB graph resource in the `margin-notes-workspace` database. Custom host stores exchange Turtle through a workspace source adapter. The old app-owned IndexedDB store and migration path have been removed.
 
 The Solid connection flow still lives in the margin-notes app because it owns the reader-facing WebID control and per-page resource discovery. Once a resource URL is discovered, margin-notes passes the Solid API client and URL to `notesService.connect({ resources: { notes: { url }}})` and calls `notesService.sync('notes')`. The app no longer merges local and remote graphs itself.
 
@@ -24,7 +24,7 @@ Real browser testing made the next boundary visible: the reader may use a PWA-st
 ## Accepted constraints
 
 - Keep notes usable before Solid is connected.
-- Keep custom host stores working through the existing small store boundary.
+- Keep custom host stores working through the small Turtle load/save boundary.
 - Keep margin-notes code focused on note UI, annotation shaping, connection UI, and resource discovery.
 - Let SimplySolid/solid-workspace own local resource persistence, resource replicas, graph merge, and resource sync.
 - Use OLDMed annotation subjects as the common object shape across local and Solid-backed paths.
@@ -46,7 +46,7 @@ Real browser testing made the next boundary visible: the reader may use a PWA-st
 The slice is complete when tests demonstrate:
 
 1. local notes are created through SimplySolid and survive remount without a Solid connection;
-2. custom host stores still use the previous store boundary;
+2. custom host stores use the same workspace persistence path;
 3. connecting to Solid attaches the discovered resource as the remote replica for the local notes resource;
 4. existing local notes and existing remote notes appear together after connection;
 5. locally created notes after connection are synced to the remote resource;
@@ -90,8 +90,7 @@ remount. The UI says “Saved on this device. Solid sync pending” after a fail
 remote write. Connection status is published after the loaded notes are installed.
 
 Remaining: disposable real-Pod authentication/permission testing, conditional
-remote writes and cross-tab concurrency, and the larger one-context/library
-boundary refactor. This repair does not declare the entire stack finished.
+remote writes and cross-tab concurrency, and OLDM graph-removal support. This repair does not declare the entire stack finished.
 
 
 The repaired application path also passes all 57 tests against the npm releases
@@ -99,3 +98,11 @@ listed in `STATUS.md`. Cobalt remains the sole sibling-checkout build dependency
 while its scoped packages are pending publication. Registry installation replaces
 the SimplyFlow resolver and local Solid Tools/OLDM links; it does not broaden the
 fake-Solid test evidence into real-Pod validation.
+
+## Native fragment storage — 2026-10-30
+
+Cobalt text and formatting now persist as native RDF, including an ordered
+annotation Collection. The application bridge consumes Cobalt's existing value
+API; Cobalt has no RDF/Turtle dependency. Each edit replaces the body's fragment
+link with a new snapshot, preserving unknown facts and preventing old formatting
+from reappearing during replica sync. See `COBALT_RDF.md` and D048.

@@ -275,6 +275,31 @@ cyclic RDF structures. These belong to persistence and replica ownership in
 solid-workspace, with failure propagation through SimplySolid. The application
 must consume those contracts rather than implement its own merge or save lock.
 
+## DP-007: Edits need one authoritative resource graph
+
+**Status:** Validated against local package builds; not released
+
+**Active slice:** M3.2
+
+**Recorded:** 2026-10-30
+
+Editing a linked note body and reconnecting must retain the edit and unrelated
+resource facts. The workspace context refactor initially exposed a detached
+child through the mounted connection test: saved text reverted after reconnect.
+The workspace's collection update must preserve named-subject graph ownership;
+an application-owned copy/merge would duplicate that responsibility.
+
+[Proposal 0004](proposals/0004-workspace-context.md) records the existing guide's
+boundary decision, attempted integration, failing evidence, and implementation.
+The note was recorded during the refactor, after the integration failure, rather
+than before implementation. All 107 library tests and 42 current app tests pass against
+packed local builds. The user explicitly requested removal of compatibility;
+D047 records the coordinated native-only API and app changes. App dependencies still point to released packages.
+
+The book should distinguish live source graphs, cross-source context lookup,
+and detached persistence snapshots, and show why saving one subject must retain
+its resource's other facts.
+
 ## Entry template
 
 Copy this section for each new pressure.
@@ -342,3 +367,26 @@ What should the future book explain because this pressure existed?
 - One pressure may end with no library change.
 - Split pressures when they have different owning layers or tests.
 - Link design changes to evidence; do not rewrite history into a tidy story.
+
+## DP-008: Native RDF for Cobalt fragments
+
+**Status:** Resolved in application; validated in mounted browser tests
+**Active slice:** M3.2
+**Recorded:** 2026-10-30
+
+The user requires fragment text and ordered annotations to be readable as RDF,
+without adding a Turtle dependency to Cobalt. The existing application stores
+`JSON.stringify(fragment)` in `cobalt:fragment`, hiding formatting from RDF tools.
+Cobalt already has a plain `Fragment` value and editor `getValue`/`setValue` API;
+no shared-library change is required.
+
+An application bridge maps this value to a named fragment node with `rdf:value`
+and a `cobalt:annotations` OLDM Collection. Each annotation retains start/end,
+tag and Cobalt precedence order. New edits create distinct fragment nodes; the
+body's timestamped scalar link chooses one complete text/formatting snapshot.
+Old fragments and unknown RDF facts remain in the resource. Pruning them is
+separate work. The mapping is a Muze convention, not a Solid or Cobalt dependency.
+
+Validation covers ordered and duplicate annotations, UTF-16 ranges, empty
+lists, invalid input, unknown facts, competing edits, and a mounted Cobalt
+edit/save/reload through Turtle. See `COBALT_RDF.md` for the contracts and tests.

@@ -51,8 +51,6 @@
  *   Defaults to "margin-notes"
  * @property {string} [storeKey] - Optional key for browser-local notes.
  *   Defaults to `margin-notes-${namespace}`
- * @property {string} [storageKey] - Backwards-compatible alias for storeKey.
- *   Defaults to `margin-notes-${namespace}`
  * @property {Object} [store] - Optional store with async load/save/remove methods.
  * @property {Object} [solidConnection] - Optional Solid WebID connection control.
  *   When provided, margin-notes renders a small WebID connection UI into the
@@ -87,7 +85,6 @@
  *
  * @typedef {Object} MarginNotesAPI
  * @property {(config: HostConfig) => MarginNotesApp} mount - Mount and return the SimplyFlow app.
- * @property {() => Object} create - Backwards-compatible adapter for the previous initialize/destroy API.
  */
 
 export function validateHostConfig(config) {
@@ -120,7 +117,7 @@ export function validateHostConfig(config) {
 
 export function storeKeyFromConfig(config) {
   const namespace = config?.namespace || 'default';
-  return config?.storeKey || config?.storageKey || `margin-notes-${namespace}`;
+  return config?.storeKey || `margin-notes-${namespace}`;
 }
 
 function validateAnchor(anchor, index) {

@@ -1,16 +1,9 @@
-/**
- * Margin Notes app composition.
- *
- * The real implementation is a SimplyFlow app assembled from feature components.
- * The exported `MarginNotes` class remains as a small compatibility adapter for
- * the previous `create().initialize(config)` host API.
- */
+/** Margin notes app composition. */
 
 import { app } from '@muze-labs/simplyflow';
 import { simplySolid } from '@muze-labs/simplysolid';
 import { paragraphNoteStacks } from './features/paragraph-note-stacks.js';
 import { storeKeyFromConfig, validateHostConfig } from './host-contract.js';
-import { createLocalStore } from './storage/local-store.js';
 
 /**
  * Mount the margin notes SimplyFlow app.
@@ -23,7 +16,7 @@ export function mount(config) {
 
   const mountContainer = config.container.element;
   const storeKey = storeKeyFromConfig(config);
-  const store = config.store || createLocalStore();
+  const store = config.store;
   const themeRoot = document.documentElement;
 
   mountContainer.innerHTML = '<simply-render rel="margin-notes"></simply-render>';
@@ -61,7 +54,6 @@ export function mount(config) {
       solidConnectionElement: null,
       solidConnectionCleanup: null,
       notesService: config.notesService || null,
-      customStore: Boolean(config.store),
       simplySolid,
       themeRoot,
       hadThemeAttribute: themeRoot.hasAttribute('data-margin-notes-theme'),
@@ -104,59 +96,4 @@ export function mount(config) {
   };
 
   return marginApp;
-}
-
-/**
- * Thin backwards-compatible adapter for the previous component API.
- */
-export class MarginNotes {
-  constructor() {
-    this.app = null;
-  }
-
-  async initialize(config) {
-    if (this.app) {
-      await this.destroy();
-    }
-    this.app = mount(config);
-  }
-
-  async destroy() {
-    if (!this.app) return;
-
-    await this.app.destroy();
-    this.app = null;
-  }
-
-  async createNote(anchorId) {
-    return this.app?.actions.createNote({ anchorId });
-  }
-
-  async updateNote(noteId) {
-    return this.app?.actions.updateNote({ noteId });
-  }
-
-  async deleteNote(noteId) {
-    return this.app?.actions.deleteNote({ noteId });
-  }
-
-  getNotesForAnchor(anchorId) {
-    return this.app?.getNotesForAnchor(anchorId) || [];
-  }
-
-  setTheme(theme) {
-    return this.app?.setTheme(theme);
-  }
-
-  getTheme() {
-    return this.app?.getTheme() || 'system';
-  }
-
-  connectSolidStorage(webId) {
-    return this.app?.connectSolidStorage(webId);
-  }
-
-  getSolidConnection() {
-    return this.app?.getSolidConnection() || null;
-  }
 }
