@@ -5,6 +5,10 @@ import {
   readCobaltFragment, writeCobaltFragment,
 } from '../src/features/paragraph-note-stacks/cobalt-fragment-rdf.js';
 
+const fragmentId = 'https://book.example/chapter#margin-note-testcode-1-fragment';
+
+const htmlId = 'https://book.example/chapter#margin-note-testcode-1-html';
+
 const fragment = {
   text: '😀 https://example.test/\n"quoted"',
   annotations: [
@@ -16,7 +20,7 @@ const fragment = {
 };
 
 test('Cobalt RDF: Turtle preserves list order, duplicates, ranges and precedence', async () => {
-  const node = writeCobaltFragment(fragment);
+  const node = writeCobaltFragment(fragment, { id: fragmentId, htmlId });
   assert.ok(node.cobalt$annotations instanceof oldm.Collection);
   assert.deepEqual(readCobaltFragment(node), fragment);
   const turtle = await node.graph.write();
@@ -33,7 +37,7 @@ test('Cobalt RDF: Turtle preserves list order, duplicates, ranges and precedence
 
 test('Cobalt RDF: empty text and annotation lists survive Turtle', async () => {
   const empty = { text: '', annotations: [] };
-  const node = writeCobaltFragment(empty);
+  const node = writeCobaltFragment(empty, { id: fragmentId, htmlId });
   const graph = oldm.context().parse(
     await node.graph.write(), node.graph.url, 'text/turtle',
   );
@@ -42,7 +46,7 @@ test('Cobalt RDF: empty text and annotation lists survive Turtle', async () => {
 
 test('Cobalt RDF: malformed values fail instead of silently losing formatting', () => {
   assert.throws(() => readCobaltFragment('old JSON'), /cobalt-fragment-rdf/);
-  const node = writeCobaltFragment(fragment);
+  const node = writeCobaltFragment(fragment, { id: fragmentId, htmlId });
   node.cobalt$annotations = Array.from(node.cobalt$annotations);
   assert.throws(() => readCobaltFragment(node), /Collection/);
   for (const annotation of [
@@ -53,7 +57,7 @@ test('Cobalt RDF: malformed values fail instead of silently losing formatting', 
   ]) {
     assert.throws(() => writeCobaltFragment({
       text: fragment.text, annotations: [annotation],
-    }), /cobalt-fragment-rdf/);
+    }, { id: fragmentId, htmlId }), /cobalt-fragment-rdf/);
   }
 });
 
@@ -71,4 +75,16 @@ test('Cobalt RDF: reads independently authored Turtle with different prefixes', 
       { range: [0, 4], tag: '<strong>', order: 3 },
     ],
   });
+});
+
+test('Cobalt RDF: explicit page identities extend to formatting nodes and edits reuse the fragment', () => {
+  const node = writeCobaltFragment(fragment, { id: fragmentId, htmlId });
+  assert.equal(node.id, fragmentId);
+  assert.equal(node.cobalt$annotations[0].id, `${fragmentId}-0`);
+  assert.equal(node.cobalt$annotations[0].id.split('#').length, 2);
+  assert.throws(() => writeCobaltFragment(fragment), /fragment id is required/);
+  const updated = { text: 'Updated', annotations: [] };
+  assert.equal(writeCobaltFragment(updated, { id: fragmentId, htmlId, graph: node.graph }), node);
+  assert.deepEqual(readCobaltFragment(node), updated);
+  assert.equal(node.graph.get(`${fragmentId}-0`), undefined);
 });

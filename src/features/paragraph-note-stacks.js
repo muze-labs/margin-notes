@@ -43,8 +43,6 @@ export const paragraphNoteStacks = {
       await this.actions.setTheme({
         theme: this.data.marginNotes.theme,
       });
-      await this.actions.installAnchorAffordances({ anchors });
-
       this.data.marginNotes.graph = await notesApi.loadGraph({
         app: this,
         key: storeKey,
@@ -68,6 +66,7 @@ export const paragraphNoteStacks = {
 
       this.data.marginNotes.anchors = anchorState;
       this.data.marginNotes.anchorViews = Array.from(anchorState, anchor => [anchor]);
+      await this.actions.installAnchorAffordances({ anchors });
       for (const anchor of this.data.marginNotes.anchors) {
         await this.actions.renderAnchorNotes({ anchor });
       }
@@ -112,11 +111,12 @@ export const paragraphNoteStacks = {
       });
       notesApi.renderSolidConnectionStatus({ app: this });
 
+      // The action reports errors in the connection UI; event handlers consume rejections.
       const onSubmit = event => {
         event.preventDefault();
         void this.actions.connectSolidStorage({
           webId: input.value,
-        });
+        }).catch(() => {});
       };
       element.addEventListener('submit', onSubmit);
 
@@ -129,7 +129,8 @@ export const paragraphNoteStacks = {
       if (rememberedConnection && config.autoConnect !== false) {
         void this.actions.connectSolidStorage({
           webId: initialWebId,
-        });
+          interactive: false,
+        }).catch(() => {});
       }
     },
 
@@ -164,7 +165,12 @@ export const paragraphNoteStacks = {
       const fragment = await modal.show();
       if (!fragment) return;
 
-      const annotation = notesApi.createAnnotationNote({ anchorId, fragment });
+      const service = await notesApi.ensureNotesService({ app: this });
+      const annotation = notesApi.createAnnotationNote({
+        anchorId, fragment,
+        subjects: service.workspace.graph('notes').data,
+        sequence: this.marginNotesRuntime.annotationIds,
+      });
       const storedAnnotation = await notesApi.createStoredAnnotation({
         app: this,
         annotation,
@@ -230,7 +236,7 @@ export const paragraphNoteStacks = {
       });
     },
 
-    async connectSolidStorage({ webId }) {
+    async connectSolidStorage({ webId, interactive = true }) {
       const notesApi = this.api.notes;
       const config = this.marginNotesRuntime.solidConnectionConfig || {};
       let authorization;
@@ -244,7 +250,7 @@ export const paragraphNoteStacks = {
         });
         notesApi.renderSolidConnectionStatus({ app: this });
 
-        authorization = notesApi.prepareSolidAuthorization({ config });
+        authorization = notesApi.prepareSolidAuthorization({ config, interactive });
         const connection = await notesApi.createSolidNotesConnection({
           ...config,
           ...authorization.options,
@@ -272,6 +278,7 @@ export const paragraphNoteStacks = {
           solid: solidClient,
           resources: { notes: { url: connection.resourceUrl } },
         });
+        notesApi.updateNotesPrefix({ app: this, service: notesService });
         const syncStatus = await notesService.sync('notes');
         if (syncStatus?.ok === false) {
           throw syncStatus.error || new Error(`Solid notes sync failed: ${syncStatus.status}`);
@@ -739,7 +746,7 @@ export const paragraphNoteStacks = {
         return value?.element || value || null;
       },
 
-      prepareSolidAuthorization({ config }) {
+      prepareSolidAuthorization({ config, interactive = true }) {
         if (
           config.solid
           || config.discoverySolid
@@ -747,10 +754,16 @@ export const paragraphNoteStacks = {
           || config.usePopupAuth === false
         ) return {};
 
-        let popup = this.openSolidAuthPopup();
+        let popup = null;
+        if (interactive) {
+          popup = this.openSolidAuthPopup();
+        }
         return {
           options: {
             authorize_callback: authorizationCodeURL => {
+              if (!interactive) {
+                throw new Error('Sign-in required. Click Connect to continue.');
+              }
               return this.authorizeSolidPopup({ authorizationCodeURL, popup });
             },
           },
@@ -863,11 +876,15 @@ export const paragraphNoteStacks = {
           return app.marginNotesRuntime.notesService;
         }
         const store = app.marginNotesRuntime.store;
+        const prefixes = {
+          ...this.vocabulary.prefixes,
+        };
+        app.marginNotesRuntime.notesPrefixes = prefixes;
         const local = store ? graph.resource({
           id: 'notes:local',
           url: `urn:margin-notes:store:${encodeURIComponent(storeKey)}`,
           local: true,
-          prefixes: this.vocabulary.prefixes,
+          prefixes,
           async load() {
             return await store.load({ key: storeKey }) ?? '';
           },
@@ -878,7 +895,7 @@ export const paragraphNoteStacks = {
           indexedDB: 'margin-notes-workspace',
           store: 'resources',
           key: storeKey,
-          prefixes: this.vocabulary.prefixes,
+          prefixes,
         };
         const service = app.marginNotesRuntime.simplySolid({
           localFirst: true,
@@ -886,18 +903,29 @@ export const paragraphNoteStacks = {
           data: {
             notes: {
               kind: 'resource',
-              scalarPredicates: [
-                'http://www.w3.org/1999/02/22-rdf-syntax-ns#value',
-                'https://schema.org/text',
-                'https://vocab.muze.nl/cobalt#fragment',
-              ],
+              baseURI: this.currentDocumentIri({}),
+              prefixes,
+              ...this.replicaPolicy,
               local,
             },
           },
         });
         await service.open();
         app.marginNotesRuntime.notesService = service;
+        this.updateNotesPrefix({ app, service });
         return service;
+      },
+
+      updateNotesPrefix({ app, service }) {
+        const data = service.workspace.graph('notes');
+        const sequence = app.marginNotesRuntime.annotationIds;
+        this.restoreAnnotationSequence({ subjects: data.data, sequence });
+        if (sequence.code) {
+          const prefix = `${this.currentDocumentIri({})}#margin-note-${sequence.code}-`;
+          if (app.marginNotesRuntime.notesPrefixes) {
+            app.marginNotesRuntime.notesPrefixes.note = prefix;
+          }
+        }
       },
 
       noteSubjects({ service }) {
@@ -920,6 +948,7 @@ export const paragraphNoteStacks = {
 
       async createStoredAnnotation({ app, annotation }) {
         const notesService = await this.ensureNotesService({ app });
+        this.updateNotesPrefix({ app, service: notesService });
         return notesService.data.notes.create(annotation);
       },
 

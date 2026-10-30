@@ -1,6 +1,6 @@
 {
   "name": "margin-notes",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "type": "module",
   "description": "An embeddable margin-notes component for Solid",
   "license": "MIT",
@@ -25,11 +25,11 @@
     "@muze-labs/jsfs-solid": "^0.1.1",
     "@muze-labs/metro-solid": "^0.1.0",
     "@muze-labs/simplyflow": "^0.10.4",
-    "@muze-labs/simplysolid": "^0.2.0",
-    "@muze-labs/solid-workspace": "^0.2.0",
+    "@muze-labs/simplysolid": "^0.2.1",
+    "@muze-labs/solid-workspace": "^0.2.1",
     "@muze-nl/assert": "^0.7.0",
     "@muze-nl/jaqt": "^0.10.7",
-    "@muze-nl/oldm": "^0.8.1"
+    "@muze-nl/oldm": "^0.8.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

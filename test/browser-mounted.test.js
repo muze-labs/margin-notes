@@ -59,6 +59,7 @@ test('BrowserMounted: real Cobalt editing round-trips ordered formatting through
       await waitFor(() => document.querySelector('.margin-notes-target-note-text strong'));
       const inlineBeforeReload = document.querySelector('.margin-notes-target-note-text').innerHTML;
       const savedTurtle = turtle;
+      const initialHtmlBody = String(app.getNotesForAnchor('p-browser-one')[0].oa$hasBody.rdf$value);
       const id = app.getNotesForAnchor('p-browser-one')[0].id;
       await app.destroy();
       app = MarginNotesAPI.mount(config);
@@ -82,9 +83,13 @@ test('BrowserMounted: real Cobalt editing round-trips ordered formatting through
       });
       await waitFor(() => document.querySelector('.margin-notes-target-note-text')?.textContent === 'No formatting now');
       const inlineAfterEdit = document.querySelector('.margin-notes-target-note-text').innerHTML;
+      const editedAnnotation = app.getNotesForAnchor('p-browser-one')[0];
+      const editedHtmlBody = String(editedAnnotation.oa$hasBody.rdf$value);
+      const htmlFormat = String(editedAnnotation.oa$hasBody.dcterms$format);
       await app.destroy();
       return {
         fragment, restored, rendered, savedTurtle, edited,
+        initialHtmlBody, editedHtmlBody, htmlFormat,
         inlineBeforeReload, inlineAfterReload, inlineAfterEdit,
         inlineWeight, inlineStyle,
       };
@@ -106,12 +111,157 @@ test('BrowserMounted: real Cobalt editing round-trips ordered formatting through
     assert.ok(Number(result.inlineWeight) >= 600);
     assert.equal(result.inlineStyle, 'italic');
     assert.equal(result.inlineAfterEdit, 'No formatting now');
+    assert.equal(result.initialHtmlBody, result.inlineBeforeReload);
+    assert.equal(result.editedHtmlBody, result.inlineAfterEdit);
+    assert.equal(result.htmlFormat, 'text/html');
+    assert.match(result.savedTurtle, /dcterms:hasFormat note:1-html/);
     assert.match(result.rendered, /<strong/);
     assert.match(result.rendered, /<em/);
     assert.match(result.rendered, /href="https:\/\/example.test\/"/);
     assert.match(result.savedTurtle, /cobalt:annotations\s+\(/);
+    assert.match(result.savedTurtle, /@prefix note:/);
+    assert.ok(result.savedTurtle.startsWith(`@base <${server.url}/test.html> .`));
+    assert.match(result.savedTurtle, /oa:hasTarget <#p-browser-/);
+    assert.match(result.savedTurtle, /note:1-fragment-0/);
+    assert.doesNotMatch(result.savedTurtle, /urn:uuid:/);
     assert.doesNotMatch(result.savedTurtle, /fragment\+json/);
     assert.deepEqual(result.edited, { text: 'No formatting now', annotations: [] });
+  }
+  finally {
+    page?.close();
+    await chrome.close();
+    await server.close();
+  }
+});
+
+test('BrowserMounted: empty paragraphs never receive placeholder notes during mount', async () => {
+  const server = await startServer();
+  const chrome = await startChrome(`${server.url}/test.html`);
+  let page;
+  try {
+    page = await chrome.page();
+    await page.ready();
+    const result = await page.evaluate(async () => {
+      const { MarginNotesAPI } = await import('/dist/index.js');
+      let turtle = '';
+      const config = {
+        anchors: Array.from(document.querySelectorAll('[data-note-target]'), element => ({ id: element.id, element })),
+        container: { element: document.getElementById('margin-notes-container') },
+        storeKey: 'no-placeholder-notes',
+        store: {
+          load: async () => turtle,
+          save: async ({ value }) => { turtle = value; },
+          remove: async () => { turtle = ''; },
+        },
+      };
+      const addedNotes = [];
+      const observer = new MutationObserver(records => {
+        for (const record of records) {
+          for (const node of record.addedNodes) {
+            if (!(node instanceof Element)) continue;
+            const notes = [
+              ...(node.matches('.margin-notes-target-note') ? [node] : []),
+              ...node.querySelectorAll('.margin-notes-target-note'),
+            ];
+            for (const note of notes) {
+              const host = note.closest('[data-margin-notes-anchor]')
+                || record.target.closest?.('[data-margin-notes-anchor]');
+              addedNotes.push(host?.dataset.marginNotesAnchor);
+            }
+          }
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      async function mount() {
+        const app = MarginNotesAPI.mount(config);
+        for (let attempt = 0; attempt < 100; attempt++) {
+          if (document.querySelectorAll('.margin-notes-target-add-btn').length === 2
+            && app.data.marginNotes.anchors.length === 2) break;
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        // Observe across the binding throttle and subsequent paint frames.
+        for (let frame = 0; frame < 12; frame++) {
+          await new Promise(requestAnimationFrame);
+        }
+        return app;
+      }
+      let app = await mount();
+      const emptyMountNotes = [...addedNotes];
+      const addButtons = document.querySelectorAll('.margin-notes-target-add-btn').length;
+      app.api.notes.CobaltEditorModal = class {
+        async show() { return { text: 'Saved note', annotations: [] }; }
+      };
+      await app.actions.createNote({ anchorId: 'p-browser-one' });
+      await app.destroy();
+      addedNotes.length = 0;
+      app = await mount();
+      const restoredMountNotes = [...addedNotes];
+      const restoredText = document.querySelector('.margin-notes-target-note-text')?.textContent;
+      observer.disconnect();
+      await app.destroy();
+      return { emptyMountNotes, restoredMountNotes, restoredText, addButtons };
+    });
+    assert.equal(result.addButtons, 2);
+    assert.deepEqual(result.emptyMountNotes, []);
+    assert.ok(result.restoredMountNotes.length > 0);
+    assert.ok(result.restoredMountNotes.every(anchorId => anchorId === 'p-browser-one'));
+    assert.equal(result.restoredText, 'Saved note');
+  }
+  finally {
+    page?.close();
+    await chrome.close();
+    await server.close();
+  }
+});
+
+test('BrowserMounted: resource note IDs continue after deletion and remount', async () => {
+  const server = await startServer();
+  const chrome = await startChrome(`${server.url}/test.html?edition=2#p-browser-one`);
+  let page;
+  try {
+    page = await chrome.page();
+    await page.ready();
+    const result = await page.evaluate(async () => {
+      const { MarginNotesAPI } = await import('/dist/index.js');
+      let turtle = '';
+      const config = {
+        anchors: Array.from(document.querySelectorAll('[data-note-target]'), element => ({ id: element.id, element })),
+        container: { element: document.getElementById('margin-notes-container') },
+        storeKey: 'resource-identifiers',
+        store: {
+          load: async () => turtle,
+          save: async ({ value }) => { turtle = value; },
+          remove: async () => { turtle = ''; },
+        },
+      };
+      async function mount() {
+        const app = MarginNotesAPI.mount(config);
+        for (let i = 0; i < 100 && app.data.marginNotes.anchors.length !== 2; i++) {
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        if (app.data.marginNotes.anchors.length !== 2) throw new Error('ID test mount timed out');
+        app.api.notes.CobaltEditorModal = class {
+          async show() { return { text: 'ID test note', annotations: [] }; }
+        };
+        return app;
+      }
+      let app = await mount();
+      await app.actions.createNote({ anchorId: 'p-browser-one' });
+      await app.actions.createNote({ anchorId: 'p-browser-one' });
+      const [first, second] = app.getNotesForAnchor('p-browser-one').map(note => note.id);
+      await app.actions.deleteNote({ noteId: second });
+      await app.destroy();
+      app = await mount();
+      await app.actions.createNote({ anchorId: 'p-browser-one' });
+      const third = app.getNotesForAnchor('p-browser-one').find(note => note.id !== first).id;
+      await app.destroy();
+      return { first, second, third, pageUrl: location.href.split('#')[0], turtle };
+    });
+    assert.ok(result.first.startsWith(`${result.pageUrl}#margin-note-`));
+    assert.match(result.first, /#margin-note-[A-Za-z0-9_-]{8}-1$/);
+    assert.equal(result.second, result.first.replace(/-1$/, '-2'));
+    assert.equal(result.third, result.first.replace(/-1$/, '-3'));
+    assert.doesNotMatch(result.turtle, /@prefix (?:acl|foaf|schema|rdfs|xsd):/);
   }
   finally {
     page?.close();
@@ -173,7 +323,7 @@ test('BrowserMounted: public API creates, restores, edits, and deletes one local
       await waitFor(() => restoredApp.getNotesForAnchor('p-browser-one').length === 1, 'restored note');
 
       const [restored] = restoredApp.getNotesForAnchor('p-browser-one');
-      const originalRestoredText = String(restored.oa$hasBody.rdf$value);
+      const originalRestoredText = String(restored.cobalt$fragment.rdf$value);
       restoredApp.api.notes.CobaltEditorModal = class TestEditorModal {
         async show() {
           return { text: globalThis.__nextNoteText, annotations: [] };
@@ -182,7 +332,7 @@ test('BrowserMounted: public API creates, restores, edits, and deletes one local
       globalThis.__nextNoteText = 'An edited browser note';
       await restoredApp.actions.updateNote({ noteId: restored.id });
       await waitFor(() => {
-        return String(restoredApp.getNotesForAnchor('p-browser-one')[0]?.oa$hasBody.rdf$value) === 'An edited browser note';
+        return String(restoredApp.getNotesForAnchor('p-browser-one')[0]?.cobalt$fragment.rdf$value) === 'An edited browser note';
       }, 'edited note');
 
       const [edited] = restoredApp.getNotesForAnchor('p-browser-one');
@@ -200,14 +350,14 @@ test('BrowserMounted: public API creates, restores, edits, and deletes one local
       return {
         createdId: created.id,
         createdType: created.a,
-        createdText: String(created.oa$hasBody.rdf$value),
+        createdText: String(created.cobalt$fragment.rdf$value),
         storedSubjectCount: storedAfterCreate.length,
         restoredId: restored.id,
         restoredText: originalRestoredText,
         unrelatedFact: String(restoredApp.marginNotesRuntime.notesService
           .workspace.graph('notes').get('urn:unrelated').schema$comment),
         editedId: edited.id,
-        editedText: String(edited.oa$hasBody.rdf$value),
+        editedText: String(edited.cobalt$fragment.rdf$value),
         editedFragment: restoredApp.api.notes.annotationBodyFragment({ annotation: edited }),
         editedUnknownSubjectFact: storedAfterEdit[0].schema$about?.id ?? storedAfterEdit[0].schema$about,
         editedUnknownBodyFact: String(storedAfterEdit[0].oa$hasBody.schema$comment),
@@ -333,7 +483,7 @@ test('BrowserMounted: public API can persist through a Solid resource store adap
       });
       await waitFor(() => restoredApp.getNotesForAnchor('p-browser-one').length === 1);
       const [restored] = restoredApp.getNotesForAnchor('p-browser-one');
-      const restoredText = String(restored.oa$hasBody.rdf$value);
+      const restoredText = String(restored.cobalt$fragment.rdf$value);
       restoredApp.api.notes.CobaltEditorModal = class TestEditorModal {
         async show() {
           return { text: 'Edited on Solid', annotations: [] };
@@ -532,7 +682,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         && restoredApp.getNotesForAnchor('p-browser-two').length === 1, 'restored connected note');
       const restoredStatus = restoredApp.getSolidConnection();
       const [restoredNote] = restoredApp.getNotesForAnchor('p-browser-two');
-      const restoredNoteText = String(restoredNote.oa$hasBody.rdf$value);
+      const restoredNoteText = String(restoredNote.cobalt$fragment.rdf$value);
       const deletedNoteCount = restoredApp.getNotesForAnchor('p-browser-one').length;
       failWrites = true;
       restoredApp.api.notes.CobaltEditorModal = class TestEditorModal {
@@ -548,13 +698,13 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         storeKey: restoredStoreKey,
       });
       await waitFor(() => offlineApp.getNotesForAnchor('p-browser-two').length === 1, 'offline remount');
-      const offlineText = String(offlineApp.getNotesForAnchor('p-browser-two')[0].oa$hasBody.rdf$value);
+      const offlineText = String(offlineApp.getNotesForAnchor('p-browser-two')[0].cobalt$fragment.rdf$value);
       await offlineApp.destroy();
 
       return {
         status,
         statusText,
-        noteText: String(note.oa$hasBody.rdf$value),
+        noteText: String(note.cobalt$fragment.rdf$value),
         restoredStatus,
         restoredNoteText,
         deletedNoteCount,
@@ -593,23 +743,20 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         const rdf = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
         const dc = 'http://purl.org/dc/terms/';
         return `
+          @prefix note: <${location.href.replace(/#.*/, '')}#margin-note-> .
           <${id}> a <${oa}Annotation>;
             <${dc}created> "2026-07-19T10:00:00.000Z";
             <${dc}modified> "2026-07-19T10:00:00.000Z";
-            <${oa}hasBody> <${id}-body>;
-            <${oa}hasTarget> <${id}-target> .
-          <${id}-body> a <${oa}TextualBody>;
-            <${rdf}value> ${JSON.stringify(text)};
-            <https://schema.org/text> ${JSON.stringify(text)};
-            <https://vocab.muze.nl/cobalt#fragment>
-              <${id}-fragment> .
+            <https://vocab.muze.nl/cobalt#fragment> <${id}-fragment>;
+            <${oa}hasBody> <${id}-html>;
+            <${oa}hasTarget> <${location.href.replace(/#.*/, '')}#${encodeURIComponent(anchorId)}> .
+          <${id}-html> a <${oa}TextualBody>;
+            <${dc}format> "text/html";
+            <${rdf}value> ${JSON.stringify(text)} .
           <${id}-fragment> a <https://vocab.muze.nl/cobalt#Fragment>;
+            <${dc}hasFormat> <${id}-html>;
             <${rdf}value> ${JSON.stringify(text)};
             <https://vocab.muze.nl/cobalt#annotations> () .
-          <${id}-target> a <${oa}SpecificResource>;
-            <${oa}hasSelector> <${id}-selector> .
-          <${id}-selector> a <${oa}FragmentSelector>;
-            <${rdf}value> ${JSON.stringify(anchorId)} .
         `;
       }
 
@@ -737,8 +884,8 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
 
       return {
         status,
-        localNoteText: String(localNote.oa$hasBody.rdf$value),
-        solidNoteText: String(solidNote.oa$hasBody.rdf$value),
+        localNoteText: String(localNote.cobalt$fragment.rdf$value),
+        solidNoteText: String(solidNote.cobalt$fragment.rdf$value),
         savedNotesText: savedNotesTurtle,
         requestMethods: calls.map(call => call.method),
         putUrl: calls.find(call => call.method === 'put')?.url,
@@ -761,23 +908,20 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
         const rdf = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
         const dc = 'http://purl.org/dc/terms/';
         return `
+          @prefix note: <${location.href.replace(/#.*/, '')}#margin-note-> .
           <${id}> a <${oa}Annotation>;
             <${dc}created> "2026-07-19T10:00:00.000Z";
             <${dc}modified> "2026-07-19T10:00:00.000Z";
-            <${oa}hasBody> <${id}-body>;
-            <${oa}hasTarget> <${id}-target> .
-          <${id}-body> a <${oa}TextualBody>;
-            <${rdf}value> ${JSON.stringify(text)};
-            <https://schema.org/text> ${JSON.stringify(text)};
-            <https://vocab.muze.nl/cobalt#fragment>
-              <${id}-fragment> .
+            <https://vocab.muze.nl/cobalt#fragment> <${id}-fragment>;
+            <${oa}hasBody> <${id}-html>;
+            <${oa}hasTarget> <${location.href.replace(/#.*/, '')}#${encodeURIComponent(anchorId)}> .
+          <${id}-html> a <${oa}TextualBody>;
+            <${dc}format> "text/html";
+            <${rdf}value> ${JSON.stringify(text)} .
           <${id}-fragment> a <https://vocab.muze.nl/cobalt#Fragment>;
+            <${dc}hasFormat> <${id}-html>;
             <${rdf}value> ${JSON.stringify(text)};
             <https://vocab.muze.nl/cobalt#annotations> () .
-          <${id}-target> a <${oa}SpecificResource>;
-            <${oa}hasSelector> <${id}-selector> .
-          <${id}-selector> a <${oa}FragmentSelector>;
-            <${rdf}value> ${JSON.stringify(anchorId)} .
         `;
       }
 
@@ -792,6 +936,10 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
 
     assert.equal(result.status.status, 'connected');
     assert.match(result.status.resourceUrl, /^https:\/\/pod\.example\/private\/margin-notes\/page-[a-f0-9]+\.ttl$/);
+    assert.match(result.savedNotesText, /@prefix note: <[^>]+#margin-note-[A-Za-z0-9_-]{8}->/);
+    assert.match(result.savedNotesText, /note:1 /);
+    assert.ok(result.savedNotesText.startsWith(`@base <${server.url}/test.html> .`));
+    assert.match(result.savedNotesText, /oa:hasTarget <#p-browser-/);
     assert.equal(result.localNoteText, 'Local note before Solid');
     assert.equal(result.solidNoteText, 'Already in Solid');
     assert.match(result.savedNotesText, /Local note before Solid/);
@@ -949,6 +1097,102 @@ test('BrowserMounted: Solid connection reserves and closes its OAuth popup', asy
     assert.equal(result.popupHref, result.callbackUrl);
     assert.equal(result.status.status, 'connected');
   } finally {
+    page?.close();
+    await chrome.close();
+    await server.close();
+  }
+});
+
+test('BrowserMounted: reload reconnects silently and requests a click when login is needed', async () => {
+  const server = await startServer();
+  const chrome = await startChrome(`${server.url}/test.html`);
+  let page;
+  try {
+    page = await chrome.page();
+    await page.ready();
+    const result = await page.evaluate(async () => {
+      const { MarginNotesAPI } = await import('/dist/index.js');
+      const slot = document.createElement('div');
+      document.body.append(slot);
+      const config = {
+        anchors: Array.from(document.querySelectorAll('[data-note-target]'), element => ({ id: element.id, element })),
+        container: { element: document.getElementById('margin-notes-container') },
+        namespace: 'silent-reconnect',
+        solidConnection: { container: { element: slot } },
+      };
+      localStorage.setItem('margin-notes.solidConnection.silent-reconnect', JSON.stringify({
+        webId: 'https://pod.example/profile/card#me',
+      }));
+      const popups = [];
+      const originalOpen = window.open;
+      window.open = () => {
+        const popup = { closed: false, close() { this.closed = true; } };
+        popups.push(popup);
+        return popup;
+      };
+      const rejections = [];
+      window.addEventListener('unhandledrejection', event => rejections.push(String(event.reason)));
+      let needsLogin = false;
+      let authorizationCalls = 0;
+      const connection = async options => {
+        if (needsLogin) await options.authorize_callback('https://issuer.example/authorize');
+        return {
+          webId: options.webId,
+          storageUrl: 'https://pod.example/storage/',
+          resourceUrl: 'https://pod.example/notes.ttl',
+          solid: {
+            async get() { throw new Error('missing', { cause: { status: 404 } }); },
+            async put() { return { ok: true, status: 201 }; },
+          },
+        };
+      };
+      function mount() {
+        const app = MarginNotesAPI.mount(config);
+        app.api.notes.createSolidNotesConnection = connection;
+        app.api.notes.authorizePopup = async () => { authorizationCalls++; return 'code'; };
+        return app;
+      }
+      let app = mount();
+      await waitFor(() => app.getSolidConnection().status === 'connected');
+      const silentPopupCount = popups.length;
+      await app.destroy();
+      needsLogin = true;
+      app = mount();
+      await waitFor(() => ['error', 'connected'].includes(app.getSolidConnection().status));
+      const automaticStatus = app.getSolidConnection();
+      const automaticPopupCount = popups.length;
+      const automaticAuthorizationCalls = authorizationCalls;
+      slot.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      await waitFor(() => app.getSolidConnection().status === 'connected');
+      await new Promise(resolve => setTimeout(resolve, 25));
+      const finalStatus = app.getSolidConnection().status;
+      await app.destroy();
+      window.open = originalOpen;
+      return {
+        silentPopupCount, automaticPopupCount, automaticAuthorizationCalls,
+        automaticStatus, finalStatus, popupCount: popups.length,
+        popupClosed: popups.at(-1)?.closed, authorizationCalls, rejections,
+      };
+      async function waitFor(predicate) {
+        for (let i = 0; i < 100; i++) {
+          if (predicate()) return;
+          await new Promise(resolve => setTimeout(resolve, 20));
+        }
+        throw new Error('Silent reconnect test timed out');
+      }
+    });
+    assert.equal(result.silentPopupCount, 0);
+    assert.equal(result.automaticPopupCount, 0);
+    assert.equal(result.automaticAuthorizationCalls, 0);
+    assert.equal(result.automaticStatus.status, 'error');
+    assert.match(result.automaticStatus.message, /Click Connect/);
+    assert.equal(result.finalStatus, 'connected');
+    assert.equal(result.popupCount, 1);
+    assert.equal(result.popupClosed, true);
+    assert.equal(result.authorizationCalls, 1);
+    assert.deepEqual(result.rejections, []);
+  }
+  finally {
     page?.close();
     await chrome.close();
     await server.close();

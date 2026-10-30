@@ -109,3 +109,72 @@ Each edit creates a fresh fragment snapshot. The body's timestamped scalar link
 selects the whole text/formatting value during sync. Unknown facts and prior
 snapshots remain in the graph; pruning and revision UI are deferred. The mapping
 is documented as an application convention in [Cobalt RDF](COBALT_RDF.md).
+
+## D049 — Accepted: one text value and one annotation edit timestamp
+
+2026-10-30. Supersedes the duplicated text and body-timestamp portions of D048.
+Text lives only in the immutable Cobalt fragment. The annotation is the edit
+owner and carries the sole modification timestamp. Its body retains its identity,
+fragment link, type and format. The application declares `oa:hasBody` ownership
+and the editable `cobalt:fragment` predicate to SimplySolid; Solid Workspace
+selects one revision for that ownership group. No ownership triples are stored.
+Unknown facts and old fragment snapshots remain. This does not migrate existing
+stored graphs or introduce pruning. See proposal 0004 and DP-009.
+
+## D050 — Accepted: page-based annotation IDs with a resource code
+
+2026-10-30. The user selects the page URL plus a short random code and counter,
+with one code shared by all notes in a resource. The app recovers allocation
+state from existing IDs (including tombstones) and reserves counters in memory
+while mounted. It adds no RDF metadata. Existing IDs remain unchanged. This
+assumes a single allocating writer; concurrent offline allocation requires
+coordination. URL canonicalization and note-link navigation are not implemented.
+
+## D051 — Accepted: compact IDs and direct paragraph targets
+
+2026-10-30. The user requests page-based fragment IDs, a margin-notes prefix, and
+paragraph URLs instead of separate target/selector structures. The annotation
+model allocates snapshot IDs under their parent annotation with a short random
+revision suffix; the RDF bridge takes the ID explicitly. This preserves immutable
+revision identity. One `note:` prefix abbreviates the page's annotation namespace.
+`oa:hasTarget` now points directly to the page plus its encoded paragraph ID.
+The reader checks page identity and decodes that fragment. No legacy target
+fallback, stored-ID rewrite, or snapshot pruning is introduced.
+
+## D052 — Accepted: page URL as the Turtle base
+
+2026-10-30. The user approves using the page URL as `@base`, allowing direct
+targets to serialize as `<#paragraph-id>`. Keep the `note:` prefix. The app supplies
+`baseURI` through SimplySolid to the workspace resource. Storage URLs and RDF
+identities remain unchanged, including facts loaded from other base URLs.
+
+## D053 — Accepted: current fragments and one code in the resource prefix
+
+2026-10-30. The user excludes revision history and collaborative editing. This
+supersedes immutable snapshots in D048–D051. New notes have one stable fragment;
+formatting IDs are the fragment ID plus an index. The resource's only random code
+moves into `note:`, leaving `note:1-fragment-0` for the first formatting member.
+Edits replace mapped text/formatting facts. Unknown facts remain, including those
+on removed members, but obsolete managed fields are cleared. Existing snapshot
+history is not automatically swept or migrated.
+
+The app's ownership and scalar configuration makes the complete current value
+follow the annotation timestamp during local/remote sync. This uses existing
+workspace ownership, with an empty-Collection correction. Resource prefix
+preferences apply to save and merge through graph copies, preserving full IRIs.
+
+## D054 — Accepted: standard OA HTML body owned by the Cobalt fragment
+
+2026-10-30. The user prioritizes Web Annotation interoperability and selects an
+annotation with `oa:hasBody` pointing to an HTML `oa:TextualBody`, plus a direct
+`cobalt:fragment` link for editing. The fragment owns plain text and annotations
+and links outward to the HTML body using `dcterms:hasFormat`. The HTML body has
+one string `rdf:value` and `dcterms:format "text/html"`. Cobalt's existing renderer
+generates the HTML on every save. No custom HTML predicate is introduced.
+
+This supersedes the body-to-fragment direction and single-text-only storage in
+D048–D053. Raw text and derived HTML deliberately coexist. Ownership follows
+annotation → fragment → HTML/members; the OA body link is a reference. Scalar
+policy selects all managed values under the annotation timestamp. Identities
+are stable, unknown facts survive, no revision history grows, and old test data
+is not automatically migrated. No changes to Cobalt or new library API are needed.

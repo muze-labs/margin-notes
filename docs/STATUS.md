@@ -266,3 +266,159 @@ attempt does not reuse the closed window.
 Validation: all 57 application tests and lint pass. Mounted Chromium coverage
 checks visible bold and italic before and after Turtle reload, removing formatting,
 and popup cleanup with and without login and after failure. These application fixes are not yet published.
+
+## Compact annotation edits and numeric literal equality — 2026-10-30
+
+Text now lives only in the Cobalt fragment's `rdf:value`. Only the annotation
+carries `dcterms:modified`. The app declares `oa:hasBody` ownership and the scalar
+`cobalt:fragment` link. Solid Workspace selects one revision for the entire edit
+group, including deterministic timestamp ties, and preserves unknown facts.
+SimplySolid forwards this resource policy. Ownership is not stored in the graph.
+No migration, pruning, or Cobalt package change is included.
+
+OLDM now treats absent and empty language metadata consistently when comparing
+literals. Numeric fields no longer duplicate when a created fragment merges
+with its Turtle-parsed copy. Workspace literal keys also equate numeric and
+lexical representations of an explicitly typed literal.
+
+Validation: 904 OLDM assertions, 113 Solid Tools tests, and 58 application tests
+including 12 mounted Chromium tests; Solid Tools and application lint pass.
+Application tests use isolated packed fixes, not sibling links or a modified book.
+No real-Pod data was read or rewritten for these checks.
+
+Prepared release order: oldm-core 0.8.2, oldm-n3 0.8.1, oldm 0.8.2,
+solid-workspace 0.2.1, simplysolid 0.2.1, margin-notes 0.1.5. Published margin-notes 0.1.4 remains separate.
+Publish libraries first, run npm ci in margin-notes, then publish its new bundle.
+
+## Page identifiers and concise Turtle — 2026-10-30
+
+New annotations use the page URL plus `#margin-note-<resource-code>-<counter>`.
+The random code is eight URL-safe characters shared by the resource. Reloads
+recover it and the counter from stored IDs, including deleted notes; existing
+IDs are never rewritten. Cobalt snapshot identifiers were subsequently changed to page-based IDs (see below). This does
+not solve multi-device or cross-tab offline counter allocation.
+
+OLDM's N3 and small Turtle adapters now track the prefixes actually emitted,
+including patch output, and omit all others without changing editing contexts.
+The pending release also needs oldm-n3 0.8.1 (used by oldm 0.8.2); oldm-turtle
+0.4.2 has the equivalent fix but is not a margin-notes dependency.
+
+A local book build uses packed unpublished fixes for testing. Book dependency
+manifests continue to reference registry releases; there are no sibling links.
+
+Validation of the combined local build: 920 OLDM assertions and all 60 app tests
+(including 13 mounted Chromium tests) pass, with application lint. The book
+build/check passes for 25 reading pages and EPUB. A disposable browser against
+the running book confirms shared-code IDs, bold rendering, single text values,
+no body timestamp, singular numeric fields and only rdf/dcterms/oa/cobalt
+prefix declarations. Served bundle SHA-256:
+`84367d5b7447b846d51a2ca9237279124fb1615f3eda60b578151f2c849cd7bb`.
+The local checkout and book install contain packed unpublished dependencies;
+registry manifest/lockfile references remain ready for publication. No existing
+browser note database or Pod was changed by this smoke test.
+
+## Silent reconnect on page reload — 2026-10-30
+
+Automatic reconnect now calls the connection action with `interactive: false`.
+It neither reserves a blank popup nor starts popup authorization. Existing tokens
+can reconnect normally; if fresh authorization is needed, the connection UI says
+“Sign-in required. Click Connect to continue.” Explicit Connect retains the
+click-time popup reservation and cleanup after success or failure. UI event
+handlers consume the rejected action promise after the action displays its error;
+programmatic callers still receive rejections.
+
+Validation: all 61 application tests and lint pass, including a mounted test for
+silent reconnect, required sign-in without a popup, and a subsequent successful
+Connect click with popup cleanup. The unpublished 0.1.5 local book build includes
+this fix; no browser storage or Pod data was cleared.
+
+## Compact page-based fragments and direct targets — 2026-10-30
+
+New Cobalt snapshots derive their IDs from the annotation plus a fresh short
+random suffix; ordered formatting members derive their IDs from the snapshot.
+The RDF bridge takes an explicit ID and guards against snapshot overwrites.
+A page-specific `note:` prefix abbreviates these IDs. Solid Workspace now retains
+prefixes from later merge inputs too, so synchronization keeps the abbreviation.
+Conflicting prefix labels retain the first source's mapping; full IRIs are unchanged.
+
+Targets now directly link to the paragraph URL. No SpecificResource or
+FragmentSelector nodes are generated. Resolution checks the current page and
+decodes the fragment. Existing stored IDs and structured targets are not migrated;
+old snapshots remain in the graph. The current reader uses direct targets only.
+
+Validation: all 63 app tests and lint pass; Solid Tools passes 114 tests and lint.
+The local book build/check passes. A disposable browser against the running book
+confirms two notes share a resource code, targets are direct paragraph IRIs,
+new snapshot/member IDs are page-based, formatting survives save/reload, and
+only cobalt/dcterms/note/oa/rdf prefixes are emitted. No UUID URNs or structured
+target nodes occur in the newly saved graph. Book manifests retain their registry
+references; installs use packed files, not sibling symlinks. Bundle SHA-256:
+`b782c60d706edf0d27369c1c6a33abb9c47bce4969605346b783cab9b688c5ba`.
+No user browser storage or Pod was changed by validation.
+
+## Page URL as Turtle base — 2026-10-30
+
+The notes resource now sets `baseURI` to the current page URL. SimplySolid forwards
+it; Solid Workspace keeps it across graph copies, local persistence, replica merges
+and reconnects. Storage URLs and incoming RDF identities are unchanged. Saved
+Turtle uses the page `@base`, `note:` identifiers and `<#paragraph-id>` targets.
+
+Validation: all 115 Solid Tools tests and 63 application tests pass, with lint.
+The rebuilt local book passes its checks and a disposable live-book browser test
+confirms the page base, relative targets, compact IDs and formatting after reload.
+Book manifest/lockfile references are unchanged; packed artifacts are installed
+without sibling links. Current served bundle SHA-256:
+`8d8a3cbabb75553eb3bb869db6cb84e338cab24c193bcc22bb1d6ae95b714366`.
+No publication, commit, user-storage clearing or Pod write was performed.
+
+## No placeholder notes during startup — 2026-10-30
+
+Anchor list data is now initialized before widgets are attached. Previously the
+binding saw an undefined list, rendered one empty item, then removed it when the
+real array arrived. The new mounted regression observes inserted DOM nodes across
+initial mount and remount: empty paragraphs never receive note articles, while a
+saved note still returns on its own paragraph. Add buttons remain available.
+
+All 64 application tests and lint pass. The local book was rebuilt and checked;
+a disposable browser observed zero initial note insertions, then verified note
+creation, reload and formatting. A smoke assertion was also corrected to allow
+Turtle's escaped leading hyphen in random identifier codes; the affected browser
+tests pass. Current served bundle SHA-256:
+`d35e8babeb1bce9fd71280bbc546fb983849ffb4a76ea5a0348d4718f09d2964`.
+
+## Current fragments, compact resource prefix, and standard OA HTML — 2026-10-30
+
+D053–D054 supersede the snapshot/body model described earlier. New notes reuse one
+Cobalt fragment and indexed formatting nodes, without retaining edit history.
+The resource's single random code is in `note:`, yielding `note:1-fragment-0`.
+Removed formatting fields are cleared; unknown facts remain. Workspace now treats
+rdf:nil as an empty owned Collection and applies resource prefix preferences to
+copies, preserving the meaning of existing predicates.
+
+The annotation directly links to the editable fragment and to its generated HTML
+TextualBody. The fragment links outward to that same HTML node with
+`dcterms:hasFormat`. Cobalt's renderer generates its string `rdf:value`, with
+`dcterms:format "text/html"`. Ownership runs through the fragment so text, HTML and
+formatting follow one annotation timestamp. Cobalt itself has no RDF dependency.
+Previous body-to-fragment test data and old snapshots are not migrated or swept.
+
+Validation: Solid Tools passed 118 tests and lint. The full app suite passed 65
+tests; a subsequent model-suite run also passed the new OA-only reader regression
+(66 unique app tests covered). App lint and the book build/check pass. A disposable
+browser on the actual book confirms compact IDs, zero placeholder notes on mount,
+HTML matching the formatted text, and editing/reopening without extra fragments
+or stale HTML. The installed package and served bundle match SHA-256:
+`b1025c231b7cd84721a3c408c0630550ab310cb41a40fc7ea47fc0e99932145e`.
+Book manifests retain registry references; the local preview uses packed artifacts
+without sibling links. No commits, publication, user-storage clearing or Pod writes
+were performed by this validation.
+
+## Release preparation — 2026-10-30
+
+The final complete application run passes all 66 tests and lint. Library commits:
+OLDM `3b54af0` and Solid Tools `d38e44b`. Prepared publications are oldm-core 0.8.2,
+oldm-n3 0.8.1, oldm 0.8.2, solid-workspace 0.2.1, simplysolid 0.2.1 and margin-notes
+0.1.5; oldm-turtle 0.4.2 has the equivalent optional writer fix. Registry checks
+show none of these versions published yet. Packed contents match their checkouts.
+The book manifest and lockfile now select margin-notes 0.1.5 and the tested library
+versions, with registry URLs; npm's offline dry-run lockfile check passes.

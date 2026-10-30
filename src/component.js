@@ -44,6 +44,7 @@ export function mount(config) {
     },
     marginNotesRuntime: {
       mountContainer,
+      annotationIds: {},
       hostAnchors: config.anchors,
       store,
       expandedStackBackground: config.expandedStackBackground || '#fffefb',
@@ -54,6 +55,7 @@ export function mount(config) {
       solidConnectionElement: null,
       solidConnectionCleanup: null,
       notesService: config.notesService || null,
+      notesPrefixes: null,
       simplySolid,
       themeRoot,
       hadThemeAttribute: themeRoot.hasAttribute('data-margin-notes-theme'),

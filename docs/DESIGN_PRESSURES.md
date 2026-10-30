@@ -398,3 +398,40 @@ before their local names supply the host. This is an OLDM namespace-validation
 boundary issue, separate from application middleware duplication. The concrete
 attempt and narrow repair are recorded in proposal 0001. Validation will use
 sanitized profile Turtle through the installed client stack.
+
+## DP-009: Compact annotations need an explicit edit owner
+
+2026-10-30, M3.2. Implemented and validated in the mounted mock-Solid path:
+one canonical text and one annotation timestamp.
+The existing per-subject merge requires duplicate body metadata; removing it
+leaves body fragment links additive. Reconciliation belongs in Solid Workspace,
+with application-declared ownership and SimplySolid forwarding. See
+[proposal 0004](proposals/0004-annotation-edit-ownership.md).
+
+## DP-010: Replica merging drops the application's compact prefix
+
+2026-10-30. The app declares a page-specific `note:` prefix to abbreviate its
+annotation and snapshot IDs. The existing merge kept only the first graph's
+prefix declarations, so connecting to a remote resource discarded the local
+prefix. The mounted local-to-Solid sync test reproduced missing `@prefix note:`.
+Prefix retention belongs to graph merging in Solid Workspace; the app should
+not rewrite serialized Turtle. See proposal 0005.
+
+## DP-011: Compact paragraph targets need a page base across replicas
+
+2026-10-30. The user selects the page URL as Turtle `@base`, retaining the `note:`
+prefix. Existing persistence bases follow IndexedDB or Pod addresses, so targets
+remain long absolute URLs. Local and remote mounted checks fail when asserting
+the page base. Setting a working graph property alone is lost on reload or merge.
+The app supplies the page policy; Solid Workspace must carry a generic base
+setting separately from source identity. See proposal 0006.
+
+## DP-012: Current fragments without history and a compact resource prefix
+
+2026-10-30. Immutable snapshots add storage history and random IDs the user does
+not need. Reusing a fragment works with existing owned scalar policy, but a failing
+app sync test with two unformatted notes exposes `rdf:nil` being treated as a
+shared owned node. Empty Collections must have no owned members. The app can
+then declare the complete fragment's fields under the annotation edit timestamp.
+The resource code also belongs in `note:`; applying that preference must preserve
+unknown predicates using an older prefix mapping. See proposal 0007.

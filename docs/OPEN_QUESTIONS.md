@@ -12,7 +12,8 @@ These questions should be answered through small experiments or working slices, 
 ## Data model
 
 - Is Web Annotation sufficient for Cobalt bodies and application state without Muze-specific wrapper terms?
-- Should structured and plain-text bodies coexist for interoperability?
+- D049 stores text only in the Cobalt fragment. Would a concrete interoperability
+  consumer justify a separately generated plain-text export?
 - How are drafts, retractions, and revisions represented without inventing one overloaded status field?
 - What is the identity relationship when a local note is copied to a Pod?
 
@@ -66,3 +67,10 @@ These questions should be answered through small experiments or working slices, 
 - Which designed workspace capability turns out to be unnecessary for the margin-notes application?
 - What is the smallest real-server setup that can validate resource provenance, save routing, and partial failure without becoming project infrastructure of its own?
 - How should exact `solid-tools` commits or local package versions be recorded before public releases exist?
+
+## Resource identifier allocation
+
+- How should multiple offline devices or tabs allocate counters for one resource
+  without collisions? D050 currently assumes one allocating writer.
+- Should the host supply a canonical page URL when localhost, mirrors or query
+  variants should share an annotation namespace?

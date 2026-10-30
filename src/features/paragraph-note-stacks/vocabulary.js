@@ -10,8 +10,6 @@ export const annotationVocabulary = {
   classes: {
     annotation: 'http://www.w3.org/ns/oa#Annotation',
     textualBody: 'http://www.w3.org/ns/oa#TextualBody',
-    specificResource: 'http://www.w3.org/ns/oa#SpecificResource',
-    fragmentSelector: 'http://www.w3.org/ns/oa#FragmentSelector',
     cobaltFragment: 'https://vocab.muze.nl/cobalt#Fragment',
   },
   predicates: {
@@ -20,11 +18,10 @@ export const annotationVocabulary = {
     created: 'dcterms$created',
     modified: 'dcterms$modified',
     format: 'dcterms$format',
+    hasFormat: 'dcterms$hasFormat',
     value: 'rdf$value',
     hasBody: 'oa$hasBody',
     hasTarget: 'oa$hasTarget',
-    hasSource: 'oa$hasSource',
-    hasSelector: 'oa$hasSelector',
     text: 'schema$text',
     cobaltFragment: 'cobalt$fragment',
   },

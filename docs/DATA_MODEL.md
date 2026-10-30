@@ -23,50 +23,41 @@ The current note graph uses:
 - `dcterms$created`
 - `dcterms$modified`
 - `dcterms$format`
+- `dcterms$hasFormat`
 - `rdf$value`
-- `schema$text`
 - `oa$Annotation`
 - `oa$TextualBody`
-- `oa$SpecificResource`
-- `oa$FragmentSelector`
 - `oa$hasBody`
 - `oa$hasTarget`
-- `oa$hasSource`
-- `oa$hasSelector`
 - `cobalt$Fragment`
 - `cobalt$fragment`
 
-The Cobalt predicate is intentionally marked as a Muze convention. It preserves the editor fragment for this application while `rdf$value` and `schema$text` provide a plain-text body for consumers that do not understand Cobalt.
+The Cobalt predicate is a Muze convention linking the annotation to its editable
+fragment. Its `rdf:value` stores raw text. Standard OA readers follow `oa:hasBody`
+to generated HTML with its own `rdf:value` and `dcterms:format "text/html"`. The
+fragment links to that HTML node through `dcterms:hasFormat`.
 
 Example OLDMed input (`writeCobaltFragment` comes from the application
 [Cobalt RDF bridge](COBALT_RDF.md); string body values are explicit OLDM literals
 in the implementation):
 
 ```js
-{
-  id: 'urn:uuid:...',
+const fragment = writeCobaltFragment(
+  { text: 'This paragraph makes the boundary visible.', annotations: [] },
+  {
+    id: 'https://book.example/chapter/7#margin-note-Abcd1234-1-fragment',
+    htmlId: 'https://book.example/chapter/7#margin-note-Abcd1234-1-html',
+  }
+);
+const annotation = {
+  id: 'https://book.example/chapter/7#margin-note-Abcd1234-1',
   a: 'http://www.w3.org/ns/oa#Annotation',
   dcterms$created: '2026-07-19T10:00:00.000Z',
   dcterms$modified: '2026-07-19T10:00:00.000Z',
-  oa$hasBody: {
-    id: 'urn:uuid:...#body',
-    a: 'http://www.w3.org/ns/oa#TextualBody',
-    dcterms$format: 'text/plain',
-    rdf$value: 'This paragraph makes the boundary visible.',
-    schema$text: 'This paragraph makes the boundary visible.',
-    cobalt$fragment: writeCobaltFragment({ text: 'This paragraph makes the boundary visible.', annotations: [] })
-  },
-  oa$hasTarget: {
-    id: 'urn:uuid:...#target',
-    a: 'http://www.w3.org/ns/oa#SpecificResource',
-    oa$hasSource: 'https://book.example/chapter/7',
-    oa$hasSelector: {
-      id: 'urn:uuid:...#selector-fragment',
-      a: 'http://www.w3.org/ns/oa#FragmentSelector',
-      rdf$value: 'p-chapter7-boundary-visible'
-    }
-  }
-}
+  oa$hasBody: fragment.dcterms$hasFormat,
+  cobalt$fragment: fragment,
+  oa$hasTarget: 'https://book.example/chapter/7#p-chapter7-boundary-visible'
+};
 ```
 
 Local and remote resources persist Turtle. Solid Workspace owns the native OLDM
@@ -105,59 +96,70 @@ The M1.1 prefixes and `$` property names are now selected above. They remain imp
 
 ## Example graph
 
-Illustrative Turtle:
+Current targets are direct paragraph IRIs:
 
 ```turtle
-<#note-1>
-    a oa:Annotation ;
-    dcterms:creator <https://user.example/profile/card#me> ;
-    dcterms:created "2026-07-17T12:00:00Z"^^xsd:dateTime ;
-    oa:hasBody <#body-1> ;
-    oa:hasTarget <#target-1> .
+@prefix note: <https://book.example/chapter/7#margin-note-Abcd1234-> .
+@prefix oa: <http://www.w3.org/ns/oa#> .
 
-<#body-1>
-    a oa:TextualBody ;
-    rdf:value "This paragraph makes the boundary visible." .
-
-<#target-1>
-    oa:hasSource <https://book.example/chapter/7> ;
-    oa:hasSelector <#fragment-1>, <#quote-1> .
-
-<#fragment-1>
-    a oa:FragmentSelector ;
-    rdf:value "paragraph-boundaries-are-real" .
-
-<#quote-1>
-    a oa:TextQuoteSelector ;
-    oa:exact "Dependencies are not a problem..." ;
-    oa:prefix "The boundary matters because " ;
-    oa:suffix " They become a problem when..." .
+note:1 a oa:Annotation ;
+    oa:hasBody note:1-html ;
+    oa:hasTarget <https://book.example/chapter/7#p-chapter7-boundary-visible> .
 ```
 
-This example is not yet a normative shape.
+The body and fragment structure is shown in [Cobalt RDF](COBALT_RDF.md).
+Only prefixes used in the serialized graph are written. The page URL is the
+Turtle `@base`, so the target above serializes as `<#p-chapter7-boundary-visible>`.
+The `note:` prefix remains available for annotation, body and fragment IDs.
+This serialization base is independent of the IndexedDB or Pod storage URL.
 
 ## Identity
 
 ### Annotation identity
 
-A note should have a persistent subject identifier. When stored in a resource, a fragment identifier such as `notes.ttl#note-1` is a reasonable default. Local notes should still receive stable identifiers rather than anonymous array positions.
+New annotation IDs use the current page URL (without its fragment), followed by
+`#margin-note-<code>-<counter>`. One eight-character random code is shared by the
+notes in a resource. Existing IDs recover the code and highest counter after
+reload; tombstones reserve deleted IDs. A mounted app also reserves counters
+before asynchronous writes finish. No separate identifier metadata is stored.
+HTML bodies append `-html` and the current fragment appends `-fragment` to the
+annotation ID. Formatting members append `-<index>` to the fragment ID.
+The single resource code is included in `note:` itself, leaving `note:1`,
+`note:1-fragment` and `note:1-fragment-0` in the output. No fragment revision IDs
+or history are stored. Targets are direct paragraph URLs.
 
-The browser-storage representation may use an application-controlled local URL namespace until the note is deliberately copied to a Solid resource. Copying may create a new subject and record derivation; it must not silently mutate identity if another application could already refer to the local identifier.
+IDs remain unchanged after editing, syncing, or moving the page. The current
+page URL includes its query string; localhost, mirrors and alternative URLs do
+not automatically become one canonical page. Existing annotations are not
+renamed. If separately initialized resources are merged, their existing codes
+remain and a fresh mount chooses the lexically first code for future notes.
+
+A shared counter is not safe against concurrent offline creation by multiple
+devices or tabs: they can allocate the same next ID. Coordination is future work.
+Random-code collisions are also possible, though the code uses 48 random bits.
+The page-based identifier does not locate the private Pod data or authorize
+access to it. Opening it retrieves the page and requires application-specific
+fragment handling to display the note.
 
 ### Target identity
 
-The source document URL and the selector are separate. A fragment may be stable while text moves; a quote may survive a changed fragment; neither is guaranteed.
-
-Target resolution should therefore support multiple selectors and report its result.
+`oa:hasTarget` points directly to the page URL plus the percent-encoded paragraph
+ID. Resolution requires the current page URL to match, then decodes its fragment.
+Missing or invalid fragments and targets on other pages are not displayed as
+current-page notes. New notes create no SpecificResource or FragmentSelector
+nodes. Existing structured targets are not migrated or supported as a fallback.
+Quote and position selectors remain possible future work if stable paragraph IDs
+prove insufficient.
 
 ## Body formats
 
-The body stores interoperable plain text through `rdf:value` and `schema:text`
-and links to a native fragment using `cobalt:fragment`. The fragment has its own
-text literal and ordered `cobalt:annotations` RDF list. Annotation nodes preserve
-Cobalt's range, tag and precedence fields. See [Cobalt RDF](COBALT_RDF.md) for the
-exact mapping, UTF-16 offsets, empty lists, editor API and snapshot semantics.
-There is no JSON fragment literal or automatic conversion of old stored data.
+The annotation links to its native fragment with `cobalt:fragment`, and to its
+HTML body with `oa:hasBody`. The fragment stores editable text and ordered Cobalt
+annotations, and owns the generated HTML representation via `dcterms:hasFormat`.
+The HTML node is an `oa:TextualBody` with one string `rdf:value` and
+`dcterms:format "text/html"`. Text and HTML are intentionally both persisted.
+See [Cobalt RDF](COBALT_RDF.md) for the mapping and editor boundary.
+There is no automatic conversion of previous stored models.
 
 ## Collections and resources
 
@@ -193,15 +195,18 @@ The correct operation depends on source ownership and sharing state.
 
 The default local and remote replicas persist Turtle through Solid Workspace.
 Custom host stores also load and save Turtle through a workspace source.
-Annotations and editable bodies carry `dcterms:modified`. The application declares
-`rdf:value`, `schema:text`, and `cobalt:fragment` as replaceable scalar fields;
-workspace applies the timestamp policy and unions unknown facts.
+Only annotations carry `dcterms:modified`. The application declares the fragment link, its `dcterms:hasFormat` link to HTML,
+and its formatting Collection link as ownership. The annotation's timestamp
+selects raw text, HTML, Collection membership and formatting fields together, using the
+policy in `annotation-model.js`. Unfamiliar facts remain additive. Edits replace
+the current fragment; removed formatting fields are cleared without keeping a
+historical snapshot. No ownership metadata is stored in Turtle.
 
 Workspace marks the deleted annotation itself with
 `https://purl.org/pdsinterop/link-metadata#deleted` and `dcterms:modified`.
 The deletion predicate comes from the PDS Interop Solid Link Metadata vocabulary;
 timestamp-based replica reconciliation is library policy. The subject and its
 facts survive persistence but are excluded from collection views. Linked
-body/target facts are not implicitly deleted.
+body facts are not implicitly deleted.
 The default connection no longer projects remote graphs through the annotation-only
 fixed-resource store, so unrelated subjects and tombstones stay in the resource.

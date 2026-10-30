@@ -86,3 +86,18 @@ identity question during sync: a named immutable fragment snapshot lets the
 body select one complete edit while unknown facts remain attached to their
 original subjects. Retaining those snapshots has a storage cost; pruning needs
 its own ownership policy. See D048 and `COBALT_RDF.md`.
+
+## Edit ownership should not multiply stored metadata — 2026-10-30
+
+Per-subject sync made one note carry repeated timestamps and three copies of
+its text. Declaring the annotation/body edit boundary lets one root timestamp
+govern the editable body link. Persist domain data once; configure reconciliation
+ownership separately. Immutable fragment snapshots still have a storage cost,
+and preserving unknown facts remains distinct from selecting edited scalars.
+
+
+The maintainer's later clarification removed revision history from the margin
+notes requirements. Stable current fragments plus explicit edit ownership replace
+the snapshot approach described above. This illustrates the cost of selecting a
+storage model for an unrequested future feature: identity and synchronization
+mechanisms should follow the actual single-user, current-value requirement.

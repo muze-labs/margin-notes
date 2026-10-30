@@ -1,40 +1,45 @@
 import { annotationVocabulary } from './vocabulary.js';
 import oldm from '@muze-nl/oldm';
 import { readCobaltFragment, writeCobaltFragment } from './cobalt-fragment-rdf.js';
-import { from } from '@muze-nl/jaqt';
 
 export const annotationModel = {
   vocabulary: annotationVocabulary,
+  replicaPolicy: {
+    ownedPredicates: [
+      annotationVocabulary.prefixes.dcterms + 'hasFormat',
+      annotationVocabulary.prefixes.cobalt + 'fragment',
+      annotationVocabulary.prefixes.cobalt + 'annotations',
+    ],
+    scalarPredicates: [
+      annotationVocabulary.prefixes.oa + 'hasBody',
+      annotationVocabulary.prefixes.dcterms + 'hasFormat',
+      annotationVocabulary.prefixes.dcterms + 'format',
+      annotationVocabulary.prefixes.cobalt + 'fragment',
+      annotationVocabulary.prefixes.rdf + 'value',
+      ...['annotations', 'start', 'end', 'tag', 'order'].map(
+        name => annotationVocabulary.prefixes.cobalt + name,
+      ),
+    ],
+  },
 
-  createAnnotationNote({ anchorId, fragment, now = new Date().toISOString() }) {
-    const annotationId = this.createLocalSubjectId({});
-    const body = {
-      id: this.relatedSubjectId({annotationId, part: 'body'}),
-      a: this.vocabulary.classes.textualBody,
-      dcterms$format: 'text/plain',
-      dcterms$modified: now,
-      rdf$value: oldm.literal(this.noteText({ fragment })),
-      schema$text: oldm.literal(this.noteText({ fragment })),
-      cobalt$fragment: writeCobaltFragment(fragment),
-    };
-    const target = {
-      id: this.relatedSubjectId({annotationId, part: 'target'}),
-      a: this.vocabulary.classes.specificResource,
-      oa$hasSource: this.currentDocumentIri({}),
-      oa$hasSelector: {
-        id: this.relatedSubjectId({annotationId, part: 'selector-fragment'}),
-        a: this.vocabulary.classes.fragmentSelector,
-        rdf$value: oldm.literal(anchorId),
-      },
-    };
+  createAnnotationNote({
+    anchorId, fragment, subjects = [], sequence = {},
+    now = new Date().toISOString(),
+  }) {
+    const annotationId = this.createAnnotationId({ subjects, sequence });
+    const storedFragment = writeCobaltFragment(fragment, {
+      id: this.relatedSubjectId({ annotationId, part: 'fragment' }),
+      htmlId: this.relatedSubjectId({ annotationId, part: 'html' }),
+    });
 
     return {
       id: annotationId,
       a: this.vocabulary.classes.annotation,
       dcterms$created: now,
       dcterms$modified: now,
-      oa$hasBody: body,
-      oa$hasTarget: target,
+      oa$hasBody: storedFragment.dcterms$hasFormat,
+      cobalt$fragment: storedFragment,
+      oa$hasTarget: `${this.currentDocumentIri({})}#${encodeURIComponent(anchorId)}`,
     };
   },
 
@@ -42,12 +47,30 @@ export const annotationModel = {
     return `${annotationId}${annotationId.includes('#') ? '-' : '#'}${part}`;
   },
 
-  createLocalSubjectId() {
-    if (globalThis.crypto?.randomUUID) {
-      return `urn:uuid:${globalThis.crypto.randomUUID()}`;
+  restoreAnnotationSequence({ subjects, sequence }) {
+    // Read the whole resource, including tombstones, so deleted IDs stay reserved.
+    const identifiers = subjects.map(subject => (
+      subject.id?.match(/#margin-note-([A-Za-z0-9_-]{8})-([1-9][0-9]*)$/)
+    )).filter(Boolean);
+    if (!sequence.code) {
+      const codes = identifiers.map(match => match[1]).sort();
+      sequence.code = codes[0];
     }
+    for (const match of identifiers) {
+      if (match[1] === sequence.code) {
+        sequence.counter = Math.max(sequence.counter || 0, Number(match[2]));
+      }
+    }
+  },
 
-    return `urn:muze:margin-notes:${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  createAnnotationId({ subjects, sequence }) {
+    this.restoreAnnotationSequence({ subjects, sequence });
+    sequence.code ||= randomCode();
+    sequence.counter = (sequence.counter || 0) + 1;
+    if (!Number.isSafeInteger(sequence.counter)) {
+      throw new RangeError('annotation-model: annotation counter exhausted');
+    }
+    return `${this.currentDocumentIri({})}#margin-note-${sequence.code}-${sequence.counter}`;
   },
 
   currentDocumentIri() {
@@ -61,15 +84,15 @@ export const annotationModel = {
 
   annotationAnchorId({ annotation }) {
     const target = oldm.one(annotation?.oa$hasTarget, 'first');
-    const fragment = from(oldm.many(target?.oa$hasSelector))
-      .where(selector => (
-        oldm.many(selector?.a).includes(this.vocabulary.classes.fragmentSelector)
-      ))[0];
-
-    if (fragment?.rdf$value != null) {
-      return String(fragment.rdf$value);
+    const iri = typeof target === 'string' ? target : target?.id;
+    if (!iri || !iri.startsWith(`${this.currentDocumentIri({})}#`)) {
+      return undefined;
     }
-    return fragment?.rdf$value;
+    try {
+      return decodeURIComponent(iri.slice(iri.indexOf('#') + 1)) || undefined;
+    } catch {
+      return undefined;
+    }
   },
 
   annotationBody({ annotation }) {
@@ -77,21 +100,21 @@ export const annotationModel = {
   },
 
   annotationBodyFragment({ annotation }) {
-    return readCobaltFragment(this.annotationBody({ annotation })?.cobalt$fragment);
+    return readCobaltFragment(oldm.one(annotation?.cobalt$fragment, 'first'));
   },
 
   updateAnnotationBody({ annotation, fragment, now = new Date().toISOString() }) {
     const body = this.annotationBody({ annotation });
-    if (!body) {
-      throw new TypeError('annotation-model: annotation has no body');
+    const storedFragment = oldm.one(annotation?.cobalt$fragment, 'first');
+    if (!body || !storedFragment) {
+      throw new TypeError('annotation-model: annotation needs a body and Cobalt fragment');
     }
-    const storedFragment = writeCobaltFragment(fragment, body.graph);
-
-    body.rdf$value = oldm.literal(this.noteText({ fragment }));
-    body.schema$text = oldm.literal(this.noteText({ fragment }));
-    body.cobalt$fragment = storedFragment;
+    writeCobaltFragment(fragment, {
+      id: storedFragment.id,
+      htmlId: body.id,
+      graph: storedFragment.graph,
+    });
     annotation.dcterms$modified = now;
-    body.dcterms$modified = now;
   },
 
   removeAnnotationFromGraph({ app, annotationId }) {
@@ -137,6 +160,7 @@ export const annotationModel = {
     return Boolean(
       this.isOldmedAnnotation({ value })
       && this.annotationBody({ annotation: value })
+      && oldm.many(oldm.one(value.cobalt$fragment, 'first')?.a).includes(this.vocabulary.classes.cobaltFragment)
       && this.annotationAnchorId({ annotation: value })
     );
   },
@@ -148,3 +172,9 @@ export const annotationModel = {
     return '(empty note)';
   },
 };
+
+function randomCode() {
+  return btoa(String.fromCharCode(
+    ...globalThis.crypto.getRandomValues(new Uint8Array(6)),
+  )).replace(/\+/g, '-').replace(/\//g, '_');
+}

@@ -18,12 +18,10 @@ The application now uses published Solid Tools, SimplyFlow, and OLDM packages.
 Install the recorded dependency tree with `npm ci`, then run `npm run lint` and
 `npm test`. The existing application lockfile records the tested versions.
 
-Cobalt is temporarily the exception: `scripts/build.mjs` resolves its built
-packages from `../cobalt-note/packages/*/dist`. Build that sibling checkout with
-`npm install --package-lock=false` and `npm run build` until the new scoped Cobalt
-releases are available. Remove those aliases when installing the published editor.
+Cobalt is installed from the published `@muze-labs/cobalt-*` packages as well.
+The build uses normal package resolution, without sibling source aliases.
 
-For a library repair, use an explicit temporary local dependency or link and
+For a library repair, use packed local artifacts for an explicit temporary test installation and
 record the library commit. Return to registry dependencies after release and
 verify with `npm ls` that matching versions have not retained local symlinks.
 Tests must use public package exports rather than another repository's internal

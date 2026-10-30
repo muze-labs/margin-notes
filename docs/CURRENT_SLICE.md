@@ -81,7 +81,8 @@ boundaries; it does not close the outstanding real-server validation question.
 The default connection now passes the Solid client and resource URL directly to
 SimplySolid. Workspace owns Turtle conversion, timestamps/scalar merge,
 tombstones, save/open/sync ordering, and transaction completion. The app declares
-its three editable body predicates and timestamps body edits. It reads public
+the body fragment link as editable and `oa:hasBody` as ownership; only the
+annotation carries a modification timestamp. It reads public
 resource status rather than reaching into workspace resource maps.
 
 The mounted browser path now covers connected creation, replacement of body
@@ -103,6 +104,13 @@ fake-Solid test evidence into real-Pod validation.
 
 Cobalt text and formatting now persist as native RDF, including an ordered
 annotation Collection. The application bridge consumes Cobalt's existing value
-API; Cobalt has no RDF/Turtle dependency. Each edit replaces the body's fragment
-link with a new snapshot, preserving unknown facts and preventing old formatting
-from reappearing during replica sync. See `COBALT_RDF.md` and D048.
+API; Cobalt has no RDF/Turtle dependency. Each edit replaces the current fragment's
+text and formatting together, preserving unknown facts and preventing old formatting
+from reappearing during replica sync. No revision history is stored. See
+`COBALT_RDF.md` and D053.
+
+
+The current shape (D054) exposes generated HTML as a standard OA TextualBody,
+while the annotation also links directly to its editable Cobalt fragment. The
+fragment links to its HTML representation with dcterms:hasFormat. Existing
+body-to-fragment test data is not migrated.

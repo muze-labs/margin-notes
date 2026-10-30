@@ -202,7 +202,7 @@ This structure embodies these decisions from [docs/CURRENT_SLICE.md](../docs/CUR
 - Host supplies stable anchors; the component does not auto-discover targets yet.
 - Storage policy is local-first, with Solid connected later as a remote replica.
 - Paragraph note chrome is rendered with SimplyFlow templates and commands.
-- `cobalt-fragment-rdf.js` maps Cobalt values to native fragment nodes and ordered annotation Collections. `cobalt$fragment` links the snapshot; standard body predicates retain plain text. See `COBALT_RDF.md`.
+- `cobalt-fragment-rdf.js` maps Cobalt values to native fragment nodes and ordered annotation Collections. `cobalt$fragment` links the editable fragment; `oa$hasBody` links its generated HTML TextualBody. See `COBALT_RDF.md`.
 
 Questions still being answered in this slice:
 

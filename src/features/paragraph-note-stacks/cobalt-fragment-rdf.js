@@ -1,30 +1,53 @@
 import oldm from '@muze-nl/oldm';
+import { render } from '@muze-labs/cobalt-rich-text-note';
 import { annotationVocabulary } from './vocabulary.js';
 
 const cobalt = annotationVocabulary.prefixes.cobalt;
 const rdf = annotationVocabulary.prefixes.rdf;
 
 // This bridge owns the RDF mapping. Cobalt only consumes its plain Fragment.
-// A fresh named snapshot keeps text and formatting together during replica sync.
-export function writeCobaltFragment(fragment, graph) {
+// Replaces the current fragment while preserving facts outside this mapping.
+export function writeCobaltFragment(fragment, { id, htmlId, graph } = {}) {
   validateFragment(fragment);
-  const id = `urn:uuid:${globalThis.crypto.randomUUID()}`;
+  if (typeof id !== 'string' || !id) {
+    throw new TypeError('cobalt-fragment-rdf: fragment id is required');
+  }
+  if (typeof htmlId !== 'string' || !htmlId || htmlId === id) {
+    throw new TypeError('cobalt-fragment-rdf: a distinct HTML body id is required');
+  }
+  const html = render(fragment);
   if (!graph) {
     graph = new oldm.Graph(
       [], id, 'text/turtle', annotationVocabulary.prefixes, oldm.context(),
     );
   }
   const node = graph.addNamedNode(id);
-  graph.set(node, 'a', annotationVocabulary.classes.cobaltFragment);
+  const previous = field(node, cobalt + 'annotations');
+  graph.add(node, 'a', annotationVocabulary.classes.cobaltFragment);
   graph.set(node, rdf + 'value', oldm.literal(fragment.text));
   const annotations = new oldm.Collection(graph);
   for (const [index, annotation] of fragment.annotations.entries()) {
-    const item = graph.addNamedNode(`${id}#annotation-${index}`);
+    const item = graph.addNamedNode(`${id}-${index}`);
     graph.set(item, cobalt + 'start', integerLiteral(annotation.range[0]));
     graph.set(item, cobalt + 'end', integerLiteral(annotation.range[1]));
     graph.set(item, cobalt + 'tag', oldm.literal(annotation.tag));
     graph.set(item, cobalt + 'order', integerLiteral(annotation.order));
     annotations.push(item);
+  }
+  // Clear only managed facts from removed members; unknown RDF stays intact.
+  const currentIds = new Set(annotations.map(item => item.id));
+  if (previous instanceof oldm.Collection) {
+    for (const item of previous) {
+      if (currentIds.has(item.id)) {
+        continue;
+      }
+      for (const name of ['start', 'end', 'tag', 'order']) {
+        graph.delete(item, cobalt + name);
+      }
+      if (Object.keys(item).length === 1) {
+        graph.delete(item);
+      }
+    }
   }
   if (annotations.length === 0) {
     // Canonical empty RDF list, also used by OLDM when parsing Turtle ().
@@ -34,6 +57,11 @@ export function writeCobaltFragment(fragment, graph) {
   else {
     graph.set(node, cobalt + 'annotations', annotations);
   }
+  const body = graph.addNamedNode(htmlId);
+  graph.add(body, 'a', annotationVocabulary.classes.textualBody);
+  graph.set(body, annotationVocabulary.prefixes.dcterms + 'format', 'text/html');
+  graph.set(body, rdf + 'value', oldm.literal(html));
+  graph.set(node, annotationVocabulary.prefixes.dcterms + 'hasFormat', body);
   return node;
 }
 

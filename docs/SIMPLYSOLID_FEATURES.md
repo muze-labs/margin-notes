@@ -60,3 +60,12 @@ real Metro/OLDM middleware composition.
 The broad earlier “preserve unknown predicates” claim is bounded by these
 fixtures. This work does not establish arbitrary RDF graph reconciliation,
 real-Pod authentication, cross-tab serialization, or safe concurrent remote PUTs.
+
+## Annotation edit ownership — 2026-10-30
+
+DP-009 is implemented in Solid Workspace and forwarded by SimplySolid through
+`ownedPredicates`. Validated with packed artifacts in the application: one text
+value, one modification timestamp, competing body edits, and mounted browser
+local/remote persistence. The policy is limited to explicitly owned named nodes;
+shared or cyclic ownership is rejected. Real-Pod concurrency guarantees remain
+unchanged.
