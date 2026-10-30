@@ -178,3 +178,19 @@ annotation → fragment → HTML/members; the OA body link is a reference. Scala
 policy selects all managed values under the annotation timestamp. Identities
 are stable, unknown facts survive, no revision history grows, and old test data
 is not automatically migrated. No changes to Cobalt or new library API are needed.
+
+## D055 — Accepted: select the Turtle backend only in this application
+
+2026-10-30. The user selects published `@muze-labs/oldm-turtle` 0.4.3 for
+margin-notes while explicitly retaining N3 as the shared OLDM default.
+`src/oldm.js` composes Core with Turtle parser, writer and patch writer defaults.
+The browser build resolves OLDM imports, including dependency imports, to that
+module; Node tests use the same resolution. Explicit adapter overrides remain
+possible. No global mutation or N3-named substitution is used.
+
+Metro-OLDM 0.5.1 delegates default adapter selection to its context factory
+instead of supplying explicit N3 defaults. This keeps its shared behavior and
+existing overrides while allowing application composition. The browser build
+rejects N3 inputs. N3 remains the independent reference for interoperability
+tests; its transitive installation through shared OLDM does not put it in the
+application bundle. See DP-013 and proposal 0008.

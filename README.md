@@ -23,6 +23,14 @@ The current storage shape uses OLDM-style `prefix$predicate` property names and 
 
 The package name is `margin-notes`.
 
+The browser build selects `@muze-labs/oldm-turtle` for parsing, writing and
+patches through the application composition in `src/oldm.js`. Build-time resolution
+applies that choice to the app and its Solid dependencies; the shared
+`@muze-nl/oldm` package still defaults to N3. The build rejects N3 in the browser
+bundle. `npm test` uses the same backend selection, and `npm run test:turtle`
+compares both backends independently. See [the comparison](docs/experiments/turtle-backend.md).
+The distributed bundle remains readable; a host such as the book can minify it.
+
 ## Guiding principles
 
 1. Build the application before writing the tutorial around it.

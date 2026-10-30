@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { build } from 'esbuild';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -578,6 +579,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
       document.body.append(slot);
 
       const calls = [];
+      const { default: oldm } = await import('/test-oldm.js');
       let savedNotesTurtle = null;
       let failWrites = false;
       const solid = {
@@ -586,7 +588,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
           return {
             storage: ['https://pod.example/storage/'],
             issuer: 'https://issuer.example/',
-            profile: globalThis.oldm.context().parse(`
+            profile: oldm.context().parse(`
               @prefix space: <http://www.w3.org/ns/pim/space#>.
               <#me> space:preferencesFile <https://pod.example/settings/prefs.ttl>.
             `, webId, 'text/turtle').primary,
@@ -595,7 +597,7 @@ test('BrowserMounted: optional Solid connection slot resolves WebID storage and 
         async get(url, options) {
           calls.push({ method: 'get', url, options });
           if (url === 'https://pod.example/settings/prefs.ttl') {
-            return globalThis.oldm.context().parse(`
+            return oldm.context().parse(`
               @prefix notes: <https://vocab.muze.nl/margin-notes#>.
               <#margin-notes> notes:rootFolder <https://pod.example/private/margin-notes/>.
             `, url, 'text/turtle');
@@ -807,6 +809,7 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
       document.body.append(slot);
 
       const calls = [];
+      const { default: oldm } = await import('/test-oldm.js');
       let savedNotesTurtle = null;
       const solid = {
         async discoverWebId(webId) {
@@ -814,7 +817,7 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
           return {
             storage: ['https://pod.example/storage/'],
             issuer: 'https://issuer.example/',
-            profile: globalThis.oldm.context().parse(`
+            profile: oldm.context().parse(`
               @prefix space: <http://www.w3.org/ns/pim/space#>.
               <#me> space:preferencesFile <https://pod.example/settings/prefs.ttl>.
             `, webId, 'text/turtle').primary,
@@ -823,7 +826,7 @@ test('BrowserMounted: connecting to Solid syncs existing local notes into the di
         async get(url, options) {
           calls.push({ method: 'get', url, options });
           if (url === 'https://pod.example/settings/prefs.ttl') {
-            return globalThis.oldm.context().parse(`
+            return oldm.context().parse(`
               @prefix notes: <https://vocab.muze.nl/margin-notes#>.
               <#margin-notes> notes:rootFolder <https://pod.example/private/margin-notes/>.
             `, url, 'text/turtle');
@@ -1755,6 +1758,17 @@ test('BrowserMounted: editor modal key events do not bubble to host shortcuts', 
 async function startServer() {
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url, 'http://127.0.0.1');
+    if (url.pathname === '/test-oldm.js') {
+      const entry = process.env.MARGIN_NOTES_TEST_OLDM
+        ? fileURLToPath(process.env.MARGIN_NOTES_TEST_OLDM)
+        : path.join(rootDir, 'src/oldm.js');
+      const { outputFiles } = await build({
+        entryPoints: [entry], bundle: true, format: 'esm', platform: 'browser', write: false,
+      });
+      response.writeHead(200, { 'Content-Type': 'text/javascript' });
+      response.end(outputFiles[0].contents);
+      return;
+    }
     if (url.pathname === '/test.html') {
       response.writeHead(200, { 'Content-Type': 'text/html' });
       response.end(`<!doctype html>

@@ -17,9 +17,11 @@ if (!fs.existsSync(distDir)) {
 
 try {
   // Build the bundle
-  await esbuild.build({
+  const result = await esbuild.build({
     entryPoints: [path.join(srcDir, 'index.js')],
     bundle: true,
+    alias: { '@muze-nl/oldm': path.join(srcDir, 'oldm.js') },
+    metafile: true,
     outfile: path.join(distDir, 'index.js'),
     format: 'esm',
     platform: 'browser',
@@ -33,6 +35,10 @@ try {
       'process.env.NODE_ENV': '"production"'
     }
   });
+
+  if (Object.keys(result.metafile.inputs).some(name => /node_modules\/(n3|@muze-nl\/oldm-n3)\//.test(name))) {
+    throw new Error('N3 must not be included in the margin-notes browser bundle');
+  }
 
   console.log('✓ Build complete');
   console.log('  Output: dist/index.js');

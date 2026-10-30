@@ -1,6 +1,6 @@
 {
   "name": "margin-notes",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "description": "An embeddable margin-notes component for Solid",
   "license": "MIT",
@@ -9,11 +9,12 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "npm run build && node --test test/**/*.test.js",
+    "test": "npm run build && node --import ./scripts/oldm-loader.mjs --test test/**/*.test.js",
     "build": "node scripts/build.mjs",
     "dev": "node scripts/dev.mjs",
     "lint": "eslint src test",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "test:turtle": "node scripts/compare-turtle.mjs"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -24,15 +25,19 @@
     "@muze-labs/cobalt-rich-text-note": "^0.1.0",
     "@muze-labs/jsfs-solid": "^0.1.1",
     "@muze-labs/metro-solid": "^0.1.0",
+    "@muze-labs/oldm-turtle": "^0.4.3",
     "@muze-labs/simplyflow": "^0.10.4",
     "@muze-labs/simplysolid": "^0.2.1",
     "@muze-labs/solid-workspace": "^0.2.1",
     "@muze-nl/assert": "^0.7.0",
     "@muze-nl/jaqt": "^0.10.7",
-    "@muze-nl/oldm": "^0.8.2"
+    "@muze-nl/metro-oldm": "^0.5.1",
+    "@muze-nl/oldm": "^0.8.2",
+    "@muze-nl/oldm-core": "^0.8.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@muze-nl/oldm-n3": "^0.8.1",
     "esbuild": "^0.25.0",
     "eslint": "^9.39.2",
     "globals": "^16.5.0"

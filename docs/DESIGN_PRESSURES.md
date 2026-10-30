@@ -435,3 +435,11 @@ shared owned node. Empty Collections must have no owned members. The app can
 then declare the complete fragment's fields under the annotation edit timestamp.
 The resource code also belongs in `note:`; applying that preference must preserve
 unknown predicates using an older prefix mapping. See proposal 0007.
+
+## DP-013: Transport overrides the application's selected RDF backend
+
+2026-10-30, M3.2. The user selects Turtle only for margin-notes. The initial
+experiment passed using test-only N3-named aliases, but production must not
+mislabel the selected parser. Metro-OLDM currently forces N3 exports into the
+context options. Its existing factory/override boundary should supply defaults
+without knowing the adapter name. See [proposal 0008](proposals/0008-app-turtle-backend.md).
